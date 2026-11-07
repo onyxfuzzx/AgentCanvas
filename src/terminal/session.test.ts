@@ -55,15 +55,28 @@ function harness(
 }
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
-test('concurrent closes dispose once and release a pending parser callback',async()=>{
-  const h=harness(command=>Promise.resolve(command==='terminal_spawn'?{cwd:'C:\\'}:{bytes:[65],dropped:0,exited:false,exitCode:null,error:null}));
-  vi.mocked(h.emulator.write).mockImplementation(()=>{});
-  await h.session.start();await vi.advanceTimersByTimeAsync(0);
-  await Promise.all([h.session.close(),h.session.close()]);
-  expect(h.calls.filter(c=>c.command==='terminal_close')).toHaveLength(1);
+test('concurrent closes dispose once and release a pending parser callback', async () => {
+  const h = harness((command) =>
+    Promise.resolve(
+      command === 'terminal_spawn'
+        ? { cwd: 'C:\\' }
+        : {
+            bytes: [65],
+            dropped: 0,
+            exited: false,
+            exitCode: null,
+            error: null,
+          },
+    ),
+  );
+  vi.mocked(h.emulator.write).mockImplementation(() => {});
+  await h.session.start();
+  await vi.advanceTimersByTimeAsync(0);
+  await Promise.all([h.session.close(), h.session.close()]);
+  expect(h.calls.filter((c) => c.command === 'terminal_close')).toHaveLength(1);
   expect(h.emulator.dispose).toHaveBeenCalledOnce();
   await vi.advanceTimersByTimeAsync(1000);
-  expect(h.calls.filter(c=>c.command==='terminal_poll')).toHaveLength(1);
+  expect(h.calls.filter((c) => c.command === 'terminal_poll')).toHaveLength(1);
 });
 test('viewport entry does not spawn another PTY; hidden sessions poll at 2 Hz', async () => {
   const h = harness();

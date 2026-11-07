@@ -12,6 +12,8 @@ export type Transport = <T>(
 ) => Promise<T>;
 export type SessionMeta = {
   status: 'starting' | 'running' | 'exited' | 'error';
+  activity: 'idle' | 'running' | 'waiting';
+  manualActivity: boolean;
   error?: string;
   exitCode?: number;
   dropped: number;
@@ -52,8 +54,8 @@ export class Session {
   private version = 0;
   private deliveredVersion = 0;
   private pollPending = false;
-  private finishParse:(()=>void)|undefined;
-  private closing:Promise<void>|undefined;
+  private finishParse: (() => void) | undefined;
+  private closing: Promise<void> | undefined;
   constructor(
     readonly node: CanvasNode,
     readonly emulator: Emulator,
@@ -61,6 +63,8 @@ export class Session {
   ) {
     this.meta = {
       status: 'starting',
+      activity: 'running',
+      manualActivity: false,
       dropped: 0,
       cwd: node.cwd || '',
       ...gridSize(node.width, node.height),
@@ -74,6 +78,10 @@ export class Session {
     };
   };
   snapshot = () => this.meta;
+  setActivity(activity: SessionMeta['activity']) {
+    if (this.meta.status === 'running')
+      this.update({ activity, manualActivity: true });
+  }
   private update(patch: Partial<SessionMeta>) {
     this.meta = { ...this.meta, ...patch };
     for (const listener of this.listeners) listener();
@@ -131,8 +139,11 @@ export class Session {
       }
       if (reply.bytes.length)
         await new Promise<void>((resolve) => {
-          this.finishParse=resolve;
-          this.emulator.write(Uint8Array.from(reply.bytes),()=>{this.finishParse=undefined;resolve();});
+          this.finishParse = resolve;
+          this.emulator.write(Uint8Array.from(reply.bytes), () => {
+            this.finishParse = undefined;
+            resolve();
+          });
         });
       if (this.closed) return;
       if (reply.exited)
@@ -211,16 +222,20 @@ export class Session {
     return this.resizeChain;
   }
   close() {
-    if(this.closing)return this.closing;
+    if (this.closing) return this.closing;
     this.closed = true;
     if (this.timer) clearTimeout(this.timer);
-    this.finishParse?.();this.finishParse=undefined;
-    this.closing=(async()=>{
+    this.finishParse?.();
+    this.finishParse = undefined;
+    this.closing = (async () => {
       await this.ready?.catch(() => {});
       await this.transport('terminal_close', { id: this.node.id });
       this.emulator.dispose();
       this.listeners.clear();
-    })().catch(error=>{this.closing=undefined;throw error;});
+    })().catch((error) => {
+      this.closing = undefined;
+      throw error;
+    });
     return this.closing;
   }
 }

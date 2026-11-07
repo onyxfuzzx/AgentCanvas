@@ -16,7 +16,7 @@ Terminal surfaces counteract the canvas CSS scale and scale actual font size ins
 `Node { id, kind, x,y,width,height,z,title,color }`; discriminated payloads: terminal `{shell,cwd}`, note `{relativePath}`, browser `{url}`, shape `{shape,text,points}`. Runtime status, process IDs, selection and output do not belong in saved JSON.
 `Edge { id, source, target, kind: agent|memory, policy: approval|auto }`. IDs are UUIDs. Undo/redo stores bounded immutable layout snapshots; pointer gestures produce one history entry. Process creation/termination is a side effect, not replayed by layout undo. Closed terminals are not resurrected by undo.
 
-M2 status is deliberately conservative: starting, running, exited, error. Terminal byte streams cannot reliably distinguish an idle shell from an agent awaiting input; future shell/agent integration can supply idle/waiting without guessing.
+M2 reports actual process lifecycle (starting, running, exited, error) and supports explicitly manual idle/running/waiting activity labels in the node inspector. Terminal byte streams cannot reliably distinguish an idle shell from an agent awaiting input; future shell/agent integration can supply automatic activity signals without guessing.
 
 ## Native command protocol (M2)
 

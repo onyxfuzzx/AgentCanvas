@@ -789,6 +789,23 @@ button:active:not(:disabled) {
 .terminal-status.exited {
   color: #a8abb2;
 }
+.terminal-status.waiting {
+  color: #d4b080;
+}
+.terminal-status.idle {
+  color: #a8abb2;
+}
+.activity-control select {
+  max-width: 130px;
+  padding: 5px;
+  font-size: 10px;
+  color: var(--ink);
+}
+.activity-control p {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 1.5;
+}
 .toolbar-actions .add-card {
   font-size: 11px;
   padding: 0 9px;

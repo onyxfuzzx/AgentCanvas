@@ -158,14 +158,26 @@ function TerminalSurface({
         </div>
       )}
       <div
-        className={`terminal-footer terminal-status ${meta.status}`}
+        className={`terminal-footer terminal-status ${meta.status === 'running' ? meta.activity : meta.status}`}
         style={{
           fontSize: `${9 * zoom}px`,
           padding: `${5 * zoom}px ${10 * zoom}px`,
         }}
       >
-        <span>
-          ● {meta.status}
+        <span
+          title={
+            meta.manualActivity
+              ? 'Activity label set manually'
+              : `Process: ${meta.status}`
+          }
+        >
+          ●{' '}
+          {meta.status === 'running'
+            ? meta.activity === 'waiting'
+              ? 'waiting for input'
+              : meta.activity
+            : meta.status}
+          {meta.status === 'running' && meta.manualActivity ? ' · manual' : ''}
           {meta.exitCode !== undefined ? ` (${meta.exitCode})` : ''}
         </span>
         <span>

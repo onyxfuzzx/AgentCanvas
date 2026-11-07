@@ -6,6 +6,7 @@ import { isDesktop, windowAction } from './native';
 import { TerminalNode } from './terminal/TerminalNode';
 import { NewTerminal } from './terminal/NewTerminal';
 import { closeSession } from './terminal/registry';
+import { TerminalActivity } from './terminal/TerminalActivity';
 
 export function App() {
   const { nodes, selected, past, future } = useCanvas();
@@ -164,6 +165,7 @@ export function App() {
                 {Math.round(focus.x)}, {Math.round(focus.y)} ·{' '}
                 {Math.round(focus.width)} × {Math.round(focus.height)}
               </small>
+              {focus.kind === 'terminal' && <TerminalActivity id={focus.id} />}
             </div>
           )}
           <div className="sidebar-footer">
