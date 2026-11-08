@@ -13,9 +13,9 @@ mod platform {
             JobObjects::{
                 AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
                 OpenJobObjectW, SetInformationJobObject, TerminateJobObject,
-                JOB_OBJECT_ASSIGN_PROCESS, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
-                JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
             },
+            SystemServices::JOB_OBJECT_ASSIGN_PROCESS,
             Threading::GetCurrentProcess,
         },
     };
@@ -43,7 +43,7 @@ mod platform {
                 handle: handle as usize,
                 name,
             };
-            let mut limits: JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { mem::zeroed() };
+            let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { mem::zeroed() };
             limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
             let ok = unsafe {
                 SetInformationJobObject(

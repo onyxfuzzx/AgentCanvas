@@ -18,6 +18,8 @@ type State = {
   undo: () => void;
   redo: () => void;
   toggleSnap: () => void;
+  restore: (nodes: CanvasNode[], viewport: Viewport, snapGrid: boolean) => void;
+  setTerminalDirectory: (id: string, cwd: string) => void;
 };
 export const useCanvas = create<State>((set) => ({
   nodes: [],
@@ -86,4 +88,17 @@ export const useCanvas = create<State>((set) => ({
         : {},
     ),
   toggleSnap: () => set((s) => ({ snapGrid: !s.snapGrid })),
+  restore: (nodes, viewport, snapGrid) =>
+    set({ nodes, viewport, snapGrid, selected: [], past: [], future: [] }),
+  setTerminalDirectory: (id, cwd) =>
+    set((s) => {
+      if (s.nodes.find((n) => n.id === id)?.cwd === cwd) return {};
+      const patch = (nodes: CanvasNode[]) =>
+        nodes.map((n) => (n.id === id ? { ...n, cwd } : n));
+      return {
+        nodes: patch(s.nodes),
+        past: s.past.map(patch),
+        future: s.future.map(patch),
+      };
+    }),
 }));

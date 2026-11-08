@@ -2,14 +2,23 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useCanvas } from '../canvas/store';
 import { toWorld, type CanvasNode, type Shell } from '../canvas/model';
 import { invoke, isDesktop } from '../native';
-import { createSession } from './registry';
+import { createSession, closeSession, startSession } from './registry';
 
 type ShellInfo = { id: Shell; label: string; available: boolean };
-export function NewTerminal({ onClose }: { onClose: () => void }) {
+export function NewTerminal({
+  onClose,
+  existing,
+  defaultCwd = '',
+}: {
+  onClose: () => void;
+  existing?: CanvasNode;
+  defaultCwd?: string;
+}) {
   const [shells, setShells] = useState<ShellInfo[]>([]);
-  const [shell, setShell] = useState<Shell>('powershell');
-  const [cwd, setCwd] = useState('');
-  const [title, setTitle] = useState('');
+  const [shell, setShell] = useState<Shell>(existing?.shell ?? 'powershell');
+  const [cwd, setCwd] = useState(existing?.cwd ?? defaultCwd);
+  const [title, setTitle] = useState(existing?.title ?? '');
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
     if (!isDesktop()) {
@@ -22,7 +31,7 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
         if (active) {
           setShells(result);
           const first = result.find((s) => s.available);
-          if (first) setShell(first.id);
+          if (first && !existing) setShell(first.id);
         }
       })
       .catch((error) => {
@@ -31,11 +40,14 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
     return () => {
       active = false;
     };
-  }, []);
-  const submit = (e: FormEvent) => {
+  }, [existing]);
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const s = useCanvas.getState();
-    if (s.nodes.filter((n) => n.kind === 'terminal').length >= 20) {
+    if (
+      !existing &&
+      s.nodes.filter((n) => n.kind === 'terminal').length >= 20
+    ) {
       setError('This session supports up to 20 terminals.');
       return;
     }
@@ -48,7 +60,7 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
       s.viewport,
     );
     const node: CanvasNode = {
-      id: crypto.randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       kind: 'terminal',
       title:
         title.trim() || shells.find((s) => s.id === shell)?.label || 'Terminal',
@@ -59,27 +71,46 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
       width: 660,
       height: 430,
       z: Math.max(0, ...s.nodes.map((n) => n.z)) + 1,
+      ...(existing
+        ? {
+            x: existing.x,
+            y: existing.y,
+            width: existing.width,
+            height: existing.height,
+            color: existing.color,
+          }
+        : {}),
     };
     try {
-      const entry = createSession(node);
-      s.add(node);
-      void entry.session.start().catch(() => {});
+      setSubmitting(true);
+      if (existing) await closeSession(existing.id);
+      createSession(node);
+      if (existing) s.patch({ [node.id]: node });
+      else s.add(node);
+      void startSession(node).catch(() => {});
       onClose();
     } catch (error) {
       setError(String(error));
+    } finally {
+      setSubmitting(false);
     }
   };
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      onClick={() => {
+        if (!submitting) onClose();
+      }}
+    >
       <form
         className="dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="terminal-title"
         onClick={(e) => e.stopPropagation()}
-        onSubmit={submit}
+        onSubmit={(e) => void submit(e)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onClose();
+          if (e.key === 'Escape' && !submitting) onClose();
         }}
       >
         <button
@@ -87,16 +118,20 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
           className="dialog-close"
           aria-label="Cancel new terminal"
           onClick={onClose}
+          disabled={submitting}
         >
           ×
         </button>
         <span className="eyebrow">A NEW PLACE TO WORK</span>
-        <h2 id="terminal-title">Start a terminal.</h2>
+        <h2 id="terminal-title">
+          {existing ? 'Restart terminal.' : 'Start a terminal.'}
+        </h2>
         <label htmlFor="shell">Shell</label>
         <select
           autoFocus
           id="shell"
           value={shell}
+          disabled={submitting}
           onChange={(e) => setShell(e.target.value as Shell)}
         >
           {shells.length ? (
@@ -116,6 +151,7 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
         <input
           id="terminal-name"
           value={title}
+          disabled={submitting}
           maxLength={80}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. API agent"
@@ -124,6 +160,7 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
         <input
           id="terminal-cwd"
           value={cwd}
+          disabled={submitting}
           onChange={(e) => setCwd(e.target.value)}
           placeholder="Leave blank for your home folder"
         />
@@ -139,10 +176,16 @@ export function NewTerminal({ onClose }: { onClose: () => void }) {
         <button
           className="primary-button"
           disabled={
-            !isDesktop() || !shells.some((s) => s.id === shell && s.available)
+            submitting ||
+            !isDesktop() ||
+            !shells.some((s) => s.id === shell && s.available)
           }
         >
-          Create terminal →
+          {submitting
+            ? 'Starting…'
+            : existing
+              ? 'Restart shell →'
+              : 'Create terminal →'}
         </button>
       </form>
     </div>

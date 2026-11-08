@@ -31,6 +31,23 @@ test('layout undo never removes a newly started terminal process', () => {
 beforeEach(() =>
   useCanvas.setState({ nodes: [], selected: [], past: [], future: [] }),
 );
+test('workspace hydration replaces layout and clears transient selection and history', () => {
+  const s = () => useCanvas.getState();
+  s().add(node);
+  s().checkpoint();
+  s().patch({ one: { x: 999 } });
+  s().restore(
+    [{ ...node, id: 'restored' }],
+    { x: -77, y: 35, zoom: 0.5 },
+    true,
+  );
+  expect(s().selected).toEqual([]);
+  expect(s().past).toEqual([]);
+  expect(s().future).toEqual([]);
+  expect(s().snapGrid).toBe(true);
+  s().undo();
+  expect(s().nodes[0].id).toBe('restored');
+});
 test('zoom preserves the world point below the cursor and clamps extremes', () => {
   const v = { x: -850, y: 340, zoom: 0.7 };
   const p = { x: 530, y: 220 };

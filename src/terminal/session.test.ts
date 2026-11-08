@@ -55,6 +55,18 @@ function harness(
 }
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
+test('restored renderer can resize before its shell startup worker runs', async () => {
+  const h = harness();
+  await h.session.resize(102, 31);
+  expect(h.calls).toEqual([]);
+  await h.session.start();
+  expect(h.calls[0]).toMatchObject({
+    command: 'terminal_spawn',
+    args: { cols: 102, rows: 31 },
+  });
+  expect(h.session.meta).toMatchObject({ status: 'running', error: undefined });
+  await h.session.close();
+});
 test('concurrent closes dispose once and release a pending parser callback', async () => {
   const h = harness((command) =>
     Promise.resolve(

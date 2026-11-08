@@ -1,19 +1,68 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas } from './canvas/Canvas';
 import { useCanvas } from './canvas/store';
 import { toWorld } from './canvas/model';
-import { isDesktop, windowAction } from './native';
+import {
+  isDesktop,
+  windowAction,
+  onCloseRequested,
+  destroyWindow,
+} from './native';
 import { TerminalNode } from './terminal/TerminalNode';
 import { NewTerminal } from './terminal/NewTerminal';
 import { closeSession } from './terminal/registry';
 import { TerminalActivity } from './terminal/TerminalActivity';
+import { RestartTerminal } from './terminal/RestartTerminal';
+import { workspace, useWorkspace } from './workspace/runtime';
+import { WorkspacePanel } from './workspace/WorkspacePanel';
 
 export function App() {
   const { nodes, selected, past, future } = useCanvas();
   const [help, setHelp] = useState(false);
   const [newTerminal, setNewTerminal] = useState(false);
   const [notice, setNotice] = useState('');
+  const [workspacesOpen, setWorkspacesOpen] = useState(false);
+  const [restartId, setRestartId] = useState<string | null>(null);
+  const [closeError, setCloseError] = useState('');
+  const closing = useRef(false);
+  const work = useWorkspace();
+  const busy = work.phase !== 'ready' || work.closing;
+  useEffect(() => {
+    void workspace.initialize().catch((error) => setNotice(String(error)));
+  }, []);
+  const requestClose = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    void workspace
+      .prepareToClose()
+      .then(() => destroyWindow())
+      .catch((error) => {
+        closing.current = false;
+        workspace.cancelClose();
+        setCloseError(String(error));
+      });
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    let stop: (() => void) | undefined;
+    void onCloseRequested((event) => {
+      event.preventDefault();
+      requestClose();
+    }).then((unlisten) => {
+      if (alive) stop = unlisten;
+      else unlisten();
+    });
+    return () => {
+      alive = false;
+      stop?.();
+    };
+  }, [requestClose]);
   const close = useCallback((ids: string[]) => {
+    if (
+      workspace.state.getState().phase !== 'ready' ||
+      workspace.state.getState().closing
+    )
+      return;
     void Promise.all(
       ids.map(async (id) => {
         try {
@@ -65,8 +114,10 @@ export function App() {
         </div>
         <strong>{__PRODUCT_NAME__}</strong>
         <span className="title-divider" />
-        <span>Workspace</span>
-        <span className="title-session">LOCAL SESSION</span>
+        <span>{work.active?.document.name ?? 'Workspace'}</span>
+        <span className="title-session">
+          {isDesktop() ? 'LOCAL WORKSPACE' : 'WEB PREVIEW'}
+        </span>
         {isDesktop() && (
           <div className="window-controls">
             <button
@@ -91,15 +142,24 @@ export function App() {
           </div>
         )}
       </header>
-      <div className="workspace-body">
+      <div className="workspace-body" inert={busy}>
         <aside className="sidebar">
-          <div className="workspace-label">
+          <button
+            className="workspace-label workspace-picker"
+            disabled={!isDesktop()}
+            onClick={() => setWorkspacesOpen(true)}
+            title={work.active?.folder ?? 'Choose a workspace'}
+          >
             <span className="workspace-icon">⌗</span>
             <div>
-              <strong>Personal workspace</strong>
-              <small>Untitled session</small>
+              <strong>
+                {work.active?.document.name ?? 'Personal workspace'}
+              </strong>
+              <small>
+                {isDesktop() ? 'Manage workspaces ↗' : 'Temporary web preview'}
+              </small>
             </div>
-          </div>
+          </button>
           <div className="section-label">
             EXPLORER <span>{nodes.length.toString().padStart(2, '0')}</span>
           </div>
@@ -166,11 +226,21 @@ export function App() {
                 {Math.round(focus.width)} × {Math.round(focus.height)}
               </small>
               {focus.kind === 'terminal' && <TerminalActivity id={focus.id} />}
+              {focus.kind === 'terminal' && (
+                <RestartTerminal
+                  id={focus.id}
+                  onRestart={() => setRestartId(focus.id)}
+                />
+              )}
             </div>
           )}
           <div className="sidebar-footer">
             <span className="local-dot" /> Everything stays on your device
-            <small>Layout is kept for this session only.</small>
+            <small>
+              {work.active
+                ? 'Layout autosaves to your workspace folder.'
+                : 'Open the desktop app to save workspaces.'}
+            </small>
             <button onClick={() => setHelp(true)}>
               Keyboard shortcuts <kbd>?</kbd>
             </button>
@@ -183,6 +253,25 @@ export function App() {
               <strong>Canvas</strong>
             </div>
             <div className="toolbar-actions">
+              {work.active && (
+                <button
+                  className="save-workspace"
+                  onClick={() =>
+                    void workspace
+                      .save()
+                      .catch((error) => setNotice(String(error)))
+                  }
+                  title={work.active.folder}
+                >
+                  {work.saveState === 'saving'
+                    ? 'Saving…'
+                    : work.saveState === 'error'
+                      ? 'Retry save'
+                      : work.saveState === 'unsaved'
+                        ? 'Save now'
+                        : 'Saved ✓'}
+                </button>
+              )}
               <button
                 title="Undo (Ctrl+Z)"
                 disabled={!past.length}
@@ -211,6 +300,7 @@ export function App() {
             </div>
           </div>
           <Canvas
+            disabled={busy}
             onClose={close}
             renderNode={(node, visible) =>
               node.kind === 'terminal' ? (
@@ -225,11 +315,120 @@ export function App() {
             <span>
               {nodes.length} nodes <b>·</b> {selected.length} selected
             </span>
-            <span>SESSION ONLY</span>
+            <span>
+              {work.active
+                ? work.saveState === 'error'
+                  ? 'SAVE FAILED'
+                  : work.saveState === 'saving'
+                    ? 'SAVING…'
+                    : work.saveState === 'unsaved'
+                      ? 'UNSAVED CHANGES'
+                      : 'SAVED LOCALLY'
+                : 'TEMPORARY PREVIEW'}
+            </span>
           </footer>
         </main>
       </div>
-      {newTerminal && <NewTerminal onClose={() => setNewTerminal(false)} />}
+      {newTerminal && (
+        <NewTerminal
+          defaultCwd={work.active?.folder}
+          onClose={() => setNewTerminal(false)}
+        />
+      )}
+      {restartId && nodes.find((n) => n.id === restartId) && (
+        <NewTerminal
+          existing={nodes.find((n) => n.id === restartId)}
+          onClose={() => setRestartId(null)}
+        />
+      )}
+      {workspacesOpen && (
+        <WorkspacePanel onClose={() => setWorkspacesOpen(false)} />
+      )}
+      {busy && !workspacesOpen && (
+        <div className="workspace-loading" role="status">
+          <h2>
+            {work.closing
+              ? 'Saving before closing…'
+              : work.phase === 'error'
+                ? 'Workspace could not open'
+                : work.phase === 'restoring'
+                  ? 'Restoring terminals…'
+                  : 'Opening workspace…'}
+          </h2>
+          {work.phase === 'error' ? (
+            <>
+              <p>{work.error}</p>
+              <button onClick={() => setWorkspacesOpen(true)}>
+                Choose another workspace
+              </button>
+            </>
+          ) : (
+            <p>Your saved layout stays on this device.</p>
+          )}
+        </div>
+      )}
+      {(work.recovered || work.restoreErrors.length > 0 || work.error) &&
+        work.phase === 'ready' && (
+          <div className="workspace-warning" role="status">
+            {work.error ||
+              (work.recovered
+                ? 'Recovered the last good backup. Save to repair the layout; the damaged file will be archived.'
+                : `${work.restoreErrors.length} terminal(s) could not restart. Select a node to correct its directory or shell.`)}
+            {work.restoreErrors.length > 0 && (
+              <details>
+                <summary>Details</summary>
+                {work.restoreErrors.map((error) => (
+                  <p key={error}>{error}</p>
+                ))}
+              </details>
+            )}
+          </div>
+        )}
+      {closeError && (
+        <div className="modal-backdrop">
+          <section
+            className="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="close-error-title"
+          >
+            <h2 id="close-error-title">Layout could not save.</h2>
+            <p className="error-text">{closeError}</p>
+            <p>
+              Keep working to retain the current layout in memory, or close and
+              discard unsaved layout changes.
+            </p>
+            <button
+              className="primary-button"
+              onClick={() => {
+                setCloseError('');
+                requestClose();
+              }}
+            >
+              Retry save and close
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => {
+                setCloseError('');
+                workspace.cancelClose();
+              }}
+            >
+              Keep working
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                void destroyWindow().catch((error) =>
+                  setCloseError(String(error)),
+                )
+              }
+            >
+              Close without saving
+            </button>
+          </section>
+        </div>
+      )}
       {notice && (
         <div className="notice" role="alert">
           {notice}

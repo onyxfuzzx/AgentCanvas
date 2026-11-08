@@ -9,8 +9,23 @@ npm ci
 npm run desktop
 ```
 
-`npm run dev` runs the canvas in a browser for UI development; native terminals require the desktop host. `npm run check` runs frontend checks. `npm run native:check` runs Rust checks, including Windows ConPTY integration tests. `npm run desktop:build` builds `agent-canvas-desktop.exe` and `pty-host.exe` in `src-tauri/target/release/`. Keep **both executables together** for a portable distribution. Always use the desktop scripts; they build the console host and derive window configuration from `product.json`. Installer packaging comes in M7.
+`npm run dev` runs the canvas in a browser for UI development; native terminals require the desktop host. `npm run check` runs frontend checks. `npm run native:check` runs Rust formatting, Clippy and the core Windows ConPTY tests against `Cargo.lock`.
+
+For a desktop build you can open directly:
+
+```powershell
+npm run desktop:build -- --debug
+.\artifacts\windows-debug\agent-canvas-desktop.exe
+```
+
+Debug builds may show a console alongside the canvas window. `npm run desktop:build` creates the optimized build in `artifacts/windows-portable/`. Both folders include `agent-canvas-desktop.exe` and the required `pty-host.exe`; keep them together. The scripts build both binaries in the same profile and derive the display name from `product.json`. Source build outputs remain under `src-tauri/target/`. Installer packaging comes in M7.
+
+The optional Git Bash roundtrip test needs an unrestricted Windows host with Git Bash installed. Run it explicitly with `cargo test --manifest-path src-tauri/Cargo.toml --locked --test conpty -- --ignored`; Windows CI also runs it separately. The restricted agent host cannot create MSYS2 signal pipes, although the user-launched application's Git Bash prompt has been visually verified.
 
 On this restricted development host, use `$env:CANVAS_NO_SUBPROCESS='1'` in PowerShell before `npm run check` to enable the documented in-process compiler fallback. This is a verification aid; it does not provide a native runtime. See [third-party dependency provenance](THIRD_PARTY.md) for the offline xterm dependency constraints.
 
-See [architecture](docs/ARCHITECTURE.md) and [verification](docs/VERIFICATION.md). This session targets M0–M2 only; workspaces are not yet persisted.
+Workspaces autosave after 750 ms and flush before switching or closing. Use the workspace button in the sidebar to create a named workspace, switch recent workspaces, or open an existing folder. Each folder contains a versioned `workspace.json`, a previous-save backup, and a reserved `notes/` folder. The recent-workspace catalog is stored in the application's local data directory. `AGENTCANVAS_DATA_DIR` overrides that directory for isolated development runs.
+
+On relaunch, the last workspace restores its canvas and starts fresh shells in their saved startup directories. Commands, terminal output and undo history are session-only. Missing directories remain visible as failed terminal nodes; select one and use Restart to correct its directory. Save failures pause autosave and remain visible; a failed save prevents a normal switch or close. Truncated layouts can recover from their backup, while unsupported schemas and external edits are preserved and reported.
+
+See [architecture](docs/ARCHITECTURE.md) and [verification](docs/VERIFICATION.md). The current milestone is M3; notes, whiteboard, agent links, browser nodes and installers remain planned.

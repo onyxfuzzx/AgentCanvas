@@ -9,21 +9,24 @@ pub struct ShellInfo {
 }
 
 pub fn executable(shell: &str) -> Result<PathBuf, String> {
-    let system = PathBuf::from(
-        std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()),
-    );
+    let system =
+        PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()));
     let path = match shell {
-        "powershell" => system.join("System32/WindowsPowerShell/v1.0/powershell.exe"),
-        "cmd" => system.join("System32/cmd.exe"),
-        "wsl" => system.join("System32/wsl.exe"),
+        "powershell" => system
+            .join("System32")
+            .join("WindowsPowerShell")
+            .join("v1.0")
+            .join("powershell.exe"),
+        "cmd" => system.join("System32").join("cmd.exe"),
+        "wsl" => system.join("System32").join("wsl.exe"),
         "git-bash" => {
             let candidates = [
                 std::env::var_os("ProgramFiles")
                     .map(PathBuf::from)
-                    .map(|p| p.join("Git/bin/bash.exe")),
+                    .map(|p| p.join("Git").join("bin").join("bash.exe")),
                 std::env::var_os("LOCALAPPDATA")
                     .map(PathBuf::from)
-                    .map(|p| p.join("Programs/Git/bin/bash.exe")),
+                    .map(|p| p.join("Programs").join("Git").join("bin").join("bash.exe")),
             ];
             candidates
                 .into_iter()

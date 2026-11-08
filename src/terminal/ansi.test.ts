@@ -2,6 +2,17 @@ import { expect, test } from 'vitest';
 import { Terminal } from '@xterm/xterm';
 const write = (terminal: Terminal, data: string | Uint8Array) =>
   new Promise<void>((resolve) => terminal.write(data, resolve));
+test('xterm answers the ConPTY startup cursor query before a view is mounted', async () => {
+  const terminal = new Terminal({ cols: 80, rows: 24 });
+  const responses: string[] = [];
+  terminal.onData((data) => responses.push(data));
+  try {
+    await write(terminal, '\x1b[6n');
+    expect(responses).toContain('\x1b[1;1R');
+  } finally {
+    terminal.dispose();
+  }
+});
 test('real xterm parser preserves split UTF-8, cursor movement and truecolor', async () => {
   const terminal = new Terminal({ cols: 40, rows: 5, allowProposedApi: true });
   try {

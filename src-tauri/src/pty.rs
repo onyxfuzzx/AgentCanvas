@@ -101,8 +101,9 @@ impl PtyManager {
     /// Trusted helper override for native lifecycle tests; never exposed over IPC.
     pub fn with_host(host: std::path::PathBuf) -> Self {
         Self {
+            sessions: Mutex::new(HashMap::new()),
+            stopping: AtomicBool::new(false),
             host: Some(host),
-            ..Self::default()
         }
     }
 
@@ -367,8 +368,6 @@ mod tests {
             .close("00000000-0000-4000-8000-000000000001")
             .is_ok());
         manager.shutdown();
-        assert!(manager
-            .get("00000000-0000-4000-8000-000000000001")
-            .is_err());
+        assert!(manager.get("00000000-0000-4000-8000-000000000001").is_err());
     }
 }

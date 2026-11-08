@@ -102,7 +102,7 @@ export class Session {
       rows: this.meta.rows,
     })
       .then((result) => {
-        this.update({ cwd: result.cwd, status: 'running' });
+        this.update({ cwd: result.cwd, status: 'running', error: undefined });
         if (!this.closed) this.schedule(0);
       })
       .catch((error) => {
@@ -206,6 +206,9 @@ export class Session {
     // Serialize native calls and coalesce rapid pointer-driven changes.
     this.resizeChain = this.resizeChain
       .then(async () => {
+        // A restored renderer can measure before its bounded startup worker
+        // starts the shell. Spawn will already use these latest dimensions.
+        if (!this.ready) return;
         await this.ready;
         if (this.closed || this.deliveredVersion === this.version) return;
         const version = this.version;

@@ -3,6 +3,10 @@ type NativeWindow = {
   minimize: () => Promise<void>;
   toggleMaximize: () => Promise<void>;
   close: () => Promise<void>;
+  destroy: () => Promise<void>;
+  onCloseRequested: (
+    handler: (event: { preventDefault: () => void }) => void,
+  ) => Promise<() => void>;
 };
 declare global {
   interface Window {
@@ -28,7 +32,22 @@ export function invoke<T>(
     );
   return window.__TAURI__.core.invoke<T>(command, args);
 }
-export function windowAction(action: keyof NativeWindow) {
+export function windowAction(
+  action: Exclude<keyof NativeWindow, 'onCloseRequested'>,
+) {
   const nativeWindow = window.__TAURI__?.window.getCurrentWindow();
   return nativeWindow?.[action]().catch(console.error);
+}
+export function onCloseRequested(
+  handler: (event: { preventDefault: () => void }) => void,
+) {
+  return (
+    window.__TAURI__?.window.getCurrentWindow().onCloseRequested(handler) ??
+    Promise.resolve(() => {})
+  );
+}
+export function destroyWindow() {
+  return (
+    window.__TAURI__?.window.getCurrentWindow().destroy() ?? Promise.resolve()
+  );
 }

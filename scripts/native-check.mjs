@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process';
 for (const args of [
   ['fmt', '--check'],
-  ['clippy', '--all-targets', '--', '-D', 'warnings'],
-  ['test'],
+  ['clippy', '--locked', '--all-targets', '--', '-D', 'warnings'],
+  ['test', '--locked', '--all-targets'],
 ]) {
   const result = spawnSync('cargo', args, {
     cwd: 'src-tauri',

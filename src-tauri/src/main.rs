@@ -1,18 +1,36 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use agent_canvas_desktop::{commands, pty};
-use std::sync::Arc;
+use agent_canvas_desktop::{commands, pty, workspace::WorkspaceStore};
+use std::sync::{Arc, Mutex};
 
 fn main() {
     let manager = Arc::new(pty::PtyManager::default());
     let shutdown = manager.clone();
-    let product: serde_json::Value = serde_json::from_str(include_str!("../../product.json"))
-        .expect("product configuration");
+    let product: serde_json::Value =
+        serde_json::from_str(include_str!("../../product.json")).expect("product configuration");
     let title = product["name"].as_str().expect("product name").to_owned();
+    let mut context = tauri::generate_context!();
+    // Respect WebView2's per-process data-folder override before Tauri attempts
+    // to create its default app-data folder (useful in restricted dev hosts).
+    #[cfg(windows)]
+    if let Some(directory) =
+        std::env::var_os("WEBVIEW2_USER_DATA_FOLDER").filter(|value| !value.is_empty())
+    {
+        for window in &mut context.config_mut().app.windows {
+            window.data_directory = Some(std::path::PathBuf::from(&directory));
+        }
+    }
     tauri::Builder::default()
         .manage(manager)
         .setup(move |app| {
             use tauri::Manager;
+            let data = std::env::var_os("AGENTCANVAS_DATA_DIR")
+                .map(std::path::PathBuf::from)
+                .unwrap_or(app.path().app_local_data_dir()?);
+            app.manage(Arc::new(Mutex::new(WorkspaceStore::new(
+                data,
+                app.path().home_dir()?,
+            ))));
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title(&title)?;
             }
@@ -24,9 +42,16 @@ fn main() {
             commands::terminal_write,
             commands::terminal_resize,
             commands::terminal_poll,
-            commands::terminal_close
+            commands::terminal_close,
+            commands::workspace_list,
+            commands::workspace_create,
+            commands::workspace_open,
+            commands::workspace_open_folder,
+            commands::workspace_save,
+            commands::workspace_release,
+            commands::workspace_activate
         ])
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("desktop runtime failed")
         .run(move |_, event| {
             if matches!(

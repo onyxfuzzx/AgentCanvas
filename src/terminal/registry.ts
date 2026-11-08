@@ -2,6 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import type { CanvasNode } from '../canvas/model';
 import { invoke } from '../native';
 import { Session } from './session';
+import { useCanvas } from '../canvas/store';
 
 type Entry = {
   session: Session;
@@ -69,6 +70,20 @@ export function createSession(node: CanvasNode): Entry {
   return entry;
 }
 export const getSession = (id: string) => sessions.get(id);
+export async function startSession(node: CanvasNode) {
+  const entry = createSession(node);
+  await entry.session.start();
+  if (sessions.get(node.id) === entry)
+    useCanvas.getState().setTerminalDirectory(node.id, entry.session.meta.cwd);
+}
+export async function closeAllSessions() {
+  const results = await Promise.allSettled(
+    [...sessions.keys()].map(closeSession),
+  );
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed?.status === 'rejected')
+    throw new Error(`Some terminals could not close: ${String(failed.reason)}`);
+}
 export async function closeSession(id: string) {
   const entry = sessions.get(id);
   if (!entry) return;

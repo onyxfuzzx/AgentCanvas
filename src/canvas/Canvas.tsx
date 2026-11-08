@@ -30,9 +30,11 @@ type Gesture = {
 export function Canvas({
   renderNode,
   onClose,
+  disabled = false,
 }: {
   renderNode?: (node: CanvasNode, visible: boolean) => ReactNode;
   onClose: (ids: string[]) => void;
+  disabled?: boolean;
 }) {
   const { nodes, selected, viewport, snapGrid } = useCanvas();
   const root = useRef<HTMLDivElement>(null);
@@ -59,6 +61,7 @@ export function Canvas({
   }, []);
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
+      if (disabled) return;
       const editable = (e.target as HTMLElement)?.closest(
         'input,textarea,select,.dialog,[contenteditable="true"],.terminal-host',
       );
@@ -112,10 +115,14 @@ export function Canvas({
       window.removeEventListener('keyup', keyup);
       window.removeEventListener('blur', release);
     };
-  }, [onClose, size]);
+  }, [onClose, size, disabled]);
   useEffect(() => {
     const element = root.current!;
     const wheel = (e: WheelEvent) => {
+      if (disabled) {
+        e.preventDefault();
+        return;
+      }
       if (
         (e.target as HTMLElement).closest('.terminal-host') &&
         !e.ctrlKey &&
@@ -148,12 +155,13 @@ export function Canvas({
     };
     element.addEventListener('wheel', wheel, { passive: false });
     return () => element.removeEventListener('wheel', wheel);
-  }, []);
+  }, [disabled]);
   const point = (e: ReactPointerEvent) => {
     const rect = root.current!.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
   const begin = (e: ReactPointerEvent, node?: CanvasNode) => {
+    if (disabled) return;
     if (e.button !== 0 && e.button !== 1) return;
     if ((e.target as HTMLElement).closest('button,input,select,a')) return;
     const pan = e.button === 1 || space.current;
@@ -259,6 +267,7 @@ export function Canvas({
     [],
   );
   const beginResize = (e: ReactPointerEvent, node: CanvasNode) => {
+    if (disabled) return;
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
@@ -352,7 +361,7 @@ export function Canvas({
                       Shift-click headers to select together.
                     </p>
                     <div className="card-rule" />
-                    <span className="card-tag">Layout card · session only</span>
+                    <span className="card-tag">Layout card</span>
                   </div>
                 )}
               </div>
