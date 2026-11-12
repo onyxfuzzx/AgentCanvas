@@ -1,5 +1,7 @@
 pub mod atomic_file;
+pub mod collaboration;
 pub mod commands;
+pub mod ipc;
 pub mod notes;
 pub mod output;
 pub mod process_tree;

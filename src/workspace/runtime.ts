@@ -6,9 +6,14 @@ import {
   getSession,
   startSession,
   closeAllSessions,
+  configureTerminalStartup,
 } from '../terminal/registry';
 import { createWorkspaceState, WorkspaceCoordinator } from './coordinator';
 import { notes } from '../notes/runtime';
+import {
+  collaboration,
+  configureCollaboration,
+} from '../collaboration/runtime';
 
 export const workspaceState = createWorkspaceState();
 export const workspace = new WorkspaceCoordinator(
@@ -45,7 +50,7 @@ export const workspace = new WorkspaceCoordinator(
         }),
         viewport: { ...state.viewport },
         settings: { snapGrid: state.snapGrid },
-        edges: [],
+        edges: state.edges,
       };
     },
     replace: (loaded) =>
@@ -55,13 +60,15 @@ export const workspace = new WorkspaceCoordinator(
           loaded.document.nodes,
           loaded.document.viewport,
           loaded.document.settings.snapGrid,
+          loaded.document.edges,
         ),
     subscribe: (onEdit) =>
       useCanvas.subscribe((state, previous) => {
         if (
           state.nodes !== previous.nodes ||
           state.viewport !== previous.viewport ||
-          state.snapGrid !== previous.snapGrid
+          state.snapGrid !== previous.snapGrid ||
+          state.edges !== previous.edges
         )
           onEdit();
       }),
@@ -71,9 +78,29 @@ export const workspace = new WorkspaceCoordinator(
     },
     closeAll: closeAllSessions,
     start: startSession,
-    flushNotes: () => notes.flush(),
+    flushNotes: async () => {
+      await notes.flush();
+      await collaboration.sync();
+    },
     resetNotes: () => notes.reset(),
   },
   workspaceState,
 );
 export const useWorkspace = () => useStore(workspaceState);
+configureCollaboration(() => {
+  const active = workspaceState.getState().active;
+  if (!active) return null;
+  const s = useCanvas.getState();
+  return {
+    workspaceId: active.document.id,
+    layout: {
+      nodes: s.nodes,
+      edges: s.edges,
+      viewport: s.viewport,
+      settings: { snapGrid: s.snapGrid },
+    },
+  };
+});
+configureTerminalStartup(() => collaboration.sync());
+useCanvas.subscribe(() => void collaboration.sync().catch(() => {}));
+workspaceState.subscribe(() => void collaboration.sync().catch(() => {}));

@@ -24,7 +24,7 @@ type Gesture = {
   pointer: number;
   start: Point;
   latest: Point;
-  mode: 'pan' | 'move' | 'resize' | 'select' | 'draw';
+  mode: 'pan' | 'move' | 'resize' | 'select' | 'draw' | 'link';
   drawing?: Exclude<ShapeKind, 'connector'>;
   points?: Point[];
   nodes: CanvasNode[];
@@ -41,7 +41,11 @@ export function Canvas({
   onClose: (ids: string[]) => void;
   disabled?: boolean;
 }) {
-  const { nodes, selected, viewport, snapGrid } = useCanvas();
+  const { nodes, selected, viewport, snapGrid, edges } = useCanvas();
+  const [linkDraft, setLinkDraft] = useState<{
+    source: Point;
+    target: Point;
+  } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
   const frame = useRef(0);
@@ -56,6 +60,7 @@ export function Canvas({
       setDraft(null);
       setTool('select');
       setSource(null);
+      setLinkDraft(null);
     }
   }, [disabled]);
   const [size, setSize] = useState({ width: 1200, height: 800 });
@@ -112,6 +117,7 @@ export function Canvas({
         setSource(null);
         setDraft(null);
         gesture.current = null;
+        setLinkDraft(null);
       }
       if (e.key === 'Home') {
         e.preventDefault();
@@ -297,6 +303,13 @@ export function Canvas({
     const s = useCanvas.getState();
     const dx = (g.latest.x - g.start.x) / s.viewport.zoom;
     const dy = (g.latest.y - g.start.y) / s.viewport.zoom;
+    if (g.mode === 'link') {
+      setLinkDraft({
+        source: toWorld(g.start, s.viewport),
+        target: toWorld(g.latest, s.viewport),
+      });
+      return;
+    }
     if (g.mode === 'draw') {
       setDraft(
         drawingNode(
@@ -366,6 +379,13 @@ export function Canvas({
     if (frame.current) cancelAnimationFrame(frame.current);
     update();
     const g = gesture.current!;
+    if (g.mode === 'link' && e.type !== 'pointercancel') {
+      const target = document
+        .elementFromPoint(e.clientX, e.clientY)
+        ?.closest('[data-node]')
+        ?.getAttribute('data-node');
+      if (target) useCanvas.getState().connect(g.ids[0], target);
+    }
     if (
       g.mode === 'draw' &&
       e.type !== 'pointercancel' &&
@@ -387,6 +407,7 @@ export function Canvas({
     }
     gesture.current = null;
     setDraft(null);
+    setLinkDraft(null);
     setMarquee(null);
     if (root.current?.hasPointerCapture(e.pointerId))
       root.current.releasePointerCapture(e.pointerId);
@@ -459,6 +480,7 @@ export function Canvas({
         gesture.current = null;
         setMarquee(null);
         setDraft(null);
+        setLinkDraft(null);
       }}
       onContextMenu={(e) => e.preventDefault()}
       style={{
@@ -472,6 +494,37 @@ export function Canvas({
           transform: `translate(${viewport.x}px,${viewport.y}px) scale(${viewport.zoom})`,
         }}
       >
+        <svg
+          className="agent-link-layer"
+          aria-label="Agent and shared-memory links"
+        >
+          {edges.map((edge) => {
+            const a = nodes.find((n) => n.id === edge.source),
+              b = nodes.find((n) => n.id === edge.target);
+            if (!a || !b) return null;
+            const forward = a.x < b.x;
+            const start = { x: a.x + (forward ? a.width : 0), y: a.y + 25 },
+              end = { x: b.x + (forward ? 0 : b.width), y: b.y + 25 };
+            return (
+              <g key={edge.id}>
+                <path
+                  d={`M${start.x},${start.y} C${start.x + (forward ? 90 : -90)},${start.y} ${end.x - (forward ? 90 : -90)},${end.y} ${end.x},${end.y}`}
+                  className={
+                    edge.kind === 'memory' ? 'memory-link' : 'agent-link'
+                  }
+                />
+                <circle cx={start.x} cy={start.y} r="4" />
+                <circle cx={end.x} cy={end.y} r="4" />
+              </g>
+            );
+          })}
+          {linkDraft && (
+            <path
+              className="link-draft"
+              d={`M${linkDraft.source.x},${linkDraft.source.y} L${linkDraft.target.x},${linkDraft.target.y}`}
+            />
+          )}
+        </svg>
         {nodes.map((node) => {
           const visible = nearViewport(node, viewport, size.width, size.height);
           return (
@@ -514,6 +567,38 @@ export function Canvas({
                 >
                   ×
                 </button>
+                {(node.kind === 'terminal' || node.kind === 'note') && (
+                  <button
+                    className="link-port"
+                    title={`Drag to connect ${node.title}`}
+                    aria-label={`Connect ${node.title}`}
+                    onPointerDown={(e) => {
+                      if (disabled || e.button !== 0) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTool('select');
+                      setSource(null);
+                      root.current!.setPointerCapture(e.pointerId);
+                      const p = point(e);
+                      gesture.current = {
+                        pointer: e.pointerId,
+                        start: p,
+                        latest: p,
+                        mode: 'link',
+                        nodes,
+                        origin: viewport,
+                        ids: [node.id],
+                        additive: [],
+                      };
+                      setLinkDraft({
+                        source: toWorld(p, viewport),
+                        target: toWorld(p, viewport),
+                      });
+                    }}
+                  >
+                    ↔
+                  </button>
+                )}
               </header>
               <div className="node-content">
                 {(node.kind === 'shape' ? (

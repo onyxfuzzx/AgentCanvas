@@ -20,6 +20,26 @@ struct Session {
     child: Mutex<Box<dyn Child + Send + Sync>>,
     output: Arc<Mutex<Output>>,
 }
+/// Pins one process generation for peer delivery across node close/restart.
+pub struct PeerInput {
+    session: Arc<Session>,
+}
+impl PeerInput {
+    pub fn write(&self, data: Vec<u8>) -> Result<(), String> {
+        if data.len() > 8193 {
+            return Err("Peer input exceeds 8193 bytes".into());
+        }
+        let mut writer = self
+            .session
+            .writer
+            .lock()
+            .map_err(|_| "Terminal input unavailable")?;
+        writer
+            .write_all(&data)
+            .and_then(|_| writer.flush())
+            .map_err(|e| e.to_string())
+    }
+}
 
 impl Session {
     fn stop(&self) {
@@ -115,6 +135,17 @@ impl PtyManager {
         cols: u16,
         rows: u16,
     ) -> Result<SpawnReply, String> {
+        self.spawn_with_env(id, preset, cwd, cols, rows, Vec::new())
+    }
+    pub fn spawn_with_env(
+        &self,
+        id: String,
+        preset: String,
+        cwd: String,
+        cols: u16,
+        rows: u16,
+        environment: Vec<(String, String)>,
+    ) -> Result<SpawnReply, String> {
         valid_id(&id)?;
         let dimensions = size(cols, rows)?;
         let cwd = shell::directory(&cwd)?;
@@ -166,6 +197,9 @@ impl PtyManager {
             command.env("COLORTERM", "truecolor");
             command.env("AGENTCANVAS_NODE_ID", &id);
             command.env("AGENTCANVAS_JOB", &job.name);
+            for (key, value) in environment {
+                command.env(key, value);
+            }
             // Acquire streams before spawning: subsequent errors own a killable child.
             let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
             let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
@@ -269,6 +303,22 @@ impl PtyManager {
             .write_all(&data)
             .and_then(|_| writer.flush())
             .map_err(|e| e.to_string())
+    }
+    pub fn recent(&self, id: &str, max: usize) -> Result<String, String> {
+        if !(1..=8192).contains(&max) {
+            return Err("Recent output limit must be 1–8192 bytes".into());
+        }
+        let session = self.get(id)?;
+        let output = session
+            .output
+            .lock()
+            .map_err(|_| "Terminal output unavailable")?;
+        Ok(output.recent(max))
+    }
+    pub fn peer_input(&self, id: &str) -> Result<PeerInput, String> {
+        Ok(PeerInput {
+            session: self.get(id)?,
+        })
     }
 
     pub fn resize(&self, id: &str, cols: u16, rows: u16) -> Result<(), String> {

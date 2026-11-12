@@ -1,6 +1,13 @@
 export type Point = { x: number; y: number };
 export type Viewport = Point & { zoom: number };
 export type Shell = 'powershell' | 'cmd' | 'wsl' | 'git-bash';
+export type Connection = {
+  id: string;
+  source: string;
+  target: string;
+  kind: 'agent' | 'memory';
+  policy: 'approval' | 'auto';
+};
 export type CanvasNode = Point & {
   id: string;
   kind: 'card' | 'terminal' | 'note' | 'shape';

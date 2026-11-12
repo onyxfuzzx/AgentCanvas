@@ -6,6 +6,14 @@ use std::sync::{Arc, Mutex};
 fn main() {
     let manager = Arc::new(pty::PtyManager::default());
     let shutdown = manager.clone();
+    let collaboration = Arc::new(
+        agent_canvas_desktop::collaboration::Collaboration::new(manager.clone())
+            .expect("local collaboration setup"),
+    );
+    let server = Mutex::new(Some(
+        agent_canvas_desktop::ipc::Server::start(collaboration.clone())
+            .expect("local named-pipe server"),
+    ));
     let product: serde_json::Value =
         serde_json::from_str(include_str!("../../product.json")).expect("product configuration");
     let title = product["name"].as_str().expect("product name").to_owned();
@@ -22,6 +30,7 @@ fn main() {
     }
     tauri::Builder::default()
         .manage(manager)
+        .manage(collaboration)
         .setup(move |app| {
             use tauri::Manager;
             let data = std::env::var_os("AGENTCANVAS_DATA_DIR")
@@ -52,7 +61,10 @@ fn main() {
             commands::workspace_activate,
             commands::note_create,
             commands::note_read,
-            commands::note_save
+            commands::note_save,
+            commands::collaboration_sync,
+            commands::collaboration_snapshot,
+            commands::collaboration_decide
         ])
         .build(context)
         .expect("desktop runtime failed")
@@ -62,6 +74,9 @@ fn main() {
                 tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
             ) {
                 shutdown.shutdown();
+                if let Ok(mut server) = server.lock() {
+                    server.take();
+                }
             }
         });
 }

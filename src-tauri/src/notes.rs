@@ -38,6 +38,15 @@ fn path(
         return Err("Use notes/<UUID>.md inside the workspace".into());
     }
     let folder = store.folder(workspace)?;
+    resolve(folder, relative, create)
+}
+pub(crate) fn resolve_in_folder(folder: &Path, relative: &str) -> Result<PathBuf, String> {
+    resolve(folder, relative, false)
+}
+fn resolve(folder: &Path, relative: &str, create: bool) -> Result<PathBuf, String> {
+    if !valid_path(relative) {
+        return Err("Invalid shared note path".into());
+    }
     let notes = folder.join("notes");
     if create && !notes.exists() {
         fs::create_dir(&notes).map_err(|e| e.to_string())?;

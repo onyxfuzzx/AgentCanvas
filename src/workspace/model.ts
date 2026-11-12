@@ -1,9 +1,9 @@
-import type { CanvasNode, Viewport } from '../canvas/model';
+import type { CanvasNode, Viewport, Connection } from '../canvas/model';
 export type WorkspaceLayout = {
   nodes: CanvasNode[];
   viewport: Viewport;
   settings: { snapGrid: boolean };
-  edges: never[];
+  edges: Connection[];
 };
 export type WorkspaceDocument = WorkspaceLayout & {
   version: 1;

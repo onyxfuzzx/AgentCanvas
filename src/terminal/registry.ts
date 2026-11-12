@@ -12,6 +12,10 @@ type Entry = {
   cellHeight: number;
 };
 const sessions = new Map<string, Entry>();
+let beforeStart = async () => {};
+export function configureTerminalStartup(prepare: () => Promise<void>) {
+  beforeStart = prepare;
+}
 export function createSession(node: CanvasNode): Entry {
   const existing = sessions.get(node.id);
   if (existing) return existing;
@@ -72,6 +76,12 @@ export function createSession(node: CanvasNode): Entry {
 export const getSession = (id: string) => sessions.get(id);
 export async function startSession(node: CanvasNode) {
   const entry = createSession(node);
+  try {
+    await beforeStart();
+  } catch (error) {
+    entry.session.reportError(error);
+    throw error;
+  }
   await entry.session.start();
   if (sessions.get(node.id) === entry)
     useCanvas.getState().setTerminalDirectory(node.id, entry.session.meta.cwd);

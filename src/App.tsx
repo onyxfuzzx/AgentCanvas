@@ -24,6 +24,9 @@ import { workspace, useWorkspace } from './workspace/runtime';
 import { WorkspacePanel } from './workspace/WorkspacePanel';
 import { NoteNode } from './notes/NoteNode';
 import { notes } from './notes/runtime';
+import { useStore } from 'zustand';
+import { collaboration } from './collaboration/runtime';
+import { ConnectionsPanel } from './collaboration/ConnectionsPanel';
 
 export function App() {
   const { nodes, selected, past, future } = useCanvas();
@@ -38,8 +41,14 @@ export function App() {
   const creation = useRef<Promise<void> | null>(null);
   const work = useWorkspace();
   const noteState = useSyncExternalStore(notes.subscribe, notes.snapshot);
+  const links = useStore(collaboration.state);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const pendingMessages = links.logs.filter(
+    (l) => l.status === 'pending' && l.workspaceId === work.active?.document.id,
+  ).length;
   const busy = work.phase !== 'ready' || work.closing || creatingNote;
   useEffect(() => {
+    if (isDesktop()) collaboration.start();
     void workspace.initialize().catch((error) => setNotice(String(error)));
   }, []);
   const requestClose = useCallback(() => {
@@ -405,6 +414,13 @@ export function App() {
               </button>
               <i />
               <button
+                className="connections-button"
+                onClick={() => setConnectionsOpen(!connectionsOpen)}
+                title="Agent links, shared notes and message approval logs"
+              >
+                ↔ Links {pendingMessages > 0 && <b>{pendingMessages}</b>}
+              </button>
+              <button
                 className="add-card"
                 title="New layout card"
                 onClick={add}
@@ -475,6 +491,29 @@ export function App() {
           defaultCwd={work.active?.folder}
           onClose={() => setNewTerminal(false)}
         />
+      )}
+      {connectionsOpen && (
+        <ConnectionsPanel
+          workspaceId={work.active?.document.id ?? ''}
+          onClose={() => setConnectionsOpen(false)}
+          disabled={busy}
+        />
+      )}
+      {!connectionsOpen && pendingMessages > 0 && (
+        <button
+          className="pending-badge"
+          onClick={() => setConnectionsOpen(true)}
+        >
+          {pendingMessages} peer message(s) awaiting approval
+        </button>
+      )}
+      {links.error && !connectionsOpen && (
+        <button
+          className="pending-badge error-text"
+          onClick={() => setConnectionsOpen(true)}
+        >
+          Agent links need attention
+        </button>
       )}
       {restartId && nodes.find((n) => n.id === restartId) && (
         <NewTerminal

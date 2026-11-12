@@ -367,3 +367,54 @@ fn notes_shapes_and_attached_connector_roundtrip_with_strict_payload_limits() {
     invalid.nodes[1].relative_path = Some("../outside.md".into());
     assert!(store.save(ID, invalid).is_err());
 }
+#[test]
+fn agent_and_shared_memory_edges_persist_with_endpoint_and_policy_validation() {
+    let fixture = Fixture::new();
+    let mut store = fixture.store();
+    store
+        .create(ID.into(), "Linked agents".into(), None)
+        .unwrap();
+    let mut graph = layout();
+    let mut peer = graph.nodes[0].clone();
+    peer.id = "00000000-0000-4000-8000-000000000002".into();
+    graph.nodes.push(peer);
+    let mut note = graph.nodes[0].clone();
+    note.id = "00000000-0000-4000-8000-000000000003".into();
+    note.kind = "note".into();
+    note.shell = None;
+    note.cwd = None;
+    note.relative_path = Some(crate::notes::create(&store, ID, &note.id).unwrap());
+    graph.nodes.push(note);
+    for (index, kind, source, target, policy) in [
+        (10, "agent", 0, 1, "auto"),
+        (11, "memory", 2, 0, "approval"),
+        (12, "memory", 2, 1, "approval"),
+    ] {
+        graph.edges.push(Edge {
+            id: format!("00000000-0000-4000-8000-{index:012}"),
+            source: graph.nodes[source].id.clone(),
+            target: graph.nodes[target].id.clone(),
+            kind: kind.into(),
+            policy: policy.into(),
+        });
+    }
+    store.save(ID, graph.clone()).unwrap();
+    store.release(ID);
+    let loaded = store.open(ID).unwrap();
+    assert_eq!(loaded.document.edges, graph.edges);
+    let mut invalid = graph.clone();
+    invalid.edges[1].policy = "auto".into();
+    assert!(store.save(ID, invalid).is_err());
+    let mut invalid = graph.clone();
+    invalid.edges[0].target = graph.nodes[2].id.clone();
+    assert!(store.save(ID, invalid).is_err());
+    let mut invalid = graph.clone();
+    invalid.edges[0].kind = "remote".into();
+    assert!(store.save(ID, invalid).is_err());
+    let mut invalid = graph;
+    let mut reverse = invalid.edges[0].clone();
+    reverse.id = "00000000-0000-4000-8000-000000000020".into();
+    std::mem::swap(&mut reverse.source, &mut reverse.target);
+    invalid.edges.push(reverse);
+    assert!(store.save(ID, invalid).is_err());
+}

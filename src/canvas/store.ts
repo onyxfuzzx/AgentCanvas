@@ -1,10 +1,14 @@
 import { create } from 'zustand';
-import type { CanvasNode, Viewport } from './model';
+import type { CanvasNode, Viewport, Connection } from './model';
 import { reflow, withoutNodes } from './whiteboard';
 
 const LIMIT = 80;
 type State = {
   nodes: CanvasNode[];
+  edges: Connection[];
+  connect: (source: string, target: string) => void;
+  disconnect: (id: string) => void;
+  setPolicy: (id: string, policy: Connection['policy']) => void;
   selected: string[];
   viewport: Viewport;
   snapGrid: boolean;
@@ -19,11 +23,70 @@ type State = {
   undo: () => void;
   redo: () => void;
   toggleSnap: () => void;
-  restore: (nodes: CanvasNode[], viewport: Viewport, snapGrid: boolean) => void;
+  restore: (
+    nodes: CanvasNode[],
+    viewport: Viewport,
+    snapGrid: boolean,
+    edges?: Connection[],
+  ) => void;
   setTerminalDirectory: (id: string, cwd: string) => void;
 };
 export const useCanvas = create<State>((set) => ({
   nodes: [],
+  edges: [],
+  connect: (source, target) =>
+    set((s) => {
+      const a = s.nodes.find((n) => n.id === source),
+        b = s.nodes.find((n) => n.id === target);
+      if (
+        !a ||
+        !b ||
+        a.id === b.id ||
+        s.edges.length >= 200 ||
+        s.edges.some(
+          (e) =>
+            (e.source === source && e.target === target) ||
+            (e.source === target && e.target === source),
+        )
+      )
+        return {};
+      if (a.kind === 'terminal' && b.kind === 'terminal')
+        return {
+          edges: [
+            ...s.edges,
+            {
+              id: crypto.randomUUID(),
+              source,
+              target,
+              kind: 'agent',
+              policy: 'approval',
+            },
+          ],
+        };
+      if (a.kind === 'terminal' && b.kind === 'note')
+        [source, target] = [target, source];
+      else if (a.kind !== 'note' || b.kind !== 'terminal') return {};
+      return {
+        edges: [
+          ...s.edges,
+          {
+            id: crypto.randomUUID(),
+            source,
+            target,
+            kind: 'memory',
+            policy: 'approval',
+          },
+        ],
+      };
+    }),
+  disconnect: (id) =>
+    set((s) => ({ edges: s.edges.filter((e) => e.id !== id) })),
+  setPolicy: (id, policy) =>
+    set((s) => ({
+      edges: s.edges.map((e) =>
+        e.id === id && e.kind === 'agent' ? { ...e, policy } : e,
+      ),
+    })),
   selected: [],
   viewport: { x: 72, y: 72, zoom: 1 },
   snapGrid: false,
@@ -64,6 +127,9 @@ export const useCanvas = create<State>((set) => ({
       const clean = (nodes: CanvasNode[]) => withoutNodes(nodes, terminalIds);
       return {
         nodes: withoutNodes(s.nodes, new Set(ids)),
+        edges: s.edges.filter(
+          (e) => !ids.includes(e.source) && !ids.includes(e.target),
+        ),
         selected: [],
         past: [...s.past.map(clean), clean(s.nodes)].slice(-LIMIT),
         future: [],
@@ -74,6 +140,11 @@ export const useCanvas = create<State>((set) => ({
       s.past.length
         ? {
             nodes: s.past.at(-1)!,
+            edges: s.edges.filter(
+              (e) =>
+                s.past.at(-1)!.some((n) => n.id === e.source) &&
+                s.past.at(-1)!.some((n) => n.id === e.target),
+            ),
             past: s.past.slice(0, -1),
             future: [s.nodes, ...s.future].slice(0, LIMIT),
             selected: [],
@@ -85,6 +156,11 @@ export const useCanvas = create<State>((set) => ({
       s.future.length
         ? {
             nodes: s.future[0],
+            edges: s.edges.filter(
+              (e) =>
+                s.future[0].some((n) => n.id === e.source) &&
+                s.future[0].some((n) => n.id === e.target),
+            ),
             past: [...s.past, s.nodes].slice(-LIMIT),
             future: s.future.slice(1),
             selected: [],
@@ -92,8 +168,16 @@ export const useCanvas = create<State>((set) => ({
         : {},
     ),
   toggleSnap: () => set((s) => ({ snapGrid: !s.snapGrid })),
-  restore: (nodes, viewport, snapGrid) =>
-    set({ nodes, viewport, snapGrid, selected: [], past: [], future: [] }),
+  restore: (nodes, viewport, snapGrid, edges = []) =>
+    set({
+      nodes,
+      viewport,
+      snapGrid,
+      edges,
+      selected: [],
+      past: [],
+      future: [],
+    }),
   setTerminalDirectory: (id, cwd) =>
     set((s) => {
       if (s.nodes.find((n) => n.id === id)?.cwd === cwd) return {};

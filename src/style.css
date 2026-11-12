@@ -1247,3 +1247,175 @@ button:active:not(:disabled) {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+.agent-link-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+  color: #708f7c;
+  z-index: 0;
+}
+.agent-link-layer path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+.agent-link-layer .memory-link {
+  stroke: var(--accent);
+  stroke-dasharray: 6 5;
+}
+.agent-link-layer .link-draft {
+  stroke: var(--accent);
+  stroke-dasharray: 5 4;
+}
+.agent-link-layer circle {
+  fill: var(--panel);
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.node-grip .link-port {
+  font-size: 17px;
+  color: #93b59b;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  cursor: crosshair;
+  padding: 0 5px;
+}
+.toolbar-actions .connections-button {
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 7px;
+}
+.connections-button b {
+  background: var(--accent);
+  color: var(--panel);
+  padding: 2px 5px;
+  border-radius: 9px;
+}
+.collaboration-panel {
+  position: absolute;
+  z-index: 15000;
+  right: 0;
+  top: 42px;
+  bottom: 0;
+  width: min(480px, 85vw);
+  padding: 22px;
+  overflow: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--line-strong);
+  box-shadow: -8px 0 30px #0003;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.collaboration-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.collaboration-panel header button {
+  font-size: 24px;
+  border: 0;
+  background: none;
+}
+.collaboration-panel h2 {
+  margin: 4px 0;
+  font-weight: 500;
+  font-size: 25px;
+}
+.collaboration-panel h3 {
+  margin-top: 24px;
+  font-size: 13px;
+}
+.collaboration-panel select {
+  display: block;
+  width: 100%;
+  padding: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+}
+.collaboration-panel pre {
+  padding: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #0002;
+  border-radius: 5px;
+  font:
+    11px/1.5 Consolas,
+    monospace;
+  user-select: text;
+}
+.collab-untrusted {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+.connection-row {
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+.connection-row.active {
+  border-color: var(--accent);
+}
+.connection-row > button:first-child {
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.connection-row small,
+.pending-message small,
+.link-log small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+.connection-row strong {
+  display: block;
+}
+.pending-message,
+.link-log {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+.pending-message {
+  border-color: var(--accent);
+}
+.pending-message button,
+.connection-row > button,
+.helper-guide button {
+  font-size: 11px;
+  padding: 6px 9px;
+}
+.pending-message button {
+  margin-right: 8px;
+}
+.link-log strong {
+  display: block;
+  font-size: 11px;
+}
+.pending-badge {
+  position: absolute;
+  z-index: 14000;
+  right: 24px;
+  bottom: 40px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--ink);
+  box-shadow: 0 4px 16px #0002;
+}

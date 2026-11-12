@@ -33,6 +33,8 @@ const helper = spawnSync(
     'src-tauri/Cargo.toml',
     '--bin',
     'pty-host',
+    '--bin',
+    'agentcanvas-peer',
     ...(process.argv[2] === 'build' && !process.argv.includes('--debug')
       ? ['--release']
       : []),
@@ -73,11 +75,15 @@ if (result.status === 0 && process.argv[2] === 'build') {
     import.meta.url,
   );
   mkdirSync(output, { recursive: true });
-  for (const file of ['agent-canvas-desktop.exe', 'pty-host.exe'])
+  for (const file of [
+    'agent-canvas-desktop.exe',
+    'pty-host.exe',
+    'agentcanvas-peer.exe',
+  ])
     copyFileSync(new URL(file, target), new URL(file, output));
   writeFileSync(
     new URL('README.txt', output),
-    `${product.name}\n\nRun agent-canvas-desktop.exe. Keep pty-host.exe beside it.\nWorkspaces autosave layout, whiteboard and terminal startup directories to workspace.json.\nMarkdown notes autosave to notes/<UUID>.md. Removing a note node keeps its file.\nTerminal commands and output are not restored. Use Manage workspaces to create or open a folder.\n`,
+    `${product.name}\n\nRun agent-canvas-desktop.exe. Keep pty-host.exe and agentcanvas-peer.exe beside it.\nWorkspaces autosave layout, links, whiteboard and terminal startup directories to workspace.json.\nMarkdown notes autosave to notes/<UUID>.md. Removing a note node keeps its file.\nDrag terminal/note header link handles to connect. Open Links for policies and message approvals.\nThe agentcanvas-peer helper is placed on PATH inside canvas terminals. Run agentcanvas-peer --help.\nTerminal commands, output, tokens and message logs are not restored. Use Manage workspaces to create or open a folder.\n`,
   );
   console.log(`Portable folder: ${fileURLToPath(output)}`);
 }

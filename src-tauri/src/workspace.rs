@@ -69,7 +69,7 @@ pub struct Layout {
     pub nodes: Vec<Node>,
     pub viewport: Viewport,
     pub settings: Settings,
-    pub edges: Vec<serde_json::Value>,
+    pub edges: Vec<Edge>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -81,7 +81,16 @@ pub struct Document {
     pub nodes: Vec<Node>,
     pub viewport: Viewport,
     pub settings: Settings,
-    pub edges: Vec<serde_json::Value>,
+    pub edges: Vec<Edge>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Edge {
+    pub id: String,
+    pub source: String,
+    pub target: String,
+    pub kind: String,
+    pub policy: String,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -154,7 +163,7 @@ fn bounded(number: f64, limit: f64) -> bool {
 fn path_valid(path: &str) -> bool {
     path.len() <= 32768 && !path.contains('\0') && Path::new(path).is_absolute()
 }
-fn display(path: &Path) -> String {
+pub(crate) fn display(path: &Path) -> String {
     let value = path.to_string_lossy();
     if let Some(tail) = value.strip_prefix("\\\\?\\UNC\\") {
         format!("\\\\{tail}")
@@ -185,15 +194,15 @@ fn encode<T: Serialize>(value: &T) -> Result<Vec<u8>, String> {
 }
 
 impl Layout {
-    fn validate(&self) -> Result<(), String> {
+    pub(crate) fn validate(&self) -> Result<(), String> {
         if !bounded(self.viewport.x, 1e9)
             || !bounded(self.viewport.y, 1e9)
             || !(0.25..=2.0).contains(&self.viewport.zoom)
         {
             return Err("Invalid workspace viewport".into());
         }
-        if self.nodes.len() > 500 || !self.edges.is_empty() {
-            return Err("This version supports at most 500 nodes and no connections".into());
+        if self.nodes.len() > 500 || self.edges.len() > 200 {
+            return Err("A workspace supports at most 500 nodes and 200 links".into());
         }
         let mut ids = HashSet::new();
         let mut terminals = 0;
@@ -296,6 +305,38 @@ impl Layout {
         }
         if terminals > 20 {
             return Err("A workspace supports at most 20 terminals".into());
+        }
+        let mut pairs = HashSet::new();
+        for edge in &self.edges {
+            if !id_valid(&edge.id) || !ids.insert(&edge.id) || edge.source == edge.target {
+                return Err("Invalid or duplicate connection ID".into());
+            }
+            let source = self
+                .nodes
+                .iter()
+                .find(|n| n.id == edge.source)
+                .ok_or("Missing connection source")?;
+            let target = self
+                .nodes
+                .iter()
+                .find(|n| n.id == edge.target)
+                .ok_or("Missing connection target")?;
+            match edge.kind.as_str() {
+                "agent"
+                    if source.kind == "terminal"
+                        && target.kind == "terminal"
+                        && matches!(edge.policy.as_str(), "approval" | "auto") => {}
+                "memory"
+                    if source.kind == "note"
+                        && target.kind == "terminal"
+                        && edge.policy == "approval" => {}
+                _ => return Err("Invalid connection endpoints or policy".into()),
+            }
+            let mut pair = [edge.source.as_str(), edge.target.as_str()];
+            pair.sort();
+            if !pairs.insert((pair[0], pair[1])) {
+                return Err("These nodes are already connected".into());
+            }
         }
         Ok(())
     }

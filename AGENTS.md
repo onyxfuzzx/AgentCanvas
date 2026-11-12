@@ -7,5 +7,5 @@
 - Keep undoable layout separate from transient terminal state. Validate all Rust command inputs. Never interpolate shell command strings.
 - Commands: `npm ci`, `npm run dev` (web UI), `npm run desktop` (native app), `npm run check` (format/lint/types/tests/build), `npm run native:check` (Rust format/clippy/tests), `npm run desktop:build` (portable executable; installers in M7).
 - Add meaningful tests for coordinate math, history, PTY lifecycle and bounded buffers. Run the app and record actual verification in `docs/VERIFICATION.md`; do not claim unexecuted checks passed.
-- Commit at each milestone. M0–M3 are implemented; the current authorized milestone is M4 (file-backed Markdown notes and whiteboard). Stop after M4; M5–M7 remain planned.
+- Commit at each milestone. M0–M4 are implemented; the current authorized milestone is M5 (local agent links, helper CLI, approval logs and shared-memory notes). Stop after M5; M6–M7 remain planned.
 - Workspace saves must be atomic, versioned and validated. Preserve corrupt originals and last-good backups. Flush autosave before workspace switches and normal close. Never persist terminal output, process handles or command history.
