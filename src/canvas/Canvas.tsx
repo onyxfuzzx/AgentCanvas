@@ -14,14 +14,19 @@ import {
   zoomAt,
   type CanvasNode,
   type Point,
+  type ShapeKind,
 } from './model';
 import { useCanvas } from './store';
+import { drawingNode, connectorBounds } from './whiteboard';
+import { ShapeNode } from './ShapeNode';
 
 type Gesture = {
   pointer: number;
   start: Point;
   latest: Point;
-  mode: 'pan' | 'move' | 'resize' | 'select';
+  mode: 'pan' | 'move' | 'resize' | 'select' | 'draw';
+  drawing?: Exclude<ShapeKind, 'connector'>;
+  points?: Point[];
   nodes: CanvasNode[];
   origin: Point;
   ids: string[];
@@ -42,6 +47,17 @@ export function Canvas({
   const frame = useRef(0);
   const space = useRef(false);
   const [panning, setPanning] = useState(false);
+  const [tool, setTool] = useState<'select' | ShapeKind>('select');
+  const [source, setSource] = useState<string | null>(null);
+  const [draft, setDraft] = useState<CanvasNode | null>(null);
+  useEffect(() => {
+    if (disabled) {
+      gesture.current = null;
+      setDraft(null);
+      setTool('select');
+      setSource(null);
+    }
+  }, [disabled]);
   const [size, setSize] = useState({ width: 1200, height: 800 });
   const [marquee, setMarquee] = useState<{
     x: number;
@@ -90,7 +106,13 @@ export function Canvas({
         e.preventDefault();
         onClose(useCanvas.getState().selected);
       }
-      if (e.key === 'Escape') useCanvas.getState().select([]);
+      if (e.key === 'Escape') {
+        useCanvas.getState().select([]);
+        setTool('select');
+        setSource(null);
+        setDraft(null);
+        gesture.current = null;
+      }
       if (e.key === 'Home') {
         e.preventDefault();
         useCanvas
@@ -124,7 +146,7 @@ export function Canvas({
         return;
       }
       if (
-        (e.target as HTMLElement).closest('.terminal-host') &&
+        (e.target as HTMLElement).closest('.terminal-host,.note-body') &&
         !e.ctrlKey &&
         !e.metaKey
       )
@@ -163,9 +185,74 @@ export function Canvas({
   const begin = (e: ReactPointerEvent, node?: CanvasNode) => {
     if (disabled) return;
     if (e.button !== 0 && e.button !== 1) return;
-    if ((e.target as HTMLElement).closest('button,input,select,a')) return;
+    if ((e.target as HTMLElement).closest('button,input,textarea,select,a'))
+      return;
     const pan = e.button === 1 || space.current;
-    if (!pan && node && !(e.target as HTMLElement).closest('.node-grip')) {
+    if (!pan && tool === 'connector') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!node || node.shape?.kind === 'connector') return;
+      if (!source) {
+        setSource(node.id);
+        useCanvas.getState().select([node.id]);
+        return;
+      }
+      if (source === node.id) return;
+      const s = useCanvas.getState();
+      if (s.nodes.length >= 500 || !s.nodes.some((n) => n.id === source)) {
+        setSource(null);
+        return;
+      }
+      const connector: CanvasNode = {
+        id: crypto.randomUUID(),
+        kind: 'shape',
+        title: 'Connector',
+        color: '#708f7c',
+        x: 0,
+        y: 0,
+        width: 24,
+        height: 24,
+        z: Math.max(0, ...s.nodes.map((n) => n.z)) + 1,
+        shape: { kind: 'connector', source, target: node.id },
+      };
+      s.add(connectorBounds(connector, s.nodes));
+      setTool('select');
+      setSource(null);
+      return;
+    }
+    if (!pan && tool !== 'select' && tool !== 'connector') {
+      e.preventDefault();
+      e.stopPropagation();
+      root.current!.focus();
+      root.current!.setPointerCapture(e.pointerId);
+      const s = useCanvas.getState(),
+        p = point(e),
+        world = toWorld(p, s.viewport);
+      gesture.current = {
+        pointer: e.pointerId,
+        start: p,
+        latest: p,
+        mode: 'draw',
+        drawing: tool,
+        points: [world, world],
+        nodes: s.nodes,
+        origin: s.viewport,
+        ids: [],
+        additive: [],
+      };
+      return;
+    }
+    if (
+      !pan &&
+      node &&
+      node.kind !== 'shape' &&
+      !(e.target as HTMLElement).closest('.node-grip')
+    ) {
+      useCanvas.getState().select([node.id]);
+      e.stopPropagation();
+      return;
+    }
+    if (!pan && node?.shape?.kind === 'connector') {
       useCanvas.getState().select([node.id]);
       e.stopPropagation();
       return;
@@ -210,6 +297,17 @@ export function Canvas({
     const s = useCanvas.getState();
     const dx = (g.latest.x - g.start.x) / s.viewport.zoom;
     const dy = (g.latest.y - g.start.y) / s.viewport.zoom;
+    if (g.mode === 'draw') {
+      setDraft(
+        drawingNode(
+          g.drawing!,
+          g.points!,
+          'draft',
+          Math.max(0, ...s.nodes.map((n) => n.z)) + 1,
+        ),
+      );
+      return;
+    }
     if (g.mode === 'pan') {
       s.setViewport({
         ...s.viewport,
@@ -245,8 +343,20 @@ export function Canvas({
       updates[n.id] =
         g.mode === 'resize'
           ? {
-              width: Math.max(320, snap(n.width + dx, s.snapGrid)),
-              height: Math.max(200, snap(n.height + dy, s.snapGrid)),
+              width: Math.min(
+                10000,
+                Math.max(
+                  n.kind === 'shape' ? 24 : 320,
+                  snap(n.width + dx, s.snapGrid),
+                ),
+              ),
+              height: Math.min(
+                10000,
+                Math.max(
+                  n.kind === 'shape' ? 24 : 200,
+                  snap(n.height + dy, s.snapGrid),
+                ),
+              ),
             }
           : { x: n.x + sx, y: n.y + sy };
     s.patch(updates);
@@ -255,7 +365,28 @@ export function Canvas({
     if (gesture.current?.pointer !== e.pointerId) return;
     if (frame.current) cancelAnimationFrame(frame.current);
     update();
+    const g = gesture.current!;
+    if (
+      g.mode === 'draw' &&
+      e.type !== 'pointercancel' &&
+      ((g.drawing === 'freehand' && g.points!.length > 2) ||
+        Math.hypot(g.latest.x - g.start.x, g.latest.y - g.start.y) > 3) &&
+      useCanvas.getState().nodes.length < 500
+    ) {
+      useCanvas
+        .getState()
+        .add(
+          drawingNode(
+            g.drawing!,
+            g.points!,
+            crypto.randomUUID(),
+            Math.max(0, ...useCanvas.getState().nodes.map((n) => n.z)) + 1,
+          ),
+        );
+      setTool('select');
+    }
     gesture.current = null;
+    setDraft(null);
     setMarquee(null);
     if (root.current?.hasPointerCapture(e.pointerId))
       root.current.releasePointerCapture(e.pointerId);
@@ -268,7 +399,7 @@ export function Canvas({
   );
   const beginResize = (e: ReactPointerEvent, node: CanvasNode) => {
     if (disabled) return;
-    if (e.button !== 0) return;
+    if (e.button !== 0 || node.shape?.kind === 'connector') return;
     e.preventDefault();
     e.stopPropagation();
     const s = useCanvas.getState();
@@ -290,13 +421,36 @@ export function Canvas({
   return (
     <div
       ref={root}
-      className={`canvas ${panning ? 'pan-ready' : ''}`}
+      className={`canvas ${panning ? 'pan-ready' : ''} ${tool !== 'select' ? 'drawing-ready' : ''}`}
       tabIndex={0}
       aria-label="Infinite workspace canvas"
       onPointerDown={(e) => begin(e)}
+      onPointerDownCapture={(e) => {
+        if (tool !== 'select') {
+          const id = (e.target as Element)
+            .closest('[data-node]')
+            ?.getAttribute('data-node');
+          begin(
+            e,
+            nodes.find((n) => n.id === id),
+          );
+        }
+      }}
       onPointerMove={(e) => {
         if (!gesture.current) return;
         gesture.current.latest = point(e);
+        const g = gesture.current;
+        if (g.mode === 'draw') {
+          const p = toWorld(g.latest, useCanvas.getState().viewport);
+          if (g.drawing === 'freehand') {
+            const last = g.points!.at(-1)!;
+            if (
+              g.points!.length < 2048 &&
+              Math.hypot(p.x - last.x, p.y - last.y) * viewport.zoom >= 2
+            )
+              g.points!.push(p);
+          } else g.points = [g.points![0], p];
+        }
         if (!frame.current) frame.current = requestAnimationFrame(update);
       }}
       onPointerUp={finish}
@@ -304,6 +458,7 @@ export function Canvas({
       onLostPointerCapture={() => {
         gesture.current = null;
         setMarquee(null);
+        setDraft(null);
       }}
       onContextMenu={(e) => e.preventDefault()}
       style={{
@@ -323,7 +478,7 @@ export function Canvas({
             <section
               key={node.id}
               data-node={node.id}
-              className={`canvas-node ${selected.includes(node.id) ? 'selected' : ''}`}
+              className={`canvas-node ${node.kind === 'shape' ? 'shape-node' : ''} ${selected.includes(node.id) ? 'selected' : ''}`}
               style={{
                 left: node.x,
                 top: node.y,
@@ -336,11 +491,21 @@ export function Canvas({
             >
               <header className="node-grip">
                 <span className="node-kind">
-                  {node.kind === 'terminal' ? '>_' : '◇'}
+                  {node.kind === 'terminal'
+                    ? '>_'
+                    : node.kind === 'note'
+                      ? '▤'
+                      : '◇'}
                 </span>
                 <strong>{node.title}</strong>
                 <span className="node-type">
-                  {node.kind === 'terminal' ? node.shell : 'CANVAS CARD'}
+                  {node.kind === 'terminal'
+                    ? node.shell
+                    : node.kind === 'note'
+                      ? 'MARKDOWN'
+                      : node.kind === 'shape'
+                        ? 'WHITEBOARD'
+                        : 'CANVAS CARD'}
                 </span>
                 <button
                   title={`Close ${node.title}`}
@@ -351,7 +516,11 @@ export function Canvas({
                 </button>
               </header>
               <div className="node-content">
-                {renderNode?.(node, visible) ?? (
+                {(node.kind === 'shape' ? (
+                  <ShapeNode node={node} nodes={nodes} />
+                ) : (
+                  renderNode?.(node, visible)
+                )) ?? (
                   <div className="card-content">
                     <span className="eyebrow">ROOM FOR YOUR NEXT IDEA</span>
                     <h2>{node.title}</h2>
@@ -365,15 +534,31 @@ export function Canvas({
                   </div>
                 )}
               </div>
-              <button
-                className="resize-handle"
-                title="Resize node"
-                aria-label={`Resize ${node.title}`}
-                onPointerDown={(e) => beginResize(e, node)}
-              />
+              {node.shape?.kind !== 'connector' && (
+                <button
+                  className="resize-handle"
+                  title="Resize node"
+                  aria-label={`Resize ${node.title}`}
+                  onPointerDown={(e) => beginResize(e, node)}
+                />
+              )}
             </section>
           );
         })}
+        {draft && (
+          <div
+            className="drawing-preview"
+            style={{
+              left: draft.x,
+              top: draft.y,
+              width: draft.width,
+              height: draft.height,
+              zIndex: 2147483646,
+            }}
+          >
+            <ShapeNode node={draft} nodes={nodes} />
+          </div>
+        )}
         {marquee && (
           <div
             className="marquee"
@@ -386,7 +571,7 @@ export function Canvas({
           />
         )}
       </div>
-      {!nodes.length && (
+      {!nodes.length && tool === 'select' && (
         <div className="empty-state">
           <div className="empty-glyph">⌘</div>
           <span className="eyebrow">YOUR WORK, WITH ROOM TO BREATHE</span>
@@ -405,6 +590,63 @@ export function Canvas({
           </span>
         </div>
       )}
+      <div
+        className="drawing-tools"
+        role="toolbar"
+        aria-label="Whiteboard tools"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {(
+          [
+            'select',
+            'rectangle',
+            'ellipse',
+            'text',
+            'arrow',
+            'connector',
+            'freehand',
+          ] as const
+        ).map((kind) => (
+          <button
+            key={kind}
+            disabled={disabled}
+            aria-pressed={tool === kind}
+            title={
+              kind === 'connector'
+                ? 'Connector: click two nodes'
+                : kind === 'select'
+                  ? 'Select and move'
+                  : `Draw ${kind}`
+            }
+            onClick={() => {
+              setTool(kind);
+              setSource(null);
+              setDraft(null);
+            }}
+          >
+            {
+              {
+                select: '↖',
+                rectangle: '▭',
+                ellipse: '◯',
+                text: 'T',
+                arrow: '↗',
+                connector: '⇄',
+                freehand: '✎',
+              }[kind]
+            }
+          </button>
+        ))}
+        <span>
+          {tool === 'select'
+            ? 'Whiteboard'
+            : tool === 'connector'
+              ? source
+                ? 'Click the second node'
+                : 'Click the first node'
+              : `Drag to draw ${tool} · Esc cancels`}
+        </span>
+      </div>
       <div className="canvas-hint">
         <kbd>Space</kbd> + drag to pan <span>·</span> Scroll to zoom{' '}
         <span>·</span> <kbd>Home</kbd> to fit

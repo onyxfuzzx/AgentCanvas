@@ -130,3 +130,38 @@ pub async fn workspace_release(storage: State<'_, Storage>, id: String) -> Resul
 pub async fn workspace_activate(storage: State<'_, Storage>, id: String) -> Result<(), String> {
     with_storage(storage, move |s| s.activate(&id)).await
 }
+#[tauri::command]
+pub async fn note_create(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+    id: String,
+) -> Result<String, String> {
+    with_storage(storage, move |s| {
+        crate::notes::create(s, &workspace_id, &id)
+    })
+    .await
+}
+#[tauri::command]
+pub async fn note_read(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+    relative_path: String,
+) -> Result<String, String> {
+    with_storage(storage, move |s| {
+        crate::notes::read(s, &workspace_id, &relative_path)
+    })
+    .await
+}
+#[tauri::command]
+pub async fn note_save(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+    relative_path: String,
+    expected: String,
+    content: String,
+) -> Result<(), String> {
+    with_storage(storage, move |s| {
+        crate::notes::save(s, &workspace_id, &relative_path, &expected, &content)
+    })
+    .await
+}

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { Canvas } from './canvas/Canvas';
 import { useCanvas } from './canvas/store';
 import { toWorld } from './canvas/model';
@@ -7,6 +13,7 @@ import {
   windowAction,
   onCloseRequested,
   destroyWindow,
+  invoke,
 } from './native';
 import { TerminalNode } from './terminal/TerminalNode';
 import { NewTerminal } from './terminal/NewTerminal';
@@ -15,6 +22,8 @@ import { TerminalActivity } from './terminal/TerminalActivity';
 import { RestartTerminal } from './terminal/RestartTerminal';
 import { workspace, useWorkspace } from './workspace/runtime';
 import { WorkspacePanel } from './workspace/WorkspacePanel';
+import { NoteNode } from './notes/NoteNode';
+import { notes } from './notes/runtime';
 
 export function App() {
   const { nodes, selected, past, future } = useCanvas();
@@ -25,16 +34,19 @@ export function App() {
   const [restartId, setRestartId] = useState<string | null>(null);
   const [closeError, setCloseError] = useState('');
   const closing = useRef(false);
+  const [creatingNote, setCreatingNote] = useState(false);
+  const creation = useRef<Promise<void> | null>(null);
   const work = useWorkspace();
-  const busy = work.phase !== 'ready' || work.closing;
+  const noteState = useSyncExternalStore(notes.subscribe, notes.snapshot);
+  const busy = work.phase !== 'ready' || work.closing || creatingNote;
   useEffect(() => {
     void workspace.initialize().catch((error) => setNotice(String(error)));
   }, []);
   const requestClose = useCallback(() => {
     if (closing.current) return;
     closing.current = true;
-    void workspace
-      .prepareToClose()
+    void Promise.resolve(creation.current)
+      .then(() => workspace.prepareToClose())
       .then(() => destroyWindow())
       .catch((error) => {
         closing.current = false;
@@ -81,6 +93,10 @@ export function App() {
   }, []);
   const add = () => {
     const s = useCanvas.getState();
+    if (s.nodes.length >= 500) {
+      setNotice('A workspace supports up to 500 nodes.');
+      return;
+    }
     const p = toWorld(
       { x: 160 + (nodes.length % 4) * 40, y: 110 + (nodes.length % 4) * 40 },
       s.viewport,
@@ -95,6 +111,50 @@ export function App() {
       height: 300,
       z: Math.max(0, ...nodes.map((n) => n.z)) + 1,
     });
+  };
+  const addNote = () => {
+    const active = work.active;
+    if (!active) {
+      setNotice('Open a desktop workspace to create file-backed notes.');
+      return;
+    }
+    if (nodes.length >= 500) {
+      setNotice('A workspace supports up to 500 nodes.');
+      return;
+    }
+    if (creation.current) return;
+    setCreatingNote(true);
+    const id = crypto.randomUUID();
+    creation.current = (async () => {
+      const relativePath = await invoke<string>('note_create', {
+        workspaceId: active.document.id,
+        id,
+      });
+      const s = useCanvas.getState();
+      const p = toWorld(
+        {
+          x: 180 + (s.nodes.length % 4) * 40,
+          y: 150 + (s.nodes.length % 4) * 40,
+        },
+        s.viewport,
+      );
+      s.add({
+        id,
+        kind: 'note',
+        title: 'New note',
+        color: '#c9934b',
+        ...p,
+        width: 460,
+        height: 400,
+        z: Math.max(0, ...s.nodes.map((n) => n.z)) + 1,
+        relativePath,
+      });
+    })()
+      .catch((error) => setNotice(String(error)))
+      .finally(() => {
+        creation.current = null;
+        setCreatingNote(false);
+      });
   };
   const focus = nodes.find((n) => n.id === selected[0]);
   return (
@@ -226,6 +286,57 @@ export function App() {
                 {Math.round(focus.width)} × {Math.round(focus.height)}
               </small>
               {focus.kind === 'terminal' && <TerminalActivity id={focus.id} />}
+              {focus.kind === 'shape' && focus.shape?.kind === 'text' && (
+                <label>
+                  Text
+                  <textarea
+                    aria-label="Whiteboard text"
+                    value={focus.shape.text ?? ''}
+                    maxLength={4096}
+                    onFocus={() => useCanvas.getState().checkpoint()}
+                    onChange={(e) =>
+                      useCanvas.getState().patch({
+                        [focus.id]: {
+                          shape: { ...focus.shape!, text: e.target.value },
+                        },
+                      })
+                    }
+                  />
+                </label>
+              )}
+              <div className="layer-buttons">
+                <button
+                  title="Bring to front"
+                  onClick={() => {
+                    const s = useCanvas.getState();
+                    s.checkpoint();
+                    s.patch({
+                      [focus.id]: {
+                        z: Math.max(0, ...nodes.map((n) => n.z)) + 1,
+                      },
+                    });
+                  }}
+                >
+                  To front
+                </button>
+                <button
+                  title="Send to back"
+                  onClick={() => {
+                    const s = useCanvas.getState();
+                    s.checkpoint();
+                    s.patch(
+                      Object.fromEntries(
+                        nodes.map((n) => [
+                          n.id,
+                          { z: n.id === focus.id ? 0 : n.z + 1 },
+                        ]),
+                      ),
+                    );
+                  }}
+                >
+                  To back
+                </button>
+              </div>
               {focus.kind === 'terminal' && (
                 <RestartTerminal
                   id={focus.id}
@@ -263,13 +374,19 @@ export function App() {
                   }
                   title={work.active.folder}
                 >
-                  {work.saveState === 'saving'
-                    ? 'Saving…'
-                    : work.saveState === 'error'
-                      ? 'Retry save'
-                      : work.saveState === 'unsaved'
-                        ? 'Save now'
-                        : 'Saved ✓'}
+                  {noteState.state === 'error'
+                    ? 'Note error · retry'
+                    : noteState.state === 'saving'
+                      ? 'Saving notes…'
+                      : noteState.state === 'unsaved'
+                        ? 'Save notes'
+                        : work.saveState === 'saving'
+                          ? 'Saving…'
+                          : work.saveState === 'error'
+                            ? 'Retry save'
+                            : work.saveState === 'unsaved'
+                              ? 'Save now'
+                              : 'Saved ✓'}
                 </button>
               )}
               <button
@@ -297,6 +414,13 @@ export function App() {
               <button className="new-node" onClick={() => setNewTerminal(true)}>
                 <span>+</span> New terminal
               </button>
+              <button
+                className="add-note"
+                title="Create a Markdown note file"
+                onClick={addNote}
+              >
+                ▤ Note
+              </button>
             </div>
           </div>
           <Canvas
@@ -305,6 +429,12 @@ export function App() {
             renderNode={(node, visible) =>
               node.kind === 'terminal' ? (
                 <TerminalNode node={node} visible={visible} />
+              ) : node.kind === 'note' && work.active ? (
+                <NoteNode
+                  node={node}
+                  workspaceId={work.active.document.id}
+                  visible={visible}
+                />
               ) : undefined
             }
           />
@@ -316,19 +446,30 @@ export function App() {
               {nodes.length} nodes <b>·</b> {selected.length} selected
             </span>
             <span>
-              {work.active
-                ? work.saveState === 'error'
-                  ? 'SAVE FAILED'
-                  : work.saveState === 'saving'
-                    ? 'SAVING…'
-                    : work.saveState === 'unsaved'
-                      ? 'UNSAVED CHANGES'
-                      : 'SAVED LOCALLY'
-                : 'TEMPORARY PREVIEW'}
+              {noteState.state === 'error'
+                ? 'NOTE ERROR'
+                : noteState.state === 'saving'
+                  ? 'SAVING NOTES…'
+                  : noteState.state === 'unsaved'
+                    ? 'UNSAVED NOTES'
+                    : work.active
+                      ? work.saveState === 'error'
+                        ? 'SAVE FAILED'
+                        : work.saveState === 'saving'
+                          ? 'SAVING…'
+                          : work.saveState === 'unsaved'
+                            ? 'UNSAVED CHANGES'
+                            : 'SAVED LOCALLY'
+                      : 'TEMPORARY PREVIEW'}
             </span>
           </footer>
         </main>
       </div>
+      {noteState.error && work.phase === 'ready' && (
+        <div className="notes-warning" role="status">
+          {noteState.error}
+        </div>
+      )}
       {newTerminal && (
         <NewTerminal
           defaultCwd={work.active?.folder}
@@ -347,13 +488,15 @@ export function App() {
       {busy && !workspacesOpen && (
         <div className="workspace-loading" role="status">
           <h2>
-            {work.closing
-              ? 'Saving before closing…'
-              : work.phase === 'error'
-                ? 'Workspace could not open'
-                : work.phase === 'restoring'
-                  ? 'Restoring terminals…'
-                  : 'Opening workspace…'}
+            {creatingNote
+              ? 'Creating note…'
+              : work.closing
+                ? 'Saving before closing…'
+                : work.phase === 'error'
+                  ? 'Workspace could not open'
+                  : work.phase === 'restoring'
+                    ? 'Restoring terminals…'
+                    : 'Opening workspace…'}
           </h2>
           {work.phase === 'error' ? (
             <>
@@ -392,11 +535,11 @@ export function App() {
             aria-modal="true"
             aria-labelledby="close-error-title"
           >
-            <h2 id="close-error-title">Layout could not save.</h2>
+            <h2 id="close-error-title">Workspace could not save.</h2>
             <p className="error-text">{closeError}</p>
             <p>
-              Keep working to retain the current layout in memory, or close and
-              discard unsaved layout changes.
+              Keep working to retain your layout and note drafts, or close and
+              discard unsaved changes.
             </p>
             <button
               className="primary-button"

@@ -44,6 +44,10 @@ export function NewTerminal({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const s = useCanvas.getState();
+    if (!existing && s.nodes.length >= 500) {
+      setError('A workspace supports up to 500 nodes.');
+      return;
+    }
     if (
       !existing &&
       s.nodes.filter((n) => n.kind === 'terminal').length >= 20

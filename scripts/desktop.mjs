@@ -77,7 +77,7 @@ if (result.status === 0 && process.argv[2] === 'build') {
     copyFileSync(new URL(file, target), new URL(file, output));
   writeFileSync(
     new URL('README.txt', output),
-    `${product.name}\n\nRun agent-canvas-desktop.exe. Keep pty-host.exe beside it.\nWorkspaces autosave layout and terminal startup directories to workspace.json.\nTerminal commands and output are not restored. Use Manage workspaces to create or open a folder.\n`,
+    `${product.name}\n\nRun agent-canvas-desktop.exe. Keep pty-host.exe beside it.\nWorkspaces autosave layout, whiteboard and terminal startup directories to workspace.json.\nMarkdown notes autosave to notes/<UUID>.md. Removing a note node keeps its file.\nTerminal commands and output are not restored. Use Manage workspaces to create or open a folder.\n`,
   );
   console.log(`Portable folder: ${fileURLToPath(output)}`);
 }

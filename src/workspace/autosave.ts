@@ -64,4 +64,7 @@ export class Autosave<T> {
     this.disposed = true;
     if (this.timer) clearTimeout(this.timer);
   }
+  async settle() {
+    await this.running?.catch(() => {});
+  }
 }

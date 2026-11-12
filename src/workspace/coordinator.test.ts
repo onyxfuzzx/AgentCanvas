@@ -208,3 +208,18 @@ test('normal close flushes the last edit and refuses close on a save failure', a
   await expect(h.coordinator.prepareToClose()).rejects.toThrow('Disk full');
   expect(h.state.getState().closing).toBe(false);
 });
+test('note flush failure blocks switch and normal close even when layout is unchanged', async () => {
+  const h = harness();
+  await h.coordinator.initialize();
+  const flush = vi.fn(async () => {
+    throw Error('Note conflict');
+  });
+  h.ports.flushNotes = flush;
+  vi.mocked(h.ports.closeAll).mockClear();
+  h.calls.length = 0;
+  await expect(h.coordinator.switchTo('two')).rejects.toThrow('Note conflict');
+  expect(h.ports.closeAll).not.toHaveBeenCalled();
+  expect(h.calls.some((c) => c.command === 'workspace_open')).toBe(false);
+  await expect(h.coordinator.prepareToClose()).rejects.toThrow('Note conflict');
+  expect(h.state.getState().closing).toBe(false);
+});

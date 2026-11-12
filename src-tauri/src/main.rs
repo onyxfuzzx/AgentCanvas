@@ -49,7 +49,10 @@ fn main() {
             commands::workspace_open_folder,
             commands::workspace_save,
             commands::workspace_release,
-            commands::workspace_activate
+            commands::workspace_activate,
+            commands::note_create,
+            commands::note_read,
+            commands::note_save
         ])
         .build(context)
         .expect("desktop runtime failed")

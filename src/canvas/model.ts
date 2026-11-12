@@ -3,7 +3,7 @@ export type Viewport = Point & { zoom: number };
 export type Shell = 'powershell' | 'cmd' | 'wsl' | 'git-bash';
 export type CanvasNode = Point & {
   id: string;
-  kind: 'card' | 'terminal';
+  kind: 'card' | 'terminal' | 'note' | 'shape';
   title: string;
   color: string;
   width: number;
@@ -11,6 +11,17 @@ export type CanvasNode = Point & {
   z: number;
   shell?: Shell;
   cwd?: string;
+  relativePath?: string;
+  shape?: Shape;
+};
+export type ShapeKind =
+  'rectangle' | 'ellipse' | 'text' | 'arrow' | 'connector' | 'freehand';
+export type Shape = {
+  kind: ShapeKind;
+  text?: string;
+  points?: Point[];
+  source?: string;
+  target?: string;
 };
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 2;

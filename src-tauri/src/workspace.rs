@@ -39,6 +39,29 @@ pub struct Node {
     pub shell: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relative_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<Shape>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShapePoint {
+    pub x: f64,
+    pub y: f64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Shape {
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub points: Option<Vec<ShapePoint>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -112,7 +135,7 @@ pub struct WorkspaceStore {
     open: HashMap<String, OpenWorkspace>,
 }
 
-fn id_valid(id: &str) -> bool {
+pub(crate) fn id_valid(id: &str) -> bool {
     id.len() == 36
         && id.bytes().enumerate().all(|(i, c)| {
             if [8, 13, 18, 23].contains(&i) {
@@ -187,20 +210,83 @@ impl Layout {
             }
             if !bounded(n.x, 1e7)
                 || !bounded(n.y, 1e7)
-                || !(320.0..=10000.0).contains(&n.width)
-                || !(200.0..=10000.0).contains(&n.height)
+                || !(if n.kind == "shape" { 24.0 } else { 320.0 }..=10000.0).contains(&n.width)
+                || !(if n.kind == "shape" { 24.0 } else { 200.0 }..=10000.0).contains(&n.height)
                 || !(0..=1_000_000_000).contains(&n.z)
             {
                 return Err("Invalid node geometry".into());
             }
             match n.kind.as_str() {
-                "card" if n.shell.is_none() && n.cwd.is_none() => {}
+                "card"
+                    if n.shell.is_none()
+                        && n.cwd.is_none()
+                        && n.relative_path.is_none()
+                        && n.shape.is_none() => {}
+                "note" if n.shell.is_none() && n.cwd.is_none() && n.shape.is_none() => {
+                    if !n
+                        .relative_path
+                        .as_deref()
+                        .is_some_and(crate::notes::valid_path)
+                    {
+                        return Err("Invalid note path".into());
+                    }
+                }
+                "shape" if n.shell.is_none() && n.cwd.is_none() && n.relative_path.is_none() => {
+                    let shape = n.shape.as_ref().ok_or("Missing shape payload")?;
+                    if !matches!(
+                        shape.kind.as_str(),
+                        "rectangle" | "ellipse" | "text" | "arrow" | "connector" | "freehand"
+                    ) || shape
+                        .text
+                        .as_ref()
+                        .is_some_and(|s| s.len() > 16384 || s.contains('\0'))
+                    {
+                        return Err("Invalid whiteboard shape".into());
+                    }
+                    match shape.kind.as_str() {
+                        "arrow" | "freehand" => {
+                            let points = shape.points.as_ref().ok_or("Missing shape points")?;
+                            if !(2..=2048).contains(&points.len())
+                                || (shape.kind == "arrow" && points.len() != 2)
+                                || points.iter().any(|p| {
+                                    !(0.0..=1.0).contains(&p.x) || !(0.0..=1.0).contains(&p.y)
+                                })
+                            {
+                                return Err("Invalid shape points".into());
+                            }
+                        }
+                        _ if shape.points.is_some() => return Err("Unexpected shape points".into()),
+                        _ => {}
+                    }
+                    if shape.kind == "connector" {
+                        let source = shape.source.as_ref().ok_or("Missing connector source")?;
+                        let target = shape.target.as_ref().ok_or("Missing connector target")?;
+                        if source == target
+                            || [source, target].iter().any(|id| {
+                                !self.nodes.iter().any(|node| {
+                                    &node.id == *id
+                                        && node.shape.as_ref().is_none_or(|s| s.kind != "connector")
+                                })
+                            })
+                        {
+                            return Err(
+                                "Connector endpoints must be two existing non-connector nodes"
+                                    .into(),
+                            );
+                        }
+                    } else if shape.source.is_some() || shape.target.is_some() {
+                        return Err("Unexpected connector endpoints".into());
+                    }
+                }
                 "terminal" => {
                     terminals += 1;
-                    if !matches!(
-                        n.shell.as_deref(),
-                        Some("powershell" | "cmd" | "wsl" | "git-bash")
-                    ) || !n.cwd.as_deref().is_some_and(path_valid)
+                    if n.shape.is_some()
+                        || n.relative_path.is_some()
+                        || !matches!(
+                            n.shell.as_deref(),
+                            Some("powershell" | "cmd" | "wsl" | "git-bash")
+                        )
+                        || !n.cwd.as_deref().is_some_and(path_valid)
                     {
                         return Err("Invalid saved terminal preset or directory".into());
                     }
@@ -215,7 +301,7 @@ impl Layout {
     }
 }
 impl Document {
-    fn layout(&self) -> Layout {
+    pub(crate) fn layout(&self) -> Layout {
         Layout {
             nodes: self.nodes.clone(),
             viewport: self.viewport.clone(),
@@ -534,6 +620,12 @@ impl WorkspaceStore {
     }
     pub fn release(&mut self, id: &str) {
         self.open.remove(id);
+    }
+    pub(crate) fn folder(&self, id: &str) -> Result<&Path, String> {
+        self.open
+            .get(id)
+            .map(|o| o.folder.as_path())
+            .ok_or_else(|| "Workspace is not open".into())
     }
     pub fn activate(&self, id: &str) -> Result<(), String> {
         if !self.open.contains_key(id) {

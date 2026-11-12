@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { CanvasNode, Viewport } from './model';
+import { reflow, withoutNodes } from './whiteboard';
 
 const LIMIT = 80;
 type State = {
@@ -34,20 +35,24 @@ export const useCanvas = create<State>((set) => ({
     set((s) => ({ past: [...s.past, s.nodes].slice(-LIMIT), future: [] })),
   patch: (updates) =>
     set((s) => ({
-      nodes: s.nodes.map((n) =>
-        updates[n.id] ? { ...n, ...updates[n.id] } : n,
+      nodes: reflow(
+        s.nodes.map((n) => (updates[n.id] ? { ...n, ...updates[n.id] } : n)),
       ),
     })),
   add: (node) =>
-    set((s) => ({
-      nodes: [...s.nodes, node],
-      selected: [node.id],
-      past:
-        node.kind === 'terminal'
-          ? s.past.map((snapshot) => [...snapshot, node])
-          : [...s.past, s.nodes].slice(-LIMIT),
-      future: [],
-    })),
+    set((s) =>
+      s.nodes.length >= 500
+        ? {}
+        : {
+            nodes: [...s.nodes, node],
+            selected: [node.id],
+            past:
+              node.kind === 'terminal'
+                ? s.past.map((snapshot) => [...snapshot, node])
+                : [...s.past, s.nodes].slice(-LIMIT),
+            future: [],
+          },
+    ),
   remove: (ids) =>
     set((s) => {
       // Process destruction is irreversible: purge closed terminals from every layout snapshot.
@@ -56,10 +61,9 @@ export const useCanvas = create<State>((set) => ({
           .filter((n) => n.kind === 'terminal' && ids.includes(n.id))
           .map((n) => n.id),
       );
-      const clean = (nodes: CanvasNode[]) =>
-        nodes.filter((n) => !terminalIds.has(n.id));
+      const clean = (nodes: CanvasNode[]) => withoutNodes(nodes, terminalIds);
       return {
-        nodes: s.nodes.filter((n) => !ids.includes(n.id)),
+        nodes: withoutNodes(s.nodes, new Set(ids)),
         selected: [],
         past: [...s.past.map(clean), clean(s.nodes)].slice(-LIMIT),
         future: [],

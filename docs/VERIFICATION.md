@@ -2,6 +2,20 @@
 
 Record executed checks and remaining limitations here. A code milestone is not fully accepted until native build, tests and an interactive desktop run all pass.
 
+## M4 — Markdown notes and whiteboard (2026-11-12)
+
+Implemented file-backed Markdown stickies, a plain-text editor and bounded offline preview, note autosave/flush/conflict handling, and SVG rectangles, ellipses, text, arrows, attached visual connectors and freehand strokes. Notes remain on disk when removed from the layout. Whiteboard edits use layout history and workspace JSON; note text uses the editor's text history and separate `.md` files. M5 messaging/shared-memory links are not enabled by visual connectors.
+
+- `npm run check` passed with `CANVAS_NO_SUBPROCESS=1`: Prettier, ESLint, TypeScript, **38 frontend tests** and production build. New tests cover note debounce/flush and retained drafts, conflict/reload behavior, reload during an in-flight save, bounded/escaped Markdown preview without remote image/link elements, reverse/negative drawing coordinates, connector tracking/deletion/history, and note failure blocking switch/close.
+- `npm run native:check` passed: Rust format, Clippy with warnings denied, **15 unit tests and three ConPTY integration tests**. New native tests cover Unicode Markdown writes and last-good backups, refusal to overwrite external edits, traversal/invalid UTF-8/oversize rejection, and notes/all six shape types roundtripping with invalid paths/points/endpoints rejected. The existing optional Git Bash integration is still ignored by default for the previously documented restricted-host limitation.
+- `npm run desktop:build -- --debug` passed with `AGENTCANVAS_BUILD_TAG=m4`. Final portable debug folder: `artifacts/windows-debug-m4/`, containing both executables. Release optimization and installer builds were not run.
+- Manually ran the actual Windows desktop app through the computer-use skill. Created **M4 verification** at `.cache/m4-verification`; created a sticky note, edited Markdown, observed headings/lists/emphasis/quote/fenced-code preview, and inspected the real `.md` and `.md.bak` files. Drew rectangles, ellipses, a text region, a directed arrow and a freehand stroke. Edited whiteboard text, undid/redid a whole stroke with Ctrl+Z/Ctrl+Shift+Z, connected the rectangle to the ellipse, then moved/resized the ellipse and observed the connector follow it. These shapes and payloads were inspected in `workspace.json`.
+- Modified only the disposable note file externally, then edited its in-app draft: the app visibly reported a conflict, retained the local draft and left the external file unchanged. Normal titlebar close was refused with a save-error dialog. Kept working, restored the fixture's expected disk baseline and retried saving successfully. Applied another external edit and verified **Reload disk** read it. Changed zoom to 83%, closed normally, and launched the final rebuilt executable. All seven nodes, Markdown content, text, shape geometry and connector attachment restored with saved status. The final app remains open on these disposable verification nodes.
+
+Limits: preview is a documented Markdown subset, not full CommonMark; it renders no active HTML, remote images or navigable links. Very large previews are truncated while the editor/file retain all text. Curved/stylus/closed-loop freehand input, two-monitor DPI transitions, large whiteboard frame rate, a missing note/reparse-path UI scenario and note editing while panned off-screen were not manually exercised. Queue/model tests cover detach and bounded/normalized data paths; they do not prove stylus or DPI behavior. Sudden power loss, disk-full UI and network-share atomicity remain unverified. Existing M0–M3 limits still apply. No M5–M7 work was started.
+
+The scoped M4 staging attempt failed with `.git/index.lock: Permission denied` because this session's `.git` access remains read-only. No M4 commit was created; source changes and the existing commits were preserved.
+
 ## M3 — workspaces (2026-11-08)
 
 Implemented named workspace folders, recent/open/create controls, versioned layout JSON, 750 ms autosave, save-on-switch/close, backups, truncated-file recovery, exclusive folder locks and external-edit conflict detection. Restore resets layout history and starts fresh terminals with at most four concurrent starts. Missing startup directories retain their nodes with errors and a Restart form. No commands or output are persisted.
@@ -69,4 +83,4 @@ Initial environment: empty directory, Git initialized by this session. Node 20.2
 
 ## Scope boundary
 
-M3 persistence is implemented and verified above. File-backed notes, whiteboard, links/named-pipe helper, shared memory, browser nodes, summaries and installers remain planned for M4–M7. The `pty-host.exe` console launcher is internal lifecycle infrastructure, not the M5 messaging CLI.
+M4 notes and whiteboard are implemented and verified above. Links/named-pipe helper, shared memory, browser nodes, summaries and installers remain planned for M5–M7. The `pty-host.exe` console launcher is internal lifecycle infrastructure, not the M5 messaging CLI.

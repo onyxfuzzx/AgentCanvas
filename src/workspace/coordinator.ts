@@ -42,6 +42,8 @@ export interface WorkspacePorts {
   prepare: (nodes: CanvasNode[]) => void;
   closeAll: () => Promise<void>;
   start: (node: CanvasNode) => Promise<void>;
+  flushNotes?: () => Promise<void>;
+  resetNotes?: () => void;
 }
 export class WorkspaceCoordinator {
   private queue: Autosave<WorkspaceLayout> | undefined;
@@ -124,6 +126,7 @@ export class WorkspaceCoordinator {
     }
     this.queue?.dispose();
     this.queue = undefined;
+    this.ports.resetNotes?.();
     this.ports.prepare(loaded.document.nodes);
     this.ports.replace(loaded);
     this.state.setState({
@@ -167,6 +170,7 @@ export class WorkspaceCoordinator {
     const queue = new Autosave(
       this.ports.capture,
       async (layout) => {
+        await this.ports.flushNotes?.();
         const saved = await this.ports.invoke<LoadedWorkspace>(
           'workspace_save',
           { id: loaded.document.id, layout },
@@ -193,6 +197,7 @@ export class WorkspaceCoordinator {
     if (id === this.state.getState().active?.document.id)
       return Promise.resolve();
     return this.run(async () => {
+      await this.ports.flushNotes?.();
       await this.queue?.flush();
       await this.apply(
         await this.ports.invoke<LoadedWorkspace>('workspace_open', { id }),
@@ -201,6 +206,7 @@ export class WorkspaceCoordinator {
   }
   create(name: string, folder: string) {
     return this.run(async () => {
+      await this.ports.flushNotes?.();
       await this.queue?.flush();
       await this.apply(
         await this.ports.invoke<LoadedWorkspace>('workspace_create', {
@@ -213,6 +219,7 @@ export class WorkspaceCoordinator {
   }
   openFolder(folder: string) {
     return this.run(async () => {
+      await this.ports.flushNotes?.();
       await this.queue?.flush();
       await this.apply(
         await this.ports.invoke<LoadedWorkspace>('workspace_open_folder', {
@@ -221,13 +228,15 @@ export class WorkspaceCoordinator {
       );
     });
   }
-  save() {
-    return this.queue?.flush(true) ?? Promise.resolve();
+  async save() {
+    await this.ports.flushNotes?.();
+    await this.queue?.flush(true);
   }
   async prepareToClose() {
     this.state.setState({ closing: true });
     try {
       await this.operation?.catch(() => {});
+      await this.ports.flushNotes?.();
       await this.queue?.flush();
     } catch (error) {
       this.state.setState({ closing: false });

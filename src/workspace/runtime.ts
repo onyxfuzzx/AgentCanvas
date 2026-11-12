@@ -8,6 +8,7 @@ import {
   closeAllSessions,
 } from '../terminal/registry';
 import { createWorkspaceState, WorkspaceCoordinator } from './coordinator';
+import { notes } from '../notes/runtime';
 
 export const workspaceState = createWorkspaceState();
 export const workspace = new WorkspaceCoordinator(
@@ -36,7 +37,11 @@ export const workspace = new WorkspaceCoordinator(
                 shell: node.shell,
                 cwd: getSession(node.id)?.session.meta.cwd || node.cwd || '',
               }
-            : base;
+            : node.kind === 'note'
+              ? { ...base, relativePath: node.relativePath }
+              : node.kind === 'shape'
+                ? { ...base, shape: node.shape }
+                : base;
         }),
         viewport: { ...state.viewport },
         settings: { snapGrid: state.snapGrid },
@@ -66,6 +71,8 @@ export const workspace = new WorkspaceCoordinator(
     },
     closeAll: closeAllSessions,
     start: startSession,
+    flushNotes: () => notes.flush(),
+    resetNotes: () => notes.reset(),
   },
   workspaceState,
 );
