@@ -86,7 +86,7 @@ impl AgentLaunch {
         self.settings.validate()
     }
     pub fn identity(&self, id: &str) -> String {
-        format!("Agent name: {}\nRole: {}\nCanvas node ID: {}\nRespect the project's instructions and your CLI's approval settings. Wait for the user to assign work. Role instructions:\n{}", self.name, self.settings.role_name, id, self.settings.instructions)
+        format!("Agent name: {}\nRole: {}\nCanvas node ID: {}\nRespect the project's instructions and your CLI's approval settings. Wait for the user to assign work. {}\nRole instructions:\n{}", self.name, self.settings.role_name, id, crate::tasks::AGENT_GUIDANCE, self.settings.instructions)
     }
     pub fn arguments(&self, id: &str) -> Result<Vec<String>, String> {
         self.validate()?;
@@ -167,6 +167,29 @@ pub struct Availability {
     available: bool,
     path: Option<String>,
     error: Option<String>,
+    capabilities: TaskCapabilities,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TaskCapabilities {
+    submission: &'static str,
+    readiness: &'static str,
+    progress: &'static str,
+    cancellation: &'static str,
+    resume: &'static str,
+    version: &'static str,
+}
+impl Default for TaskCapabilities {
+    fn default() -> Self {
+        Self {
+            submission: "cooperative inbox; explicit user briefing required",
+            readiness: "agent acknowledgement",
+            progress: "cooperative helper reports",
+            cancellation: "cooperative acknowledgement or stop terminal",
+            resume: "unsupported",
+            version: "unknown; executable detection only",
+        }
+    }
 }
 pub fn providers() -> Vec<Availability> {
     [Provider::Codex, Provider::Claude]
@@ -177,12 +200,14 @@ pub fn providers() -> Vec<Availability> {
                 available: true,
                 path: Some(crate::workspace::display(&path)),
                 error: None,
+                capabilities: TaskCapabilities::default(),
             },
             Err(error) => Availability {
                 provider,
                 available: false,
                 path: None,
                 error: Some(error),
+                capabilities: TaskCapabilities::default(),
             },
         })
         .collect()

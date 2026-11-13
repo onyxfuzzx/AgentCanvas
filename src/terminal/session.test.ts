@@ -166,6 +166,50 @@ test('concurrent closes dispose once and release a pending parser callback', asy
   await vi.advanceTimersByTimeAsync(1000);
   expect(h.calls.filter((c) => c.command === 'terminal_poll')).toHaveLength(1);
 });
+test('explicit stop retains the terminal renderer, stops input/polling and allows later disposal', async () => {
+  const h = harness();
+  const changed = vi.fn();
+  h.session.subscribe(changed);
+  await h.session.start();
+  await vi.advanceTimersByTimeAsync(0);
+  await Promise.all([h.session.stop(), h.session.stop()]);
+  expect(h.session.meta.status).toBe('exited');
+  expect(h.emulator.dispose).not.toHaveBeenCalled();
+  expect(changed).toHaveBeenCalled();
+  const polls = h.calls.filter((c) => c.command === 'terminal_poll').length;
+  await h.session.send(new Uint8Array([65]));
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.calls.filter((c) => c.command === 'terminal_write')).toHaveLength(0);
+  expect(h.calls.filter((c) => c.command === 'terminal_poll')).toHaveLength(
+    polls,
+  );
+  expect(h.calls.filter((c) => c.command === 'terminal_close')).toHaveLength(1);
+  await h.session.close();
+  expect(h.emulator.dispose).toHaveBeenCalledOnce();
+});
+test('normal close waits for an in-progress explicit stop', async () => {
+  let complete!: (value: unknown) => void;
+  let closes = 0;
+  const h = harness((command) => {
+    if (command === 'terminal_spawn') return Promise.resolve({ cwd: 'C:\\' });
+    if (command === 'terminal_close' && ++closes === 1)
+      return new Promise((resolve) => {
+        complete = resolve;
+      });
+    return Promise.resolve(undefined);
+  });
+  await h.session.start();
+  const stop = h.session.stop();
+  await Promise.resolve();
+  const close = h.session.close();
+  await Promise.resolve();
+  expect(h.calls.filter((c) => c.command === 'terminal_close')).toHaveLength(1);
+  expect(h.emulator.dispose).not.toHaveBeenCalled();
+  complete(undefined);
+  await stop;
+  await close;
+  expect(h.emulator.dispose).toHaveBeenCalledOnce();
+});
 test('viewport entry does not spawn another PTY; hidden sessions poll at 2 Hz', async () => {
   const h = harness();
   await h.session.start();

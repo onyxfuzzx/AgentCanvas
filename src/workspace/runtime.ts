@@ -10,6 +10,7 @@ import {
 } from '../terminal/registry';
 import { createWorkspaceState, WorkspaceCoordinator } from './coordinator';
 import { notes } from '../notes/runtime';
+import { taskMutations } from '../tasks/runtime';
 import { browsers } from '../browser/runtime';
 import {
   collaboration,
@@ -86,6 +87,7 @@ export const workspace = new WorkspaceCoordinator(
     },
     start: startSession,
     flushNotes: async () => {
+      await taskMutations.flush();
       await notes.flush();
       await collaboration.sync();
     },

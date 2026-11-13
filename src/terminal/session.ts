@@ -275,6 +275,27 @@ export class Session {
       });
     return this.resizeChain;
   }
+  private stopping: Promise<void> | undefined;
+  stop() {
+    if (this.closing) return this.closing;
+    if (this.stopping) return this.stopping;
+    this.closed = true;
+    if (this.timer) clearTimeout(this.timer);
+    this.finishParse?.();
+    this.finishParse = undefined;
+    this.stopping = (async () => {
+      await this.ready?.catch(() => {});
+      await this.transport('terminal_close', { id: this.node.id });
+      this.summarizer.reset();
+      this.update({ status: 'exited', error: undefined });
+      this.summarize(true);
+    })().catch((error) => {
+      this.stopping = undefined;
+      this.reportError(error);
+      throw error;
+    });
+    return this.stopping;
+  }
   close() {
     if (this.closing) return this.closing;
     this.closed = true;
@@ -282,6 +303,7 @@ export class Session {
     this.finishParse?.();
     this.finishParse = undefined;
     this.closing = (async () => {
+      await this.stopping?.catch(() => {});
       await this.ready?.catch(() => {});
       await this.transport('terminal_close', { id: this.node.id });
       this.emulator.dispose();

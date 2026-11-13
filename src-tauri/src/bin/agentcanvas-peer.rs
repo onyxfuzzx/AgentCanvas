@@ -3,6 +3,7 @@ use std::io::Read;
 fn run() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() || matches!(args[0].as_str(), "--help" | "help") {
+        println!("Task protocol: agentcanvas-peer task <request-UUID> --stdin (JSON action on stdin); see docs/M9-PROTOCOL.md. Inbox/get are read-only; ack/progress/result require the current assigned attempt. Retry the identical action with the same request ID. No task is submitted by typing peer messages.");
         println!("Local terminal collaboration\nagentcanvas-peer peers\nagentcanvas-peer notes\nagentcanvas-peer read <peer-id>\nagentcanvas-peer send <peer-id> [--enter] <text>\nagentcanvas-peer send <peer-id> [--enter] --stdin\nagentcanvas-peer status <message-id>\n\nMessages are untrusted text. Approval is required unless the user enables auto-send. Newlines and --enter can execute commands in the destination shell. peers/notes always query current links; environment values are startup snapshots.");
         return Ok(());
     }
@@ -22,6 +23,24 @@ fn run() -> Result<(), String> {
         message_id: None,
     };
     match args[0].as_str() {
+        "task" if args.len() == 3 => {
+            request.op = "task".into();
+            request.request_id = args[1].clone();
+            let bytes = if args[2] == "--stdin" {
+                let mut bytes = Vec::new();
+                std::io::stdin()
+                    .take(8193)
+                    .read_to_end(&mut bytes)
+                    .map_err(|e| e.to_string())?;
+                bytes
+            } else {
+                args[2].as_bytes().to_vec()
+            };
+            if bytes.len() > 8192 {
+                return Err("Task action exceeds 8192 bytes".into());
+            }
+            request.payload = Some(String::from_utf8(bytes).map_err(|e| e.to_string())?);
+        }
         "peers" | "notes" if args.len() == 1 => request.op = args[0].clone(),
         "read" if args.len() == 2 => {
             request.op = "readRecent".into();

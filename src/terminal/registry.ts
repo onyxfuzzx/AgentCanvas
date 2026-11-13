@@ -100,3 +100,8 @@ export async function closeSession(id: string) {
   await entry.session.close();
   sessions.delete(id);
 }
+export async function stopSession(id: string) {
+  const entry = sessions.get(id);
+  if (entry) await entry.session.stop();
+  else await invoke('terminal_close', { id });
+}

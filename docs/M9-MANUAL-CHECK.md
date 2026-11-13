@@ -1,0 +1,14 @@
+# M9 desktop acceptance
+
+Use `artifacts/windows-debug-m9/agent-canvas-desktop.exe` with its two helpers beside it and a disposable workspace/project. Record actual results in VERIFICATION.md. Do not submit a provider task without the user's authorization for that provider execution.
+
+Executed smoke on 2026-11-14: task form/create/ready/dispatch, normal close/reopen, blocked/interrupted restoration without replay, refusal to resolve while the terminal is live, explicit Stop preserving its canvas node, and Resolve as draft retaining attempt history. The broader checks below are not implied by that smoke result.
+
+1. Open Tasks, create a brief/criteria/assignment, save, reopen and search. Edit the draft and save before Ready. Check UTF-8 byte errors preserve the draft. Create dependencies and confirm unfinished dependencies and cycles are refused.
+2. Start the assigned terminal/agent, mark ready and Dispatch. Confirm no task is typed into the shell. With a cooperative test worker use the helper to query inbox/get, ack, progress and result. Confirm Review appears and only Accept marks Done. Repeat for independently authenticated Codex and Claude, explicitly prompting each to use its inbox; verify actual role and task compliance.
+3. Request revision, resolve, and dispatch a fresh attempt. Inspect both attempt records. Cancel another running task, check cancelling state and late-result rejection, then stop work and acknowledge cancelled.
+4. Leave an attempt without heartbeat for 120 seconds and refresh. Confirm blocked/interrupted; Resolve is refused while its terminal is live. Stop the terminal, resolve as draft, reassign, save and dispatch. Close/reopen while work is dispatched/acknowledged/running: task metadata remains, no task replays, and uncertain work is blocked.
+5. Switch workspaces with outstanding tasks, and switch back. Results and assignments remain scoped to the correct workspace. Layout undo must not replay tasks or change task state. Removing the assigned node leaves a visible missing assignment that can be repaired through blocked -> draft.
+6. In disposable data, edit tasks.json externally while open: mutation refuses stale data. Close the app, truncate a primary with a valid backup, reopen and save: original survives in a corrupt archive. Try an unsupported schema: it is refused and preserved.
+7. Check keyboard focus, narrow layout, scrolling, themes and browser hiding behind the task modal. Check draft-loss behavior on dialog close is understood. Trigger a failed request and verify Retry keeps the same request ID while Refresh shows committed state.
+8. Inspect persisted JSON: explicit task briefs/reports and opaque generation IDs are present; tokens, terminal output/history, handles and provider credentials are absent. Confirm app close terminates its owned PTYs.

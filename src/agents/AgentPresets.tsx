@@ -129,6 +129,13 @@ export function AgentPresets({ onClose }: { onClose: () => void }) {
             <strong>{p.provider}</strong> ·{' '}
             {p.available ? 'Native CLI detected' : 'Not detected'}
             <small>{p.path || p.error}</small>
+            {p.capabilities && (
+              <small>
+                Tasks: {p.capabilities.submission}. Status:{' '}
+                {p.capabilities.progress}. Resume: {p.capabilities.resume}.
+                Version: {p.capabilities.version}.
+              </small>
+            )}
           </p>
         ))}
         {reply?.recovered && (

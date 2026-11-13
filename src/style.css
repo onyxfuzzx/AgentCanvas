@@ -1573,3 +1573,70 @@ button:active:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
+.task-board {
+  width: min(1100px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.task-board header,
+.task-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.task-columns {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 24px;
+}
+.task-board label,
+.task-board nav button {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+.task-board nav button {
+  width: 100%;
+  text-align: left;
+}
+.task-board textarea,
+.task-board input:not([type='checkbox']),
+.task-board select {
+  width: 100%;
+  color: var(--ink);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px;
+  font: inherit;
+}
+.task-board .chosen {
+  border-color: var(--accent);
+  background: var(--selection);
+}
+.task-board fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.task-board article {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.task-board code {
+  overflow-wrap: anywhere;
+}
+.task-text {
+  white-space: pre-wrap;
+}
+@media (max-width: 700px) {
+  .task-columns {
+    grid-template-columns: 1fr;
+  }
+}

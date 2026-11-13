@@ -56,6 +56,8 @@ fn main() {
                 agent_canvas_desktop::browser::browser_close_all,
                 commands::shells,
                 commands::agent_providers,
+                commands::task_snapshot,
+                commands::task_action,
                 commands::agent_catalog,
                 commands::agent_catalog_save,
                 commands::terminal_spawn,

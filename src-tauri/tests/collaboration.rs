@@ -311,6 +311,126 @@ fn real_pipe_helper_approval_auto_send_recent_output_and_live_shared_notes() {
     manager.shutdown();
     drop(server);
 }
+
+#[test]
+fn real_task_helper_inbox_ack_retry_result_and_generation_revocation() {
+    use agent_canvas_desktop::tasks::Action;
+    let fixture = Fixture::new();
+    let manager = Arc::new(PtyManager::with_host(PathBuf::from(env!(
+        "CARGO_BIN_EXE_pty-host"
+    ))));
+    let service = Arc::new(Collaboration::new(manager.clone()).unwrap());
+    service
+        .configure("workspace", layout("approval"), &fixture.0)
+        .unwrap();
+    let server = ipc::Server::start(service.clone()).unwrap();
+    let environment = service.attach(A).unwrap();
+    manager
+        .spawn_with_env(
+            A.into(),
+            "cmd".into(),
+            fixture.0.to_string_lossy().into_owned(),
+            100,
+            24,
+            environment.clone(),
+        )
+        .unwrap();
+    wait_output(&manager, A, ">");
+    let task = "00000000-0000-4000-8000-000000000901";
+    let attempt = "00000000-0000-4000-8000-000000000902";
+    let admin = |action: Action| {
+        let revision = serde_json::to_value(service.task_snapshot("workspace").unwrap()).unwrap()
+            ["board"]["revision"]
+            .as_u64()
+            .unwrap();
+        service
+            .task_action(
+                "workspace",
+                &ipc::random_secret().unwrap(),
+                revision,
+                action,
+            )
+            .unwrap();
+    };
+    admin(Action::Create {
+        id: task.into(),
+        title: "Protocol fixture".into(),
+        brief: "Return a structured result".into(),
+        criteria: "User accepts result".into(),
+        dependencies: vec![],
+        assigned_to: A.into(),
+    });
+    admin(Action::Ready { id: task.into() });
+    admin(Action::Dispatch {
+        id: task.into(),
+        attempt_id: attempt.into(),
+    });
+    let call = |key: &str, action: Value| {
+        helper(
+            &fixture,
+            &environment,
+            A,
+            &["task", key, &serde_json::to_string(&action).unwrap()],
+        )
+    };
+    let inbox = call(
+        &ipc::random_secret().unwrap(),
+        json!({"type":"inbox","after":null}),
+    );
+    assert_eq!(inbox["result"]["tasks"][0]["attempt"]["id"], attempt);
+    let key = ipc::random_secret().unwrap();
+    let ack = json!({"type":"ack","id":task,"attemptId":attempt});
+    let first = call(&key, ack.clone());
+    let repeated = call(&key, ack);
+    assert_eq!(first["result"], repeated["result"]);
+    call(
+        &ipc::random_secret().unwrap(),
+        json!({"type":"result","id":task,"attemptId":attempt,"summary":"Fixture finished","artifacts":["src/fixture.rs"]}),
+    );
+    let board = serde_json::to_value(service.task_snapshot("workspace").unwrap()).unwrap();
+    assert_eq!(board["board"]["tasks"][0]["state"], "review");
+    admin(Action::Accept { id: task.into() });
+    assert!(
+        !manager
+            .recent(A, 8192)
+            .unwrap()
+            .contains("Return a structured result"),
+        "dispatch must not type into the PTY"
+    );
+    let mut bad = request(&token(&environment), "task");
+    bad.payload = Some(json!({"type":"accept","id":task}).to_string());
+    bad.request_id = ipc::random_secret().unwrap();
+    assert!(
+        !service.handle(bad).ok,
+        "a worker cannot accept its own result"
+    );
+    let old_generation = service.generation(A).unwrap();
+    service.begin_close(A).unwrap();
+    assert!(service.begin_close(A).is_err());
+    assert!(
+        service.attach(A).is_err(),
+        "cannot start a replacement during shutdown"
+    );
+    manager.close(A).unwrap();
+    service.detach(A);
+    let replacement = service.attach(A).unwrap();
+    service.process_exited(A, &old_generation);
+    // This checks token/generation survival independently of the task rate bucket.
+    let mut fresh = request(&token(&replacement), "peers");
+    fresh.request_id = ipc::random_secret().unwrap();
+    fresh.payload = Some(json!({"type":"inbox","after":null}).to_string());
+    assert!(
+        service.handle(fresh).ok,
+        "late exit from the old generation must not revoke its replacement"
+    );
+    service.detach(A);
+    let mut stale = request(&token(&environment), "task");
+    stale.payload = Some(json!({"type":"inbox","after":null}).to_string());
+    stale.request_id = ipc::random_secret().unwrap();
+    assert!(!service.handle(stale).ok);
+    drop(server);
+    manager.shutdown();
+}
 #[test]
 fn pipe_rejects_oversized_frames_and_cancels_silent_clients_on_shutdown() {
     let service = Arc::new(Collaboration::new(Arc::new(PtyManager::default())).unwrap());

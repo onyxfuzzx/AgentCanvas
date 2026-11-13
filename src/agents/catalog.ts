@@ -23,6 +23,14 @@ export type Availability = {
   available: boolean;
   path: string | null;
   error: string | null;
+  capabilities?: {
+    submission: string;
+    readiness: string;
+    progress: string;
+    cancellation: string;
+    resume: string;
+    version: string;
+  };
 };
 export function snapshotProfile(
   library: Library,

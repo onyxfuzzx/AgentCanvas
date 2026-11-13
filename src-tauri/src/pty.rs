@@ -86,7 +86,7 @@ pub struct PollReply {
     bytes: Vec<u8>,
     dropped: u64,
     exited: bool,
-    exit_code: Option<u32>,
+    pub(crate) exit_code: Option<u32>,
     error: Option<String>,
 }
 
@@ -420,6 +420,13 @@ impl PtyManager {
             }
         }
         Ok(())
+    }
+    pub(crate) fn has_session(&self, id: &str) -> Result<bool, String> {
+        Ok(self
+            .sessions
+            .lock()
+            .map_err(|_| "Session registry unavailable")?
+            .contains_key(id))
     }
 
     pub fn shutdown(&self) {

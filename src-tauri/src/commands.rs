@@ -52,6 +52,9 @@ pub async fn terminal_spawn(
     let manager = manager.inner().clone();
     let collaboration = collaboration.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        if manager.has_session(&id)? {
+            return Err("Terminal already exists; stop it before starting again".into());
+        }
         let environment = collaboration.attach(&id)?;
         let result = match agent {
             Some(agent) => manager.spawn_agent(id.clone(), agent, cwd, cols, rows, environment),
@@ -94,13 +97,24 @@ pub async fn terminal_resize(
 #[tauri::command]
 pub async fn terminal_poll(
     manager: State<'_, Arc<PtyManager>>,
+    collaboration: State<'_, Arc<Collaboration>>,
     id: String,
     max_bytes: usize,
 ) -> Result<PollReply, String> {
     let manager = manager.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || manager.poll(&id, max_bytes))
-        .await
-        .map_err(|e| e.to_string())?
+    let collaboration = collaboration.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let generation = collaboration.generation(&id);
+        let reply = manager.poll(&id, max_bytes)?;
+        if reply.exit_code.is_some() {
+            if let Some(generation) = generation {
+                collaboration.process_exited(&id, &generation);
+            }
+        }
+        Ok(reply)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -112,8 +126,12 @@ pub async fn terminal_close(
     let manager = manager.inner().clone();
     let collaboration = collaboration.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        collaboration.detach(&id);
-        manager.close(&id)
+        collaboration.begin_close(&id)?;
+        let result = manager.close(&id);
+        if result.is_ok() {
+            collaboration.detach(&id);
+        }
+        result
     })
     .await
     .map_err(|e| e.to_string())?
@@ -154,6 +172,31 @@ pub async fn collaboration_decide(
 }
 
 type Storage = Arc<Mutex<WorkspaceStore>>;
+#[tauri::command]
+pub async fn task_snapshot(
+    collaboration: State<'_, Arc<Collaboration>>,
+    workspace_id: String,
+) -> Result<crate::tasks::Snapshot, String> {
+    let collaboration = collaboration.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || collaboration.task_snapshot(&workspace_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn task_action(
+    collaboration: State<'_, Arc<Collaboration>>,
+    workspace_id: String,
+    request_id: String,
+    revision: u64,
+    action: crate::tasks::Action,
+) -> Result<crate::tasks::Snapshot, String> {
+    let collaboration = collaboration.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        collaboration.task_action(&workspace_id, &request_id, revision, action)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 async fn with_storage<T: Send + 'static>(
     storage: State<'_, Storage>,
     action: impl FnOnce(&mut WorkspaceStore) -> Result<T, String> + Send + 'static,

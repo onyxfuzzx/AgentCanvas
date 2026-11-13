@@ -82,6 +82,9 @@ impl Bucket {
 }
 #[derive(Default)]
 struct State {
+    tasks: Option<crate::tasks::Store>,
+    generations: HashMap<String, String>,
+    closing_nodes: HashSet<String>,
     folder: PathBuf,
     workspace: String,
     nodes: HashMap<String, Node>,
@@ -110,6 +113,18 @@ pub struct Collaboration {
 }
 fn same_secret(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |n, (a, b)| n | (a ^ b)) == 0
+}
+fn task_now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+fn task_store(s: &mut State) -> Result<&mut crate::tasks::Store, String> {
+    if s.tasks.is_none() {
+        s.tasks = Some(crate::tasks::Store::open(&s.folder)?);
+    }
+    Ok(s.tasks.as_mut().unwrap())
 }
 fn delivery_worker(state: Arc<Mutex<State>>, target: String) {
     loop {
@@ -287,6 +302,8 @@ impl Collaboration {
         }
         let mut state = self.state.lock().map_err(|_| "Collaboration unavailable")?;
         if state.workspace != workspace {
+            state.tasks = None;
+            state.generations.clear();
             state.cancel(|_| true);
             state.live.clear();
             state.buckets.clear();
@@ -313,15 +330,23 @@ impl Collaboration {
             .map(|n| n.id.clone())
             .collect();
         state.live.retain(|id, _| terminal_ids.contains(id));
+        state.generations.retain(|id, _| terminal_ids.contains(id));
         let edges = state.edges.clone();
-        state
-            .buckets
-            .retain(|id, _| edges.iter().any(|e| e.id == *id));
+        state.buckets.retain(|id, _| {
+            if let Some(node) = id.strip_prefix("task:") {
+                terminal_ids.iter().any(|id| id == node)
+            } else {
+                edges.iter().any(|e| e.id == *id)
+            }
+        });
         state.revision += 1;
         Ok(())
     }
     pub fn attach(&self, id: &str) -> Result<Vec<(String, String)>, String> {
         let mut s = self.state.lock().map_err(|_| "Collaboration unavailable")?;
+        if s.closing_nodes.contains(id) {
+            return Err("Terminal is still shutting down".into());
+        }
         if !s.nodes.get(id).is_some_and(|n| n.kind == "terminal") {
             return Err("Sync the workspace before starting this terminal".into());
         }
@@ -396,11 +421,55 @@ impl Collaboration {
         ];
         s.cancel(|log| log.source == id || log.target == id);
         s.live.insert(id.into(), token);
+        let random = crate::ipc::random_secret()?;
+        s.generations.insert(
+            id.into(),
+            format!(
+                "{}-{}-{}-{}-{}",
+                &random[..8],
+                &random[8..12],
+                &random[12..16],
+                &random[16..20],
+                &random[20..32]
+            ),
+        );
         Ok(environment)
     }
     pub fn detach(&self, id: &str) {
         if let Ok(mut s) = self.state.lock() {
+            s.closing_nodes.remove(id);
             s.live.remove(id);
+            s.generations.remove(id);
+            s.cancel(|l| l.source == id || l.target == id);
+        }
+    }
+    pub fn begin_close(&self, id: &str) -> Result<(), String> {
+        if !crate::workspace::id_valid(id) {
+            return Err("Invalid terminal ID".into());
+        }
+        let mut s = self.state.lock().map_err(|_| "Collaboration unavailable")?;
+        if !s.closing_nodes.insert(id.into()) {
+            return Err("Terminal is already shutting down".into());
+        }
+        s.live.remove(id);
+        s.generations.insert(id.into(), "stopping".into());
+        s.cancel(|l| l.source == id || l.target == id);
+        Ok(())
+    }
+    pub fn generation(&self, id: &str) -> Option<String> {
+        self.state.lock().ok()?.generations.get(id).cloned()
+    }
+    pub fn process_exited(&self, id: &str, generation: &str) {
+        if let Ok(mut s) = self.state.lock() {
+            if !s.live.contains_key(id)
+                || s.generations.get(id).map(String::as_str) != Some(generation)
+                || s.closing_nodes.contains(id)
+            {
+                return;
+            }
+            s.live.remove(id);
+            s.generations
+                .insert(id.into(), "exited; close terminal before resolving".into());
             s.cancel(|l| l.source == id || l.target == id);
         }
     }
@@ -411,6 +480,86 @@ impl Collaboration {
             logs: s.logs.iter().cloned().collect(),
             live_nodes: s.live.keys().cloned().collect(),
         }))
+    }
+    pub fn task_snapshot(&self, workspace: &str) -> Result<crate::tasks::Snapshot, String> {
+        let mut s = self.state.lock().map_err(|_| "Collaboration unavailable")?;
+        if s.workspace != workspace || workspace.is_empty() {
+            return Err("Workspace is no longer active".into());
+        }
+        let live = s.generations.clone();
+        let tasks = task_store(&mut s)?;
+        tasks.reconcile(&live, task_now())?;
+        Ok(tasks.snapshot())
+    }
+    pub fn task_action(
+        &self,
+        workspace: &str,
+        request_id: &str,
+        revision: u64,
+        action: crate::tasks::Action,
+    ) -> Result<crate::tasks::Snapshot, String> {
+        let mut s = self.state.lock().map_err(|_| "Collaboration unavailable")?;
+        if s.workspace != workspace || workspace.is_empty() {
+            return Err("Workspace is no longer active".into());
+        }
+        let live = s.generations.clone();
+        let tasks = task_store(&mut s)?;
+        tasks.reconcile(&live, task_now())?;
+        if tasks.user_replayed(request_id, &action)? {
+            return Ok(tasks.snapshot());
+        }
+        let assigned = match &action {
+            crate::tasks::Action::Create { assigned_to, .. }
+            | crate::tasks::Action::Edit { assigned_to, .. } => Some(assigned_to),
+            _ => None,
+        };
+        if assigned.is_some_and(|id| !s.nodes.get(id).is_some_and(|n| n.kind == "terminal")) {
+            return Err("Choose an existing terminal or agent".into());
+        }
+        if let crate::tasks::Action::Dispatch { id, .. }
+        | crate::tasks::Action::Resolve { id, .. } = &action
+        {
+            let task = task_store(&mut s)?
+                .snapshot()
+                .board
+                .tasks
+                .into_iter()
+                .find(|t| &t.id == id)
+                .ok_or("Task unavailable")?;
+            if matches!(&action, crate::tasks::Action::Dispatch { .. }) {
+                if !s.live.contains_key(&task.assigned_to)
+                    || !self.pty.has_session(&task.assigned_to)?
+                {
+                    return Err("Start the assigned terminal before dispatch".into());
+                }
+            } else if task.attempts.last().is_some_and(|a| {
+                matches!(
+                    a.state,
+                    crate::tasks::AttemptStatus::Dispatched
+                        | crate::tasks::AttemptStatus::Acknowledged
+                        | crate::tasks::AttemptStatus::Running
+                        | crate::tasks::AttemptStatus::Cancelling
+                        | crate::tasks::AttemptStatus::Interrupted
+                )
+            }) && (s.closing_nodes.contains(&task.assigned_to)
+                || self.pty.has_session(&task.assigned_to)?)
+            {
+                return Err(
+                    "Wait for the assigned terminal to stop before resolving uncertain work".into(),
+                );
+            }
+        }
+        let live = s.generations.clone();
+        let tasks = task_store(&mut s)?;
+        tasks.execute(
+            crate::tasks::Actor::User,
+            request_id,
+            Some(revision),
+            action,
+            &live,
+            task_now(),
+        )?;
+        Ok(tasks.snapshot())
     }
     fn deliver(&self, s: &mut State, id: u64) -> Result<(), String> {
         let log = s
@@ -520,6 +669,16 @@ impl Collaboration {
             return Err("UNAUTHORIZED: node token is invalid or expired".into());
         }
         match r.op.as_str() {
+            "task" => {
+                let key = format!("task:{}", r.node_id);
+                if !s.buckets.entry(key).or_insert(Bucket{tokens:5.0,updated:Instant::now()}).take() { return Err("RATE_LIMIT: task requests allow five burst, two per second".into()); }
+                let payload = r.payload.as_deref().ok_or("Missing task action JSON")?;
+                if payload.len() > 8192 {return Err("Task action exceeds 8192 bytes".into());}
+                let action = serde_json::from_str(payload).map_err(|e|format!("Invalid task action: {e}"))?;
+                let generation = s.generations.get(&r.node_id).ok_or("Task generation expired")?.clone();
+                let live = s.generations.clone();
+                task_store(&mut s)?.execute(crate::tasks::Actor::Agent {node:&r.node_id,generation:&generation}, &r.request_id, None, action, &live, task_now())
+            },
             "peers"=>Ok(json!(s.edges.iter().filter(|e|e.kind=="agent"&&(e.source==r.node_id||e.target==r.node_id)).map(|e|{let id=if e.source==r.node_id{&e.target}else{&e.source};json!({"id":id,"title":s.nodes[id].title,"running":s.live.contains_key(id),"policy":e.policy})}).collect::<Vec<_>>())),
             "notes"=>{
                 let mut notes=Vec::new();

@@ -1,5 +1,7 @@
 # Canvas desktop workspace
 
+See [the orchestration milestone roadmap](docs/MILESTONES.md) for the implemented M0–M8 baseline and proposed M9–M12 work.
+
 Windows 10 22H2 / Windows 11. No account or telemetry. Product display name is configured in `product.json`.
 
 Prerequisites: Node 22 LTS, Rust stable MSVC, Visual Studio C++ build tools with Windows SDK, WebView2 Evergreen Runtime, and `cargo install tauri-cli --version '^2' --locked`.
@@ -67,6 +69,14 @@ Select **+ Agent**, choose a preset, and set the agent name and working director
 Agent nodes save a copy of their launch settings. Editing or deleting a library preset does not change existing nodes. Reopened agents stay paused; select **Start agent** in the node to launch, or **Edit launch settings** in the inspector to change settings first. Failed or exited agents can be restarted through the inspector. Layout undo does not roll launch settings back after a restart. CLI output, input, credentials and process handles are not included in workspace saves.
 
 The reusable library is `agents.json` in the local app data directory, with a last-good backup and conflict detection. A corrupt primary can recover from its backup; saving archives the corrupt original. **Reload from disk** discards the editor draft, so copy any changes you want to retain before reloading. Instructions are limited to 4096 UTF-8 bytes, and the library supports 32 roles and 32 presets. M8 does not add task scheduling, automatic delegation or worktree isolation. See [the M8 desktop checks](docs/M8-MANUAL-CHECK.md).
+
+## Durable tasks (M9)
+
+Open **Tasks** to create a brief, acceptance criteria, dependencies and a terminal/agent assignment. Save the draft, mark it ready, start the assigned terminal explicitly, then dispatch to its cooperative inbox. Dispatch does not type into the CLI. Prompt your installed agent to query its inbox using `agentcanvas-peer task <request-UUID> --stdin`; new agent launches include protocol guidance. Agent reports move a task to Review; **Accept result** marks it done.
+
+Tasks save independently in `tasks.json` with atomic replacement, validation, deduplicated mutation receipts and a last-good backup. Attempts have 120-second leases and require cooperative heartbeats. Missing/expired process generations become blocked for explicit reconciliation; nothing is replayed automatically. Stop the old terminal before resolving uncertain work. Resolve as Draft to repair an assignment. Cancellation requests need acknowledgement or a terminal stop; file edits are not undone.
+
+See [the task protocol and limits](docs/M9-PROTOCOL.md) and [desktop acceptance checklist](docs/M9-MANUAL-CHECK.md). Provider authentication and compliance require separate verification. Git isolation and automatic team coordination remain future milestones.
 
 ## Browser nodes
 

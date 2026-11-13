@@ -32,6 +32,7 @@ import { browsers, startBrowserSurfaces } from './browser/runtime';
 import { ThemeControl } from './ui/ThemeControl';
 import { ModalSection } from './ui/ModalSection';
 import { AgentPresets } from './agents/AgentPresets';
+import { TaskBoard } from './tasks/TaskBoard';
 
 export function App() {
   const nodes = useCanvas((s) => s.nodes);
@@ -42,6 +43,7 @@ export function App() {
   const [newTerminal, setNewTerminal] = useState(false);
   const [newAgent, setNewAgent] = useState(false);
   const [agentPresets, setAgentPresets] = useState(false);
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [workspacesOpen, setWorkspacesOpen] = useState(false);
   const [restartId, setRestartId] = useState<string | null>(null);
@@ -252,6 +254,12 @@ export function App() {
           <div className="workspace-nav">
             <span>▦</span> Canvas <small>Live</small>
           </div>
+          <button
+            disabled={busy || !work.active}
+            onClick={() => setTasksOpen(true)}
+          >
+            Tasks
+          </button>
           <div className="node-list">
             {nodes.map((n) => (
               <button
@@ -544,6 +552,13 @@ export function App() {
         />
       )}
       {agentPresets && <AgentPresets onClose={() => setAgentPresets(false)} />}
+      {tasksOpen && work.active && !busy && (
+        <TaskBoard
+          key={work.active.document.id}
+          workspaceId={work.active.document.id}
+          onClose={() => setTasksOpen(false)}
+        />
+      )}
       {connectionsOpen && (
         <ConnectionsPanel
           workspaceId={work.active?.document.id ?? ''}

@@ -10,6 +10,7 @@ pub mod output;
 pub mod process_tree;
 pub mod pty;
 pub mod shell;
+pub mod tasks;
 pub mod workspace;
 #[cfg(test)]
 mod workspace_tests;

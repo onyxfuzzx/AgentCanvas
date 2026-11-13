@@ -8,9 +8,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import { basename, dirname } from 'node:path';
+import { basename, dirname, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 const product = JSON.parse(
   readFileSync(new URL('../product.json', import.meta.url)),
 );
@@ -85,9 +85,12 @@ if (result.error)
     result.error.message,
   );
 if (result.status === 0 && process.argv[2] === 'build') {
-  const target = new URL(
-    `../src-tauri/target/${debug ? 'debug' : 'release'}/`,
-    import.meta.url,
+  const target = pathToFileURL(
+    resolve(
+      process.env.CARGO_TARGET_DIR ||
+        fileURLToPath(new URL('../src-tauri/target/', import.meta.url)),
+      profile,
+    ) + sep,
   );
   const output = new URL(
     `../artifacts/windows-${debug ? 'debug' : 'portable'}${buildTag ? `-${buildTag}` : ''}/`,
