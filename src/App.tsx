@@ -29,9 +29,14 @@ import { collaboration } from './collaboration/runtime';
 import { ConnectionsPanel } from './collaboration/ConnectionsPanel';
 import { BrowserNode } from './browser/BrowserNode';
 import { browsers, startBrowserSurfaces } from './browser/runtime';
+import { ThemeControl } from './ui/ThemeControl';
+import { ModalSection } from './ui/ModalSection';
 
 export function App() {
-  const { nodes, selected, past, future } = useCanvas();
+  const nodes = useCanvas((s) => s.nodes);
+  const selected = useCanvas((s) => s.selected);
+  const past = useCanvas((s) => s.past);
+  const future = useCanvas((s) => s.future);
   const [help, setHelp] = useState(false);
   const [newTerminal, setNewTerminal] = useState(false);
   const [notice, setNotice] = useState('');
@@ -364,6 +369,7 @@ export function App() {
             </div>
           )}
           <div className="sidebar-footer">
+            <ThemeControl />
             <span className="local-dot" /> Workspace saves stay on your device
             <small>
               {work.active
@@ -586,11 +592,12 @@ export function App() {
         )}
       {closeError && (
         <div className="modal-backdrop">
-          <section
-            className="dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="close-error-title"
+          <ModalSection
+            titleId="close-error-title"
+            onClose={() => {
+              setCloseError('');
+              workspace.cancelClose();
+            }}
           >
             <h2 id="close-error-title">Workspace could not save.</h2>
             <p className="error-text">{closeError}</p>
@@ -626,7 +633,7 @@ export function App() {
             >
               Close without saving
             </button>
-          </section>
+          </ModalSection>
         </div>
       )}
       {notice && (
@@ -639,12 +646,10 @@ export function App() {
       )}
       {help && (
         <div className="modal-backdrop" onClick={() => setHelp(false)}>
-          <section
+          <ModalSection
             className="dialog shortcuts"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="shortcut-title"
-            onClick={(e) => e.stopPropagation()}
+            titleId="shortcut-title"
+            onClose={() => setHelp(false)}
           >
             <button
               className="dialog-close"
@@ -664,6 +669,8 @@ export function App() {
               ['Fit all nodes', 'Home'],
               ['Select all', 'Ctrl + A'],
               ['Close selected', 'Delete'],
+              ['Move selected', 'Arrow keys · Shift for grid steps'],
+              ['Resize selected', 'Alt + arrows · Shift for grid steps'],
             ].map(([label, key]) => (
               <div className="shortcut" key={label}>
                 <span>{label}</span>
@@ -672,9 +679,10 @@ export function App() {
             ))}
             <p>
               Canvas shortcuts stay out of the way while typing in a terminal or
-              field.
+              field. Move and resize shortcuts work while the canvas or a node
+              header has focus.
             </p>
-          </section>
+          </ModalSection>
         </div>
       )}
     </div>

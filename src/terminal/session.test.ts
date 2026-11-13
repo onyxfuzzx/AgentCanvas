@@ -55,6 +55,40 @@ function harness(
 }
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
+test('automatic summaries respect manual overrides and clear on output loss', async () => {
+  let text = 'Continue? [y/n]';
+  let dropped = 0;
+  const h = harness((command) =>
+    Promise.resolve(
+      command === 'terminal_spawn'
+        ? { cwd: 'C:\\' }
+        : {
+            bytes: Array.from(new TextEncoder().encode(text)),
+            dropped,
+            exited: false,
+            exitCode: null,
+            error: null,
+          },
+    ),
+  );
+  await h.session.start();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.session.meta.summary.text).toBe('Possible input prompt');
+  h.session.setActivity('running');
+  text = '';
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(h.session.meta).toMatchObject({
+    activity: 'running',
+    manualActivity: true,
+  });
+  h.session.useAutomaticActivity();
+  expect(h.session.meta.activity).toBe('waiting');
+  dropped = 50;
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.session.meta.summary.detail).toBe('');
+  expect(h.session.meta.manualActivity).toBe(false);
+  await h.session.close();
+});
 test('restored renderer can resize before its shell startup worker runs', async () => {
   const h = harness();
   await h.session.resize(102, 31);

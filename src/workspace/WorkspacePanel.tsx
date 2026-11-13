@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { workspace, useWorkspace } from './runtime';
+import { useDialogFocus } from '../ui/useDialogFocus';
 
 export function WorkspacePanel({ onClose }: { onClose: () => void }) {
   const state = useWorkspace();
@@ -9,6 +10,9 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
   const [folder, setFolder] = useState('');
   const [error, setError] = useState('');
   const busy = state.phase === 'switching' || state.phase === 'restoring';
+  const dialog = useDialogFocus<HTMLFormElement>(() => {
+    if (!busy) onClose();
+  });
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -29,6 +33,8 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
       }}
     >
       <form
+        ref={dialog}
+        tabIndex={-1}
         className="dialog workspace-dialog"
         role="dialog"
         aria-modal="true"

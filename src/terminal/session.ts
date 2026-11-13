@@ -1,4 +1,9 @@
 import type { CanvasNode } from '../canvas/model';
+import {
+  HeuristicActivitySummarizer,
+  type ActivitySummarizer,
+  type ActivitySummary,
+} from '../activity/summarizer';
 
 export interface Emulator {
   write(bytes: Uint8Array, callback: () => void): void;
@@ -14,6 +19,7 @@ export type SessionMeta = {
   status: 'starting' | 'running' | 'exited' | 'error';
   activity: 'idle' | 'running' | 'waiting';
   manualActivity: boolean;
+  summary: ActivitySummary;
   error?: string;
   exitCode?: number;
   dropped: number;
@@ -56,15 +62,21 @@ export class Session {
   private pollPending = false;
   private finishParse: (() => void) | undefined;
   private closing: Promise<void> | undefined;
+  private lastSummary = 0;
   constructor(
     readonly node: CanvasNode,
     readonly emulator: Emulator,
     private transport: Transport,
+    private summarizer: ActivitySummarizer = new HeuristicActivitySummarizer(),
   ) {
     this.meta = {
       status: 'starting',
       activity: 'running',
       manualActivity: false,
+      summary: this.summarizer.summarize({
+        status: 'starting',
+        now: Date.now(),
+      }),
       dropped: 0,
       cwd: node.cwd || '',
       ...gridSize(node.width, node.height),
@@ -82,12 +94,37 @@ export class Session {
     if (this.meta.status === 'running')
       this.update({ activity, manualActivity: true });
   }
+  useAutomaticActivity() {
+    this.update({ manualActivity: false });
+    this.summarize(true);
+  }
+  private summarize(force = false) {
+    const now = Date.now();
+    if (!force && now - this.lastSummary < 1000) return;
+    this.lastSummary = now;
+    const summary = this.summarizer.summarize({
+      status: this.meta.status,
+      exitCode: this.meta.exitCode,
+      now,
+    });
+    if (
+      summary.text !== this.meta.summary.text ||
+      summary.detail !== this.meta.summary.detail ||
+      summary.activity !== this.meta.summary.activity ||
+      (!this.meta.manualActivity && this.meta.activity !== summary.activity)
+    )
+      this.update({
+        summary,
+        ...(!this.meta.manualActivity ? { activity: summary.activity } : {}),
+      });
+  }
   private update(patch: Partial<SessionMeta>) {
     this.meta = { ...this.meta, ...patch };
     for (const listener of this.listeners) listener();
   }
   reportError(error: unknown) {
     this.update({ status: 'error', error: String(error) });
+    this.summarize(true);
   }
   warn(error: unknown) {
     this.update({ error: String(error) });
@@ -103,6 +140,7 @@ export class Session {
     })
       .then((result) => {
         this.update({ cwd: result.cwd, status: 'running', error: undefined });
+        this.summarize(true);
         if (!this.closed) this.schedule(0);
       })
       .catch((error) => {
@@ -135,9 +173,11 @@ export class Session {
       if (this.closed) return;
       if (reply.dropped) {
         this.emulator.reset();
+        this.summarizer.reset();
         this.update({ dropped: this.meta.dropped + reply.dropped });
       }
-      if (reply.bytes.length)
+      if (reply.bytes.length) {
+        this.summarizer.output(Uint8Array.from(reply.bytes), Date.now());
         await new Promise<void>((resolve) => {
           this.finishParse = resolve;
           this.emulator.write(Uint8Array.from(reply.bytes), () => {
@@ -145,6 +185,7 @@ export class Session {
             resolve();
           });
         });
+      }
       if (this.closed) return;
       if (reply.exited)
         this.update({
@@ -153,6 +194,7 @@ export class Session {
           error: reply.error ?? undefined,
         });
       else if (reply.error) this.reportError(reply.error);
+      this.summarize(reply.exited);
     } catch (error) {
       if (!this.closed) this.reportError(error);
     } finally {
@@ -183,11 +225,14 @@ export class Session {
           let offset = 0;
           offset < copy.length && !this.closed;
           offset += 8192
-        )
+        ) {
           await this.transport('terminal_write', {
             id: this.node.id,
             data: Array.from(copy.subarray(offset, offset + 8192)),
           });
+          this.summarizer.input(Date.now());
+          this.summarize();
+        }
       })
       .catch((error) => {
         if (!this.closed) this.reportError(error);
@@ -234,6 +279,7 @@ export class Session {
       await this.ready?.catch(() => {});
       await this.transport('terminal_close', { id: this.node.id });
       this.emulator.dispose();
+      this.summarizer.reset();
       this.listeners.clear();
     })().catch((error) => {
       this.closing = undefined;

@@ -11,6 +11,8 @@ npm run desktop
 
 `npm run dev` runs the canvas in a browser for UI development; native terminals require the desktop host. `npm run check` runs frontend checks. `npm run native:check` runs Rust formatting, Clippy and the core Windows ConPTY tests against `Cargo.lock`.
 
+Formatting commands expect a Git checkout and check tracked plus non-ignored new source files, without traversing generated caches or build outputs.
+
 For a desktop build you can open directly:
 
 ```powershell
@@ -18,7 +20,9 @@ npm run desktop:build -- --debug
 .\artifacts\windows-debug\agent-canvas-desktop.exe
 ```
 
-Debug builds may show a console alongside the canvas window. `npm run desktop:build` creates the optimized build in `artifacts/windows-portable/`. Keep `agent-canvas-desktop.exe`, `pty-host.exe` and `agentcanvas-peer.exe` together. The scripts build all three binaries in the same profile and derive the display name from `product.json`. Source build outputs remain under `src-tauri/target/`. Installer packaging comes in M7.
+Debug builds may show a console alongside the canvas window. `npm run desktop:build` creates the optimized build in `artifacts/windows-portable/`, plus a ZIP, manifest and SHA-256 checksums. Keep `agent-canvas-desktop.exe`, `pty-host.exe` and `agentcanvas-peer.exe` together. The scripts build all three binaries in the same profile and derive the display name from `product.json`. Source build outputs remain under `src-tauri/target/`. The build script also supports the official Tauri CLI installed under `.tools/tauri/` on this development host.
+
+Run `npm run desktop:release` to build the portable release and NSIS/MSI installers in `artifacts/windows-installers/`. NSIS installs for the current user; MSI uses Windows Installer. Both include the two helper executables. Packages require the WebView2 Evergreen Runtime to be installed already and do not download it during installation. Builds are unsigned unless signing is configured separately. Set `AGENTCANVAS_BUILD_TAG=m7` to stage a separate set of milestone artifacts.
 
 The optional Git Bash roundtrip test needs an unrestricted Windows host with Git Bash installed. Run it explicitly with `cargo test --manifest-path src-tauri/Cargo.toml --locked --test conpty -- --ignored`; Windows CI also runs it separately. The restricted agent host cannot create MSYS2 signal pipes, although the user-launched application's Git Bash prompt has been visually verified.
 
@@ -60,4 +64,10 @@ Select **Browser** in the toolbar, enter a full HTTP or HTTPS address, and selec
 
 Browser nodes save their layout and the last address submitted with Open. Relaunching or switching workspaces restores them paused until you explicitly open a page. In-page history, cookies and page content are not saved to workspace JSON. Hidden pages remain live until stopped. Popups, downloads, browser permissions, file URLs and app-native commands are blocked. Browser nodes require the Windows desktop host; web preview shows placeholders.
 
-See [architecture](docs/ARCHITECTURE.md), [verification](docs/VERIFICATION.md), and the [M6 desktop checklist](docs/M6-MANUAL-CHECK.md). M6 is implemented with basic page loading and canvas alignment confirmed by the user; deeper desktop checks remain documented. Activity summaries, final polish and installers remain planned for M7.
+## Activity and keyboard access
+
+Select a terminal to see its local activity summary and recent output evidence. Automatic labels use heuristics: **quiet** means no recent traffic, and **possible input prompt** is inferred from text. They do not prove that an agent is idle, finished or awaiting approval. You can choose a manual activity label or return to Automatic. Summaries and labels stay in memory and never execute commands or send data to a service.
+
+Choose System, Light or Dark in the sidebar. Tab to a node header or focus the canvas, then use arrows to move selected nodes, Alt+arrows to resize, and Shift for grid-sized steps. Use Ctrl+Z to undo layout changes. Dialogs contain keyboard focus until closed; Escape dismisses them when no operation is pending. Terminal and form input retain their own keyboard handling.
+
+See [architecture](docs/ARCHITECTURE.md), [verification](docs/VERIFICATION.md), and the [M7 acceptance checklist](docs/M7-MANUAL-CHECK.md). M6's basic page loading and alignment were confirmed by the user; deeper browser checks remain documented in [the M6 checklist](docs/M6-MANUAL-CHECK.md).

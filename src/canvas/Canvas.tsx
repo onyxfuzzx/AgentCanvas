@@ -19,6 +19,7 @@ import {
 import { useCanvas } from './store';
 import { drawingNode, connectorBounds } from './whiteboard';
 import { ShapeNode } from './ShapeNode';
+import { keyboardLayout } from './keyboard';
 
 type Gesture = {
   pointer: number;
@@ -87,6 +88,28 @@ export function Canvas({
         'input,textarea,select,.dialog,[contenteditable="true"],.terminal-host',
       );
       if (editable) return;
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        e.key.startsWith('Arrow') &&
+        (e.target === root.current ||
+          (e.target as HTMLElement)?.classList.contains('node-grip'))
+      ) {
+        const s = useCanvas.getState();
+        const updates = keyboardLayout(
+          s.nodes,
+          s.selected,
+          e.key,
+          e.altKey,
+          e.shiftKey,
+        );
+        if (Object.keys(updates).length) {
+          e.preventDefault();
+          if (!e.repeat) s.checkpoint();
+          s.patch(updates);
+        }
+        return;
+      }
       if (e.code === 'Space') {
         e.preventDefault();
         space.current = true;
@@ -542,7 +565,19 @@ export function Canvas({
               }}
               onPointerDown={(e) => begin(e, node)}
             >
-              <header className="node-grip">
+              <header
+                className="node-grip"
+                tabIndex={disabled ? -1 : 0}
+                role="group"
+                aria-label={`${node.title}, ${node.kind}. Arrow keys move, Alt plus arrows resize. Shift uses grid steps.`}
+                onFocus={(e) => {
+                  if (
+                    e.target === e.currentTarget &&
+                    !useCanvas.getState().selected.includes(node.id)
+                  )
+                    useCanvas.getState().select([node.id]);
+                }}
+              >
                 <span className="node-kind">
                   {node.kind === 'terminal'
                     ? '>_'

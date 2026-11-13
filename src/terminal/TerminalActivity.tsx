@@ -13,19 +13,31 @@ function ActivityControl({ session }: { session: Session }) {
       <label>
         Activity
         <select
-          aria-label="Manual terminal activity"
+          aria-label="Terminal activity mode"
           disabled={meta.status !== 'running'}
-          value={meta.activity}
+          value={meta.manualActivity ? meta.activity : 'auto'}
           onChange={(e) =>
-            session.setActivity(e.target.value as SessionMeta['activity'])
+            e.target.value === 'auto'
+              ? session.useAutomaticActivity()
+              : session.setActivity(e.target.value as SessionMeta['activity'])
           }
         >
+          <option value="auto">Automatic (heuristic)</option>
           <option value="running">Running</option>
           <option value="idle">Idle</option>
           <option value="waiting">Waiting for input</option>
         </select>
       </label>
-      <p>Set this label manually. Process state: {meta.status}.</p>
+      <p className="activity-summary">
+        <strong>{meta.summary.text}</strong>
+      </p>
+      {meta.summary.detail && (
+        <p className="activity-detail">{meta.summary.detail}</p>
+      )}
+      <p>
+        Process: {meta.status}. Quiet output does not prove a task is idle.
+        Input prompts are inferred; you can override the label.
+      </p>
     </div>
   );
 }

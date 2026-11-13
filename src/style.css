@@ -24,6 +24,33 @@ select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.theme-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+.theme-control select {
+  padding: 4px 6px;
+  color: var(--ink);
+}
+.activity-summary strong {
+  color: var(--ink);
+}
+.activity-detail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 90px;
+  overflow: auto;
+  font-family: Consolas, monospace;
+}
 button {
   color: inherit;
 }
@@ -1219,6 +1246,10 @@ button:active:not(:disabled) {
 }
 .shape-node.selected .node-grip,
 .shape-node:hover .node-grip {
+  opacity: 1;
+  pointer-events: auto;
+}
+.shape-node .node-grip:focus-within {
   opacity: 1;
   pointer-events: auto;
 }

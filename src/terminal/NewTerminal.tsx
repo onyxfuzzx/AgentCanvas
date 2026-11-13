@@ -3,6 +3,7 @@ import { useCanvas } from '../canvas/store';
 import { toWorld, type CanvasNode, type Shell } from '../canvas/model';
 import { invoke, isDesktop } from '../native';
 import { createSession, closeSession, startSession } from './registry';
+import { useDialogFocus } from '../ui/useDialogFocus';
 
 type ShellInfo = { id: Shell; label: string; available: boolean };
 export function NewTerminal({
@@ -20,6 +21,9 @@ export function NewTerminal({
   const [title, setTitle] = useState(existing?.title ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const dialog = useDialogFocus<HTMLFormElement>(() => {
+    if (!submitting) onClose();
+  });
   useEffect(() => {
     if (!isDesktop()) {
       setError('Terminals need the Windows desktop host. Use npm run desktop.');
@@ -107,6 +111,8 @@ export function NewTerminal({
       }}
     >
       <form
+        ref={dialog}
+        tabIndex={-1}
         className="dialog"
         role="dialog"
         aria-modal="true"

@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useSyncExternalStore,
+  memo,
 } from 'react';
 import { WebglAddon } from '@xterm/addon-webgl';
 import type { CanvasNode } from '../canvas/model';
@@ -40,7 +41,7 @@ function attachWebgl(
   return release;
 }
 
-export function TerminalNode({
+export const TerminalNode = memo(function TerminalNode({
   node,
   visible,
 }: {
@@ -55,7 +56,7 @@ export function TerminalNode({
       </div>
     );
   return <TerminalSurface node={node} visible={visible} entry={entry} />;
-}
+});
 function TerminalSurface({
   node,
   visible,
@@ -168,16 +169,23 @@ function TerminalSurface({
           title={
             meta.manualActivity
               ? 'Activity label set manually'
-              : `Process: ${meta.status}`
+              : `${meta.summary.text}${meta.summary.detail ? `: ${meta.summary.detail}` : ''}`
           }
         >
           ●{' '}
           {meta.status === 'running'
             ? meta.activity === 'waiting'
-              ? 'waiting for input'
-              : meta.activity
+              ? meta.manualActivity
+                ? 'waiting for input'
+                : 'possible input prompt'
+              : meta.activity === 'idle' && !meta.manualActivity
+                ? 'quiet'
+                : meta.activity
             : meta.status}
           {meta.status === 'running' && meta.manualActivity ? ' · manual' : ''}
+          {meta.status === 'running' && !meta.manualActivity
+            ? ' · heuristic'
+            : ''}
           {meta.exitCode !== undefined ? ` (${meta.exitCode})` : ''}
         </span>
         <span>
