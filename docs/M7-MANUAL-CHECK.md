@@ -1,6 +1,6 @@
 # M7 desktop and release acceptance
 
-Use a disposable workspace for UI checks. Record executed results in VERIFICATION.md. Automated tests and package inspection do not establish visual behavior or installation/upgrade correctness.
+Use a disposable workspace for UI checks. The user confirmed the basic activity summary and Light/Dark theme switching in the optimized ZIP build on 2026-11-13; deeper checks below remain pending. Record executed results in VERIFICATION.md. Automated tests and package inspection do not establish installation/upgrade correctness.
 
 1. Launch the optimized portable app with both helper executables beside it. Create a terminal, select it and confirm the activity summary updates from output activity to quiet after five seconds without traffic. Quiet does not assert task completion. When a shell/agent displays a confirmation prompt, check that the summary says **Possible input prompt**. Input should clear stale prompt evidence. Change to a manual label, then back to Automatic. Close/restart the terminal and confirm transient activity/output is not restored.
 2. Choose Light, Dark and System in the sidebar. Check text, focus outlines, dialogs, notes, whiteboard, links, browser controls and terminal footer at each setting. Relaunch and confirm the theme preference remains. Test Windows high contrast/reduced motion and a screen reader separately; no assistive-technology certification is claimed.
