@@ -43,6 +43,8 @@ pub struct Node {
     pub relative_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shape: Option<Shape>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -226,12 +228,32 @@ impl Layout {
                 return Err("Invalid node geometry".into());
             }
             match n.kind.as_str() {
+                "browser"
+                    if n.shell.is_none()
+                        && n.cwd.is_none()
+                        && n.relative_path.is_none()
+                        && n.shape.is_none() =>
+                {
+                    if !n
+                        .url
+                        .as_deref()
+                        .is_some_and(|url| url.is_empty() || crate::browser::valid_url(url))
+                    {
+                        return Err("Invalid saved browser URL".into());
+                    }
+                }
                 "card"
                     if n.shell.is_none()
                         && n.cwd.is_none()
                         && n.relative_path.is_none()
-                        && n.shape.is_none() => {}
-                "note" if n.shell.is_none() && n.cwd.is_none() && n.shape.is_none() => {
+                        && n.shape.is_none()
+                        && n.url.is_none() => {}
+                "note"
+                    if n.shell.is_none()
+                        && n.cwd.is_none()
+                        && n.shape.is_none()
+                        && n.url.is_none() =>
+                {
                     if !n
                         .relative_path
                         .as_deref()
@@ -240,7 +262,12 @@ impl Layout {
                         return Err("Invalid note path".into());
                     }
                 }
-                "shape" if n.shell.is_none() && n.cwd.is_none() && n.relative_path.is_none() => {
+                "shape"
+                    if n.shell.is_none()
+                        && n.cwd.is_none()
+                        && n.relative_path.is_none()
+                        && n.url.is_none() =>
+                {
                     let shape = n.shape.as_ref().ok_or("Missing shape payload")?;
                     if !matches!(
                         shape.kind.as_str(),
@@ -289,7 +316,8 @@ impl Layout {
                 }
                 "terminal" => {
                     terminals += 1;
-                    if n.shape.is_some()
+                    if n.url.is_some()
+                        || n.shape.is_some()
                         || n.relative_path.is_some()
                         || !matches!(
                             n.shell.as_deref(),

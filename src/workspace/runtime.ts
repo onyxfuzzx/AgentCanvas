@@ -10,6 +10,7 @@ import {
 } from '../terminal/registry';
 import { createWorkspaceState, WorkspaceCoordinator } from './coordinator';
 import { notes } from '../notes/runtime';
+import { browsers } from '../browser/runtime';
 import {
   collaboration,
   configureCollaboration,
@@ -46,7 +47,9 @@ export const workspace = new WorkspaceCoordinator(
               ? { ...base, relativePath: node.relativePath }
               : node.kind === 'shape'
                 ? { ...base, shape: node.shape }
-                : base;
+                : node.kind === 'browser'
+                  ? { ...base, url: node.url }
+                  : base;
         }),
         viewport: { ...state.viewport },
         settings: { snapGrid: state.snapGrid },
@@ -76,7 +79,10 @@ export const workspace = new WorkspaceCoordinator(
       for (const node of nodes)
         if (node.kind === 'terminal') createSession(node);
     },
-    closeAll: closeAllSessions,
+    closeAll: async () => {
+      await browsers.closeAll();
+      await closeAllSessions();
+    },
     start: startSession,
     flushNotes: async () => {
       await notes.flush();

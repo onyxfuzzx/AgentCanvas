@@ -27,6 +27,8 @@ import { notes } from './notes/runtime';
 import { useStore } from 'zustand';
 import { collaboration } from './collaboration/runtime';
 import { ConnectionsPanel } from './collaboration/ConnectionsPanel';
+import { BrowserNode } from './browser/BrowserNode';
+import { browsers, startBrowserSurfaces } from './browser/runtime';
 
 export function App() {
   const { nodes, selected, past, future } = useCanvas();
@@ -51,6 +53,7 @@ export function App() {
     if (isDesktop()) collaboration.start();
     void workspace.initialize().catch((error) => setNotice(String(error)));
   }, []);
+  useEffect(() => startBrowserSurfaces(), []);
   const requestClose = useCallback(() => {
     if (closing.current) return;
     closing.current = true;
@@ -87,10 +90,15 @@ export function App() {
     void Promise.all(
       ids.map(async (id) => {
         try {
-          await closeSession(id);
+          if (
+            useCanvas.getState().nodes.find((n) => n.id === id)?.kind ===
+            'browser'
+          )
+            await browsers.close(id);
+          else await closeSession(id);
           return id;
         } catch (error) {
-          setNotice(`Could not close terminal: ${String(error)}`);
+          setNotice(`Could not close node: ${String(error)}`);
           return null;
         }
       }),
@@ -100,7 +108,7 @@ export function App() {
         .remove(closed.filter((id): id is string => id !== null)),
     );
   }, []);
-  const add = () => {
+  const add = (kind: 'card' | 'browser' = 'card') => {
     const s = useCanvas.getState();
     if (s.nodes.length >= 500) {
       setNotice('A workspace supports up to 500 nodes.');
@@ -112,12 +120,13 @@ export function App() {
     );
     s.add({
       id: crypto.randomUUID(),
-      kind: 'card',
-      title: `Untitled ${nodes.length + 1}`,
+      kind,
+      title: kind === 'browser' ? 'Browser' : `Untitled ${nodes.length + 1}`,
       color: '#c9934b',
       ...p,
-      width: 440,
-      height: 300,
+      width: kind === 'browser' ? 800 : 440,
+      height: kind === 'browser' ? 600 : 300,
+      ...(kind === 'browser' ? { url: '' } : {}),
       z: Math.max(0, ...nodes.map((n) => n.z)) + 1,
     });
   };
@@ -355,7 +364,7 @@ export function App() {
             </div>
           )}
           <div className="sidebar-footer">
-            <span className="local-dot" /> Everything stays on your device
+            <span className="local-dot" /> Workspace saves stay on your device
             <small>
               {work.active
                 ? 'Layout autosaves to your workspace folder.'
@@ -423,7 +432,7 @@ export function App() {
               <button
                 className="add-card"
                 title="New layout card"
-                onClick={add}
+                onClick={() => add()}
               >
                 ◇ Card
               </button>
@@ -436,6 +445,13 @@ export function App() {
                 onClick={addNote}
               >
                 ▤ Note
+              </button>
+              <button
+                className="add-browser"
+                onClick={() => add('browser')}
+                title="New browser node"
+              >
+                ◎ Browser
               </button>
             </div>
           </div>
@@ -451,6 +467,8 @@ export function App() {
                   workspaceId={work.active.document.id}
                   visible={visible}
                 />
+              ) : node.kind === 'browser' ? (
+                <BrowserNode node={node} />
               ) : undefined
             }
           />

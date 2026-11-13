@@ -54,4 +54,10 @@ PowerShell/cmd use `agentcanvas-peer` or `agentcanvas-peer.exe`. WSL uses `agent
 
 The transport is a local Windows named pipe restricted to the current user, with per-node tokens, bounded workers and timeouts; it uses no cloud service or TCP listener. This does not sandbox agents that already have the user's filesystem/process access.
 
-See [architecture](docs/ARCHITECTURE.md) and [verification](docs/VERIFICATION.md). The current milestone is M5; browser nodes, activity summaries, polish and installers remain planned for M6–M7.
+## Browser nodes
+
+Select **Browser** in the toolbar, enter a full HTTP or HTTPS address, and select **Open**. Up to eight pages can run at once. Use Back, Forward, Reload and Stop in the node toolbar. Drag the header, resize the corner, or zoom/pan from the canvas controls; wheel input inside a page scrolls that page. Click the canvas before using its keyboard shortcuts.
+
+Browser nodes save their layout and the last address submitted with Open. Relaunching or switching workspaces restores them paused until you explicitly open a page. In-page history, cookies and page content are not saved to workspace JSON. Hidden pages remain live until stopped. Popups, downloads, browser permissions, file URLs and app-native commands are blocked. Browser nodes require the Windows desktop host; web preview shows placeholders.
+
+See [architecture](docs/ARCHITECTURE.md), [verification](docs/VERIFICATION.md), and the [M6 desktop checklist](docs/M6-MANUAL-CHECK.md). M6 is implemented with basic page loading and canvas alignment confirmed by the user; deeper desktop checks remain documented. Activity summaries, final polish and installers remain planned for M7.

@@ -57,6 +57,7 @@ fn layout() -> Layout {
             cwd: Some("Z:\\missing-directory".into()),
             relative_path: None,
             shape: None,
+            url: None,
         }],
         viewport: Viewport {
             x: 37.0,
@@ -66,6 +67,37 @@ fn layout() -> Layout {
         settings: Settings { snap_grid: true },
         edges: Vec::new(),
     }
+}
+
+#[test]
+fn browser_urls_roundtrip_and_reject_privileged_or_mixed_payloads() {
+    let f = Fixture::new();
+    let mut store = f.store();
+    store
+        .create(ID.into(), "Browser test".into(), None)
+        .unwrap();
+    let mut value = layout();
+    let node = &mut value.nodes[0];
+    node.kind = "browser".into();
+    node.shell = None;
+    node.cwd = None;
+    node.url = Some("http://localhost:3000/test".into());
+    let saved = store.save(ID, value.clone()).unwrap();
+    assert_eq!(
+        saved.document.nodes[0].url.as_deref(),
+        Some("http://localhost:3000/test")
+    );
+    store.release(ID);
+    assert_eq!(
+        store.open(ID).unwrap().document.nodes[0].url,
+        value.nodes[0].url
+    );
+    value.nodes[0].url = Some("file:///C:/secret".into());
+    assert!(store.save(ID, value.clone()).is_err());
+    value.nodes[0].url = Some(String::new());
+    assert!(store.save(ID, value.clone()).is_ok());
+    value.nodes[0].shell = Some("cmd".into());
+    assert!(store.save(ID, value).is_err());
 }
 #[test]
 fn workspace_roundtrip_and_last_active_survive_store_restart() {

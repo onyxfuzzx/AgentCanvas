@@ -31,6 +31,7 @@ fn main() {
     tauri::Builder::default()
         .manage(manager)
         .manage(collaboration)
+        .manage(Arc::new(agent_canvas_desktop::browser::Browsers::default()))
         .setup(move |app| {
             use tauri::Manager;
             let data = std::env::var_os("AGENTCANVAS_DATA_DIR")
@@ -45,27 +46,36 @@ fn main() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::shells,
-            commands::terminal_spawn,
-            commands::terminal_write,
-            commands::terminal_resize,
-            commands::terminal_poll,
-            commands::terminal_close,
-            commands::workspace_list,
-            commands::workspace_create,
-            commands::workspace_open,
-            commands::workspace_open_folder,
-            commands::workspace_save,
-            commands::workspace_release,
-            commands::workspace_activate,
-            commands::note_create,
-            commands::note_read,
-            commands::note_save,
-            commands::collaboration_sync,
-            commands::collaboration_snapshot,
-            commands::collaboration_decide
-        ])
+        .invoke_handler(|invoke| {
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                agent_canvas_desktop::browser::browser_open,
+                agent_canvas_desktop::browser::browser_sync,
+                agent_canvas_desktop::browser::browser_snapshot,
+                agent_canvas_desktop::browser::browser_action,
+                agent_canvas_desktop::browser::browser_close,
+                agent_canvas_desktop::browser::browser_close_all,
+                commands::shells,
+                commands::terminal_spawn,
+                commands::terminal_write,
+                commands::terminal_resize,
+                commands::terminal_poll,
+                commands::terminal_close,
+                commands::workspace_list,
+                commands::workspace_create,
+                commands::workspace_open,
+                commands::workspace_open_folder,
+                commands::workspace_save,
+                commands::workspace_release,
+                commands::workspace_activate,
+                commands::note_create,
+                commands::note_read,
+                commands::note_save,
+                commands::collaboration_sync,
+                commands::collaboration_snapshot,
+                commands::collaboration_decide
+            ];
+            agent_canvas_desktop::invoke_guard::main_only(invoke, handler)
+        })
         .build(context)
         .expect("desktop runtime failed")
         .run(move |_, event| {

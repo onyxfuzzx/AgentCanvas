@@ -10,7 +10,7 @@ export type Connection = {
 };
 export type CanvasNode = Point & {
   id: string;
-  kind: 'card' | 'terminal' | 'note' | 'shape';
+  kind: 'card' | 'terminal' | 'note' | 'shape' | 'browser';
   title: string;
   color: string;
   width: number;
@@ -20,6 +20,7 @@ export type CanvasNode = Point & {
   cwd?: string;
   relativePath?: string;
   shape?: Shape;
+  url?: string;
 };
 export type ShapeKind =
   'rectangle' | 'ellipse' | 'text' | 'arrow' | 'connector' | 'freehand';

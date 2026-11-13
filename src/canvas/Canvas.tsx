@@ -558,7 +558,9 @@ export function Canvas({
                       ? 'MARKDOWN'
                       : node.kind === 'shape'
                         ? 'WHITEBOARD'
-                        : 'CANVAS CARD'}
+                        : node.kind === 'browser'
+                          ? 'BROWSER'
+                          : 'CANVAS CARD'}
                 </span>
                 <button
                   title={`Close ${node.title}`}
