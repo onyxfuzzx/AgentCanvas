@@ -13,6 +13,29 @@ pub fn shells() -> Vec<ShellInfo> {
 }
 
 #[tauri::command]
+pub fn agent_providers() -> Vec<crate::agents::Availability> {
+    crate::agents::providers()
+}
+#[tauri::command]
+pub async fn agent_catalog(
+    storage: State<'_, Storage>,
+) -> Result<crate::agents::LibraryReply, String> {
+    with_storage(storage, |s| crate::agents::catalog(s.data_dir())).await
+}
+#[tauri::command]
+pub async fn agent_catalog_save(
+    storage: State<'_, Storage>,
+    expected: Option<String>,
+    library: crate::agents::Library,
+) -> Result<crate::agents::LibraryReply, String> {
+    with_storage(storage, move |s| {
+        crate::agents::save(s.data_dir(), expected, library)
+    })
+    .await
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat IPC fields preserve the existing shell command contract.
 pub async fn terminal_spawn(
     manager: State<'_, Arc<PtyManager>>,
     collaboration: State<'_, Arc<Collaboration>>,
@@ -21,12 +44,19 @@ pub async fn terminal_spawn(
     cwd: String,
     cols: u16,
     rows: u16,
+    agent: Option<crate::agents::AgentLaunch>,
 ) -> Result<SpawnReply, String> {
+    if agent.is_some() && shell != "cmd" {
+        return Err("Agent launches require the cmd metadata placeholder".into());
+    }
     let manager = manager.inner().clone();
     let collaboration = collaboration.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let environment = collaboration.attach(&id)?;
-        let result = manager.spawn_with_env(id.clone(), shell, cwd, cols, rows, environment);
+        let result = match agent {
+            Some(agent) => manager.spawn_agent(id.clone(), agent, cwd, cols, rows, environment),
+            None => manager.spawn_with_env(id.clone(), shell, cwd, cols, rows, environment),
+        };
         if result.is_err() {
             collaboration.detach(&id);
         }

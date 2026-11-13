@@ -142,7 +142,7 @@ export class WorkspaceCoordinator {
       });
     const errors: string[] = [];
     const terminals = loaded.document.nodes.filter(
-      (n) => n.kind === 'terminal',
+      (n) => n.kind === 'terminal' && !n.agent,
     );
     let index = 0;
     const worker = async () => {

@@ -16,7 +16,7 @@ export type Transport = <T>(
   args?: Record<string, unknown>,
 ) => Promise<T>;
 export type SessionMeta = {
-  status: 'starting' | 'running' | 'exited' | 'error';
+  status: 'paused' | 'starting' | 'running' | 'exited' | 'error';
   activity: 'idle' | 'running' | 'waiting';
   manualActivity: boolean;
   summary: ActivitySummary;
@@ -70,11 +70,11 @@ export class Session {
     private summarizer: ActivitySummarizer = new HeuristicActivitySummarizer(),
   ) {
     this.meta = {
-      status: 'starting',
-      activity: 'running',
+      status: node.agent ? 'paused' : 'starting',
+      activity: node.agent ? 'idle' : 'running',
       manualActivity: false,
       summary: this.summarizer.summarize({
-        status: 'starting',
+        status: node.agent ? 'paused' : 'starting',
         now: Date.now(),
       }),
       dropped: 0,
@@ -129,14 +129,19 @@ export class Session {
   warn(error: unknown) {
     this.update({ error: String(error) });
   }
-  start() {
+  start(launchNode = this.node) {
     if (this.ready) return this.ready;
+    this.update({ status: 'starting' });
+    this.summarize(true);
     this.ready = this.transport<{ cwd: string }>('terminal_spawn', {
       id: this.node.id,
-      shell: this.node.shell,
+      shell: launchNode.shell,
       cwd: this.meta.cwd,
       cols: this.meta.cols,
       rows: this.meta.rows,
+      ...(launchNode.agent
+        ? { agent: { name: launchNode.title, settings: launchNode.agent } }
+        : {}),
     })
       .then((result) => {
         this.update({ cwd: result.cwd, status: 'running', error: undefined });
@@ -206,6 +211,7 @@ export class Session {
   send(bytes: Uint8Array) {
     if (
       this.closed ||
+      this.meta.status === 'paused' ||
       this.meta.status === 'exited' ||
       this.meta.status === 'error'
     )

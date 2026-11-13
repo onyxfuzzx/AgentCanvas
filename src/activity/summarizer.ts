@@ -5,7 +5,7 @@ export type ActivitySummary = {
   detail: string;
 };
 export type ProcessSignal = {
-  status: 'starting' | 'running' | 'exited' | 'error';
+  status: 'paused' | 'starting' | 'running' | 'exited' | 'error';
   exitCode?: number;
   now: number;
 };
@@ -103,6 +103,12 @@ export class HeuristicActivitySummarizer implements ActivitySummarizer {
     }
   }
   summarize({ status, exitCode, now }: ProcessSignal): ActivitySummary {
+    if (status === 'paused')
+      return {
+        activity: 'idle',
+        text: 'Agent ready to start',
+        detail: 'Start this agent when you are ready to assign work.',
+      };
     const detail = (this.line.trim() || this.previous).slice(-160);
     if (status === 'starting')
       return { activity: 'running', text: 'Starting terminal', detail: '' };

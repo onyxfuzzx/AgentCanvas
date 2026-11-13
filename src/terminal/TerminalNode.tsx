@@ -8,7 +8,7 @@ import {
 import { WebglAddon } from '@xterm/addon-webgl';
 import type { CanvasNode } from '../canvas/model';
 import { useCanvas } from '../canvas/store';
-import { getSession } from './registry';
+import { getSession, startSession } from './registry';
 import { gridSize } from './session';
 import '@xterm/xterm/css/xterm.css';
 
@@ -156,6 +156,24 @@ function TerminalSurface({
       ) : (
         <div className="terminal-placeholder">
           Rendering paused outside viewport
+        </div>
+      )}
+      {visible && meta.status === 'paused' && (
+        <div
+          className="agent-paused"
+          style={{ fontSize: `${13 * zoom}px`, padding: `${24 * zoom}px` }}
+        >
+          <strong>{node.title}</strong>
+          <p>
+            {node.agent?.provider} · {node.agent?.roleName}
+          </p>
+          <p>This agent is paused. Start it to assign work.</p>
+          <button
+            style={{ fontSize: 'inherit' }}
+            onClick={() => void startSession(node).catch(() => {})}
+          >
+            Start agent
+          </button>
         </div>
       )}
       <div

@@ -28,6 +28,35 @@ test('layout undo never removes a newly started terminal process', () => {
   s().redo();
   expect(s().nodes.map((n) => n.id)).toContain('pty');
 });
+test('layout undo cannot restore obsolete launch settings after a terminal restart', () => {
+  const s = () => useCanvas.getState();
+  const original: CanvasNode = {
+    ...node,
+    kind: 'terminal',
+    shell: 'cmd',
+    cwd: 'C:\\old',
+  };
+  s().add(original);
+  s().checkpoint();
+  s().patch({ one: { x: 400 } });
+  const restarted: CanvasNode = {
+    ...s().nodes[0],
+    cwd: 'C:\\new',
+    agent: {
+      provider: 'claude',
+      profileName: 'Reviewer',
+      roleName: 'Reviewer',
+      instructions: 'Review only.',
+    },
+  };
+  s().setTerminalLaunch(restarted);
+  s().undo();
+  expect(s().nodes[0].x).toBe(node.x);
+  expect(s().nodes[0].cwd).toBe('C:\\new');
+  expect(s().nodes[0].agent).toEqual(restarted.agent);
+  s().redo();
+  expect(s().nodes[0].agent).toEqual(restarted.agent);
+});
 beforeEach(() =>
   useCanvas.setState({ nodes: [], selected: [], past: [], future: [] }),
 );

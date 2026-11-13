@@ -588,7 +588,9 @@ export function Canvas({
                 <strong>{node.title}</strong>
                 <span className="node-type">
                   {node.kind === 'terminal'
-                    ? node.shell
+                    ? node.agent
+                      ? `${node.agent.provider} · ${node.agent.roleName}`
+                      : node.shell
                     : node.kind === 'note'
                       ? 'MARKDOWN'
                       : node.kind === 'shape'

@@ -44,6 +44,7 @@ impl Drop for Fixture {
 fn layout() -> Layout {
     Layout {
         nodes: vec![Node {
+            agent: None,
             id: "00000000-0000-4000-8000-000000000001".into(),
             kind: "terminal".into(),
             title: "API agent".into(),
@@ -98,6 +99,34 @@ fn browser_urls_roundtrip_and_reject_privileged_or_mixed_payloads() {
     assert!(store.save(ID, value.clone()).is_ok());
     value.nodes[0].shell = Some("cmd".into());
     assert!(store.save(ID, value).is_err());
+}
+
+#[test]
+fn agent_launch_snapshot_roundtrips_without_the_global_library() {
+    let f = Fixture::new();
+    let mut store = f.store();
+    store
+        .create(ID.into(), "Agent snapshot".into(), None)
+        .unwrap();
+    let mut value = layout();
+    let agent = crate::agents::AgentSettings {
+        provider: crate::agents::Provider::Codex,
+        profile_name: "Codex Builder".into(),
+        role_name: "Builder".into(),
+        instructions: "Implement only assigned work.".into(),
+        executable: None,
+    };
+    value.nodes[0].agent = Some(agent.clone());
+    store.save(ID, value.clone()).unwrap();
+    store.release(ID);
+    assert_eq!(store.open(ID).unwrap().document.nodes[0].agent, Some(agent));
+    let mut mixed = value.clone();
+    mixed.nodes[0].kind = "card".into();
+    mixed.nodes[0].shell = None;
+    mixed.nodes[0].cwd = None;
+    assert!(mixed.validate().is_err());
+    value.nodes[0].agent.as_mut().unwrap().instructions = "x".repeat(4097);
+    assert!(value.validate().is_err());
 }
 #[test]
 fn workspace_roundtrip_and_last_active_survive_store_restart() {

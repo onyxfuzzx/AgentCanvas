@@ -10,6 +10,18 @@ fn main() {
             .next()
             .map(std::path::PathBuf::from)
             .ok_or("Missing directory")?;
+        if preset == "--agent" {
+            let payload = args
+                .next()
+                .and_then(|s| s.into_string().ok())
+                .ok_or("Missing agent launch settings")?;
+            if payload.len() > 20000 || args.next().is_some() {
+                return Err("Invalid agent launch payload".into());
+            }
+            let launch = serde_json::from_str(&payload)
+                .map_err(|e| format!("Invalid agent launch settings: {e}"))?;
+            return agent_canvas_desktop::agents::host(launch, &cwd);
+        }
         if args.next().is_some() {
             return Err("Unexpected argument".to_owned());
         }

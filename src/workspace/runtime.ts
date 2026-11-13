@@ -41,6 +41,7 @@ export const workspace = new WorkspaceCoordinator(
             ? {
                 ...base,
                 shell: node.shell,
+                ...(node.agent ? { agent: node.agent } : {}),
                 cwd: getSession(node.id)?.session.meta.cwd || node.cwd || '',
               }
             : node.kind === 'note'

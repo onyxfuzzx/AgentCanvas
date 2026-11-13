@@ -82,7 +82,7 @@ export async function startSession(node: CanvasNode) {
     entry.session.reportError(error);
     throw error;
   }
-  await entry.session.start();
+  await entry.session.start(node);
   if (sessions.get(node.id) === entry)
     useCanvas.getState().setTerminalDirectory(node.id, entry.session.meta.cwd);
 }

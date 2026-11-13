@@ -146,6 +146,38 @@ impl PtyManager {
         rows: u16,
         environment: Vec<(String, String)>,
     ) -> Result<SpawnReply, String> {
+        self.spawn_configured(id, preset, cwd, cols, rows, environment, None)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn spawn_agent(
+        &self,
+        id: String,
+        agent: crate::agents::AgentLaunch,
+        cwd: String,
+        cols: u16,
+        rows: u16,
+        environment: Vec<(String, String)>,
+    ) -> Result<SpawnReply, String> {
+        agent.validate()?;
+        crate::agents::resolve(
+            &agent.settings.provider,
+            agent.settings.executable.as_deref(),
+        )?;
+        self.spawn_configured(id, "cmd".into(), cwd, cols, rows, environment, Some(agent))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn spawn_configured(
+        &self,
+        id: String,
+        preset: String,
+        cwd: String,
+        cols: u16,
+        rows: u16,
+        environment: Vec<(String, String)>,
+        agent: Option<crate::agents::AgentLaunch>,
+    ) -> Result<SpawnReply, String> {
         valid_id(&id)?;
         let dimensions = size(cols, rows)?;
         let cwd = shell::directory(&cwd)?;
@@ -190,8 +222,19 @@ impl PtyManager {
                 return Err("pty-host.exe must be alongside the desktop executable".into());
             }
             let mut command = CommandBuilder::new(helper);
-            command.arg(&preset);
-            command.arg(&cwd);
+            if let Some(agent) = &agent {
+                let payload = serde_json::to_string(agent).map_err(|e| e.to_string())?;
+                // Conservative allowance for Windows quoting and both process launch layers.
+                if payload.encode_utf16().count() * 2 + cwd.as_os_str().len() + 8192 > 30000 {
+                    return Err("Agent launch data exceeds the Windows command-line limit".into());
+                }
+                command.arg("--agent");
+                command.arg(&cwd);
+                command.arg(payload);
+            } else {
+                command.arg(&preset);
+                command.arg(&cwd);
+            }
             command.cwd(&cwd);
             command.env("TERM", "xterm-256color");
             command.env("COLORTERM", "truecolor");

@@ -30,6 +30,7 @@ type State = {
     edges?: Connection[],
   ) => void;
   setTerminalDirectory: (id: string, cwd: string) => void;
+  setTerminalLaunch: (node: CanvasNode) => void;
 };
 export const useCanvas = create<State>((set) => ({
   nodes: [],
@@ -177,6 +178,20 @@ export const useCanvas = create<State>((set) => ({
       selected: [],
       past: [],
       future: [],
+    }),
+  setTerminalLaunch: (node) =>
+    set((s) => {
+      const patch = (nodes: CanvasNode[]) =>
+        nodes.map((n) =>
+          n.id === node.id
+            ? { ...n, shell: node.shell, cwd: node.cwd, agent: node.agent }
+            : n,
+        );
+      return {
+        nodes: patch(s.nodes),
+        past: s.past.map(patch),
+        future: s.future.map(patch),
+      };
     }),
   setTerminalDirectory: (id, cwd) =>
     set((s) => {

@@ -23,9 +23,11 @@ function RestartControl({
   onRestart: () => void;
 }) {
   const meta = useSyncExternalStore(session.subscribe, session.snapshot);
-  return meta.status === 'error' || meta.status === 'exited' ? (
+  return meta.status === 'error' ||
+    meta.status === 'exited' ||
+    meta.status === 'paused' ? (
     <button className="restart-terminal" onClick={onRestart}>
-      Restart terminal…
+      {meta.status === 'paused' ? 'Edit launch settings…' : 'Restart terminal…'}
     </button>
   ) : null;
 }

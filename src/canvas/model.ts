@@ -1,6 +1,14 @@
 export type Point = { x: number; y: number };
 export type Viewport = Point & { zoom: number };
 export type Shell = 'powershell' | 'cmd' | 'wsl' | 'git-bash';
+export type AgentProvider = 'codex' | 'claude';
+export type AgentSettings = {
+  provider: AgentProvider;
+  profileName: string;
+  roleName: string;
+  instructions: string;
+  executable?: string;
+};
 export type Connection = {
   id: string;
   source: string;
@@ -17,6 +25,7 @@ export type CanvasNode = Point & {
   height: number;
   z: number;
   shell?: Shell;
+  agent?: AgentSettings;
   cwd?: string;
   relativePath?: string;
   shape?: Shape;

@@ -31,6 +31,7 @@ import { BrowserNode } from './browser/BrowserNode';
 import { browsers, startBrowserSurfaces } from './browser/runtime';
 import { ThemeControl } from './ui/ThemeControl';
 import { ModalSection } from './ui/ModalSection';
+import { AgentPresets } from './agents/AgentPresets';
 
 export function App() {
   const nodes = useCanvas((s) => s.nodes);
@@ -39,6 +40,8 @@ export function App() {
   const future = useCanvas((s) => s.future);
   const [help, setHelp] = useState(false);
   const [newTerminal, setNewTerminal] = useState(false);
+  const [newAgent, setNewAgent] = useState(false);
+  const [agentPresets, setAgentPresets] = useState(false);
   const [notice, setNotice] = useState('');
   const [workspacesOpen, setWorkspacesOpen] = useState(false);
   const [restartId, setRestartId] = useState<string | null>(null);
@@ -309,6 +312,13 @@ export function App() {
                 {Math.round(focus.width)} × {Math.round(focus.height)}
               </small>
               {focus.kind === 'terminal' && <TerminalActivity id={focus.id} />}
+              {focus.agent && (
+                <small title={focus.agent.instructions}>
+                  {focus.agent.provider} · {focus.agent.roleName}
+                  <br />
+                  Preset: {focus.agent.profileName}
+                </small>
+              )}
               {focus.kind === 'shape' && focus.shape?.kind === 'text' && (
                 <label>
                   Text
@@ -370,6 +380,13 @@ export function App() {
           )}
           <div className="sidebar-footer">
             <ThemeControl />
+            <button
+              className="presets-button"
+              onClick={() => setAgentPresets(true)}
+              disabled={busy}
+            >
+              Agent presets
+            </button>
             <span className="local-dot" /> Workspace saves stay on your device
             <small>
               {work.active
@@ -445,6 +462,9 @@ export function App() {
               <button className="new-node" onClick={() => setNewTerminal(true)}>
                 <span>+</span> New terminal
               </button>
+              <button className="new-node" onClick={() => setNewAgent(true)}>
+                + Agent
+              </button>
               <button
                 className="add-note"
                 title="Create a Markdown note file"
@@ -516,6 +536,14 @@ export function App() {
           onClose={() => setNewTerminal(false)}
         />
       )}
+      {newAgent && (
+        <NewTerminal
+          agentMode
+          defaultCwd={work.active?.folder}
+          onClose={() => setNewAgent(false)}
+        />
+      )}
+      {agentPresets && <AgentPresets onClose={() => setAgentPresets(false)} />}
       {connectionsOpen && (
         <ConnectionsPanel
           workspaceId={work.active?.document.id ?? ''}

@@ -134,6 +134,34 @@ function harness() {
 }
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
+test('restore prepares agent nodes but starts only shell terminals, including after workspace switches', async () => {
+  const h = harness();
+  for (const loaded of h.documents.values())
+    loaded.document.nodes.push({
+      ...loaded.document.nodes[0],
+      id: `${loaded.document.id}-agent`,
+      agent: {
+        provider: 'codex',
+        profileName: 'Builder preset',
+        roleName: 'Builder',
+        instructions: 'Wait for work.',
+      },
+    });
+  await h.coordinator.initialize();
+  expect(h.canvas.nodes).toHaveLength(2);
+  expect(h.ports.prepare).toHaveBeenCalledWith(
+    expect.arrayContaining([
+      expect.objectContaining({
+        agent: expect.objectContaining({ provider: 'codex' }),
+      }),
+    ]),
+  );
+  expect(h.ports.start).toHaveBeenCalledTimes(1);
+  await h.coordinator.switchTo('two');
+  expect(h.ports.start).toHaveBeenCalledTimes(2);
+  for (const [node] of vi.mocked(h.ports.start).mock.calls)
+    expect(node.agent).toBeUndefined();
+});
 test('startup restores viewport/settings and respawns saved shell/directory once', async () => {
   const h = harness();
   await h.coordinator.initialize();

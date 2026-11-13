@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod atomic_file;
 pub mod browser;
 pub mod collaboration;

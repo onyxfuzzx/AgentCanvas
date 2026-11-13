@@ -45,6 +45,8 @@ pub struct Node {
     pub shape: Option<Shape>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<crate::agents::AgentSettings>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -227,6 +229,18 @@ impl Layout {
             {
                 return Err("Invalid node geometry".into());
             }
+            if let Some(agent) = &n.agent {
+                if n.kind != "terminal" || n.shell.as_deref() != Some("cmd") {
+                    return Err(
+                        "Agent settings require a terminal with the cmd launch placeholder".into(),
+                    );
+                }
+                crate::agents::AgentLaunch {
+                    name: n.title.clone(),
+                    settings: agent.clone(),
+                }
+                .validate()?;
+            }
             match n.kind.as_str() {
                 "browser"
                     if n.shell.is_none()
@@ -399,6 +413,9 @@ fn decode(bytes: &[u8]) -> Result<Document, String> {
 }
 
 impl WorkspaceStore {
+    pub(crate) fn data_dir(&self) -> &Path {
+        &self.base
+    }
     pub fn new(base: PathBuf, home: PathBuf) -> Self {
         Self {
             base,

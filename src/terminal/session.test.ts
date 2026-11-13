@@ -55,6 +55,48 @@ function harness(
 }
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
+test('restored agents stay paused, reject input and launch once with the current node identity', async () => {
+  const h = harness();
+  const agent = {
+    provider: 'codex' as const,
+    profileName: 'Builder preset',
+    roleName: 'Builder',
+    instructions: 'Read C:\\repo & wait.\n日本語',
+  };
+  const calls: { command: string; args?: Record<string, unknown> }[] = [];
+  const transport: Transport = async <T>(
+    command: string,
+    args?: Record<string, unknown>,
+  ) => {
+    calls.push({ command, args });
+    return { cwd: 'C:\\repo' } as T;
+  };
+  const session = new Session({ ...node, agent }, h.emulator, transport);
+  expect(session.meta.status).toBe('paused');
+  expect(session.meta.summary.text).toBe('Agent ready to start');
+  session.setVisible(true);
+  await session.send(new TextEncoder().encode('do not run'));
+  await session.resize(100, 30);
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(calls).toHaveLength(0);
+  const renamed = { ...node, title: 'Renamed agent', agent };
+  await Promise.all([session.start(renamed), session.start(renamed)]);
+  expect(calls.filter((c) => c.command === 'terminal_spawn')).toEqual([
+    {
+      command: 'terminal_spawn',
+      args: {
+        id: node.id,
+        shell: 'cmd',
+        cwd: node.cwd,
+        cols: 100,
+        rows: 30,
+        agent: { name: 'Renamed agent', settings: agent },
+      },
+    },
+  ]);
+  expect(session.meta.status).toBe('running');
+  await session.close();
+});
 test('automatic summaries respect manual overrides and clear on output loss', async () => {
   let text = 'Continue? [y/n]';
   let dropped = 0;
