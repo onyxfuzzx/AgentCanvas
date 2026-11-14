@@ -9,3 +9,4 @@ src-tauri/tauri.generated.json
 src-tauri/gen/
 artifacts/
 design/
+AgentCanvas.html
