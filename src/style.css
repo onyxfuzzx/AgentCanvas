@@ -1635,6 +1635,19 @@ button:active:not(:disabled) {
 .task-text {
   white-space: pre-wrap;
 }
+.area-panel pre {
+  overflow: auto;
+  max-height: 360px;
+  padding: 12px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.area-panel dd {
+  margin: 4px 0 12px;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 700px) {
   .task-columns {
     grid-template-columns: 1fr;

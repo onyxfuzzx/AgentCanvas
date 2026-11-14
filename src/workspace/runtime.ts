@@ -11,6 +11,7 @@ import {
 import { createWorkspaceState, WorkspaceCoordinator } from './coordinator';
 import { notes } from '../notes/runtime';
 import { taskMutations } from '../tasks/runtime';
+import { areaMutations } from '../areas/runtime';
 import { browsers } from '../browser/runtime';
 import {
   collaboration,
@@ -37,6 +38,7 @@ export const workspace = new WorkspaceCoordinator(
             width: node.width,
             height: node.height,
             z: node.z,
+            ...(node.areaId ? { areaId: node.areaId } : {}),
           };
           return node.kind === 'terminal'
             ? {
@@ -88,6 +90,7 @@ export const workspace = new WorkspaceCoordinator(
     start: startSession,
     flushNotes: async () => {
       await taskMutations.flush();
+      await areaMutations.flush();
       await notes.flush();
       await collaboration.sync();
     },

@@ -64,6 +64,18 @@ mod platform {
                 TerminateJobObject(self.handle as HANDLE, 1);
             }
         }
+
+        /// Own a bounded native helper and its descendants until this operation ends.
+        pub fn attach_child(&self, child: &std::process::Child) -> Result<(), String> {
+            use std::os::windows::io::AsRawHandle;
+            if unsafe {
+                AssignProcessToJobObject(self.handle as HANDLE, child.as_raw_handle() as HANDLE)
+            } == 0
+            {
+                return Err(io::Error::last_os_error().to_string());
+            }
+            Ok(())
+        }
     }
 
     impl Drop for Job {

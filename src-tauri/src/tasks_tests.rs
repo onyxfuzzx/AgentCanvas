@@ -5,6 +5,88 @@ const GEN: &str = "00000000-0000-4000-8000-000000000002";
 const TASK: &str = "00000000-0000-4000-8000-000000000003";
 const ATTEMPT: &str = "00000000-0000-4000-8000-000000000004";
 static SEQ: AtomicU64 = AtomicU64::new(100);
+#[test]
+fn different_agents_cannot_dispatch_into_one_managed_checkout() {
+    let f = Fixture::new();
+    let mut s = Store::open(&f.0).unwrap();
+    let second = id();
+    let node = id();
+    let area = id();
+    user(&mut s, create(TASK), 1).unwrap();
+    user(
+        &mut s,
+        Action::Checkout {
+            id: TASK.into(),
+            area_id: Some(area.clone()),
+        },
+        2,
+    )
+    .unwrap();
+    user(
+        &mut s,
+        Action::Create {
+            id: second.clone(),
+            title: "Second".into(),
+            brief: "Other agent".into(),
+            criteria: "Checks".into(),
+            dependencies: vec![],
+            assigned_to: node.clone(),
+        },
+        3,
+    )
+    .unwrap();
+    user(
+        &mut s,
+        Action::Checkout {
+            id: second.clone(),
+            area_id: Some(area),
+        },
+        4,
+    )
+    .unwrap();
+    user(&mut s, Action::Ready { id: TASK.into() }, 5).unwrap();
+    user(&mut s, Action::Ready { id: second.clone() }, 6).unwrap();
+    user(
+        &mut s,
+        Action::Dispatch {
+            id: TASK.into(),
+            attempt_id: ATTEMPT.into(),
+        },
+        7,
+    )
+    .unwrap();
+    let mut writers = live();
+    writers.insert(node, GEN.into());
+    let rev = s.board.revision;
+    assert!(s
+        .execute(
+            Actor::User,
+            &id(),
+            Some(rev),
+            Action::Dispatch {
+                id: second.clone(),
+                attempt_id: id()
+            },
+            &writers,
+            8
+        )
+        .is_err());
+    s.reconcile(&HashMap::new(), 9).unwrap();
+    let rev = s.board.revision;
+    assert!(s
+        .execute(
+            Actor::User,
+            &id(),
+            Some(rev),
+            Action::Dispatch {
+                id: second,
+                attempt_id: id()
+            },
+            &writers,
+            10
+        )
+        .is_err());
+}
 fn id() -> String {
     format!(
         "00000000-0000-4000-8000-{:012x}",

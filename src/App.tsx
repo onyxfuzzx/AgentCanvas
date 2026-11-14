@@ -33,6 +33,8 @@ import { ThemeControl } from './ui/ThemeControl';
 import { ModalSection } from './ui/ModalSection';
 import { AgentPresets } from './agents/AgentPresets';
 import { TaskBoard } from './tasks/TaskBoard';
+import { AreasPanel } from './areas/AreasPanel';
+import type { Area } from './areas/model';
 
 export function App() {
   const nodes = useCanvas((s) => s.nodes);
@@ -44,6 +46,10 @@ export function App() {
   const [newAgent, setNewAgent] = useState(false);
   const [agentPresets, setAgentPresets] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
+  const [areasOpen, setAreasOpen] = useState(false);
+  const [launchArea, setLaunchArea] = useState<Area>();
+  const areaScope = useCanvas((s) => s.areaScope);
+  const areaDirectory = useCanvas((s) => s.areaDirectory);
   const [notice, setNotice] = useState('');
   const [workspacesOpen, setWorkspacesOpen] = useState(false);
   const [restartId, setRestartId] = useState<string | null>(null);
@@ -260,28 +266,42 @@ export function App() {
           >
             Tasks
           </button>
+          <button
+            disabled={busy || !work.active}
+            onClick={() => setAreasOpen(true)}
+          >
+            Task areas & Git
+          </button>
+          {areaScope && (
+            <button onClick={() => useCanvas.getState().setAreaScope(null)}>
+              Show whole canvas
+            </button>
+          )}
           <div className="node-list">
-            {nodes.map((n) => (
-              <button
-                key={n.id}
-                className={selected.includes(n.id) ? 'chosen' : ''}
-                onClick={() => {
-                  useCanvas.getState().select([n.id]);
-                  const canvas = document.querySelector('.canvas')!;
-                  const v = useCanvas.getState().viewport;
-                  useCanvas.getState().setViewport({
-                    ...v,
-                    x: canvas.clientWidth / 2 - (n.x + n.width / 2) * v.zoom,
-                    y: canvas.clientHeight / 2 - (n.y + n.height / 2) * v.zoom,
-                  });
-                }}
-              >
-                <span style={{ color: n.color }}>
-                  {n.kind === 'terminal' ? '>_' : '◇'}
-                </span>
-                <span>{n.title}</span>
-              </button>
-            ))}
+            {nodes
+              .filter((n) => !areaScope || n.areaId === areaScope)
+              .map((n) => (
+                <button
+                  key={n.id}
+                  className={selected.includes(n.id) ? 'chosen' : ''}
+                  onClick={() => {
+                    useCanvas.getState().select([n.id]);
+                    const canvas = document.querySelector('.canvas')!;
+                    const v = useCanvas.getState().viewport;
+                    useCanvas.getState().setViewport({
+                      ...v,
+                      x: canvas.clientWidth / 2 - (n.x + n.width / 2) * v.zoom,
+                      y:
+                        canvas.clientHeight / 2 - (n.y + n.height / 2) * v.zoom,
+                    });
+                  }}
+                >
+                  <span style={{ color: n.color }}>
+                    {n.kind === 'terminal' ? '>_' : '◇'}
+                  </span>
+                  <span>{n.title}</span>
+                </button>
+              ))}
             {!nodes.length && (
               <p className="sidebar-empty">Your nodes will appear here.</p>
             )}
@@ -540,18 +560,41 @@ export function App() {
       )}
       {newTerminal && (
         <NewTerminal
-          defaultCwd={work.active?.folder}
+          defaultCwd={areaDirectory || work.active?.folder}
           onClose={() => setNewTerminal(false)}
         />
       )}
       {newAgent && (
         <NewTerminal
           agentMode
-          defaultCwd={work.active?.folder}
+          defaultCwd={areaDirectory || work.active?.folder}
           onClose={() => setNewAgent(false)}
         />
       )}
       {agentPresets && <AgentPresets onClose={() => setAgentPresets(false)} />}
+      {areasOpen && work.active && !busy && (
+        <AreasPanel
+          key={work.active.document.id}
+          workspaceId={work.active.document.id}
+          onClose={() => setAreasOpen(false)}
+          onScope={(area) =>
+            useCanvas.getState().setAreaScope(area?.id ?? null, area?.directory)
+          }
+          onLaunch={(area) => {
+            setAreasOpen(false);
+            setLaunchArea(area);
+            useCanvas.getState().setAreaScope(area.id, area.directory);
+          }}
+        />
+      )}
+      {launchArea && (
+        <NewTerminal
+          agentMode
+          areaId={launchArea.id}
+          defaultCwd={launchArea.directory}
+          onClose={() => setLaunchArea(undefined)}
+        />
+      )}
       {tasksOpen && work.active && !busy && (
         <TaskBoard
           key={work.active.document.id}

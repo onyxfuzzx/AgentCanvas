@@ -27,6 +27,7 @@ export type CanvasNode = Point & {
   shell?: Shell;
   agent?: AgentSettings;
   cwd?: string;
+  areaId?: string;
   relativePath?: string;
   shape?: Shape;
   url?: string;

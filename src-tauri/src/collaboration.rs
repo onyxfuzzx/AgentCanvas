@@ -342,6 +342,20 @@ impl Collaboration {
         state.revision += 1;
         Ok(())
     }
+    pub fn validate_area_launch(&self, id: &str, cwd: &str) -> Result<(), String> {
+        let s = self.state.lock().map_err(|_| "Collaboration unavailable")?;
+        if let Some(area) = s.nodes.get(id).and_then(|n| n.area_id.as_deref()) {
+            let expected = crate::areas::checkout(&s.folder, area)?;
+            if std::fs::canonicalize(cwd).map_err(|e| e.to_string())?
+                != std::fs::canonicalize(expected).map_err(|e| e.to_string())?
+            {
+                return Err(
+                    "Managed-area terminals must launch in their validated checkout".into(),
+                );
+            }
+        }
+        Ok(())
+    }
     pub fn attach(&self, id: &str) -> Result<Vec<(String, String)>, String> {
         let mut s = self.state.lock().map_err(|_| "Collaboration unavailable")?;
         if s.closing_nodes.contains(id) {
@@ -491,6 +505,27 @@ impl Collaboration {
         tasks.reconcile(&live, task_now())?;
         Ok(tasks.snapshot())
     }
+    pub fn area_available(&self, workspace: &str, area: &str) -> Result<(), String> {
+        let snapshot = self.task_snapshot(workspace)?;
+        if snapshot.board.tasks.iter().any(|t| {
+            t.checkout_ref.as_deref() == Some(area)
+                && t.attempts.last().is_some_and(|a| {
+                    matches!(
+                        a.state,
+                        crate::tasks::AttemptStatus::Dispatched
+                            | crate::tasks::AttemptStatus::Acknowledged
+                            | crate::tasks::AttemptStatus::Running
+                            | crate::tasks::AttemptStatus::Cancelling
+                            | crate::tasks::AttemptStatus::Interrupted
+                    )
+                })
+        }) {
+            return Err(
+                "Reconcile the task attempt before changing or removing its checkout".into(),
+            );
+        }
+        Ok(())
+    }
     pub fn task_action(
         &self,
         workspace: &str,
@@ -516,6 +551,12 @@ impl Collaboration {
         if assigned.is_some_and(|id| !s.nodes.get(id).is_some_and(|n| n.kind == "terminal")) {
             return Err("Choose an existing terminal or agent".into());
         }
+        if let crate::tasks::Action::Checkout {
+            area_id: Some(id), ..
+        } = &action
+        {
+            crate::areas::checkout(&s.folder, id)?;
+        }
         if let crate::tasks::Action::Dispatch { id, .. }
         | crate::tasks::Action::Resolve { id, .. } = &action
         {
@@ -527,6 +568,17 @@ impl Collaboration {
                 .find(|t| &t.id == id)
                 .ok_or("Task unavailable")?;
             if matches!(&action, crate::tasks::Action::Dispatch { .. }) {
+                if let Some(area) = &task.checkout_ref {
+                    let directory = crate::areas::checkout(&s.folder, area)?;
+                    if std::fs::canonicalize(self.pty.launched_directory(&task.assigned_to)?)
+                        .map_err(|e| e.to_string())?
+                        != std::fs::canonicalize(directory).map_err(|e| e.to_string())?
+                    {
+                        return Err(
+                            "Assigned terminal must launch in the task area's checkout".into()
+                        );
+                    }
+                }
                 if !s.live.contains_key(&task.assigned_to)
                     || !self.pty.has_session(&task.assigned_to)?
                 {

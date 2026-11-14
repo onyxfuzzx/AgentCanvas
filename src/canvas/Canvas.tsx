@@ -20,6 +20,7 @@ import { useCanvas } from './store';
 import { drawingNode, connectorBounds } from './whiteboard';
 import { ShapeNode } from './ShapeNode';
 import { keyboardLayout } from './keyboard';
+import { inArea } from '../areas/model';
 
 type Gesture = {
   pointer: number;
@@ -42,7 +43,15 @@ export function Canvas({
   onClose: (ids: string[]) => void;
   disabled?: boolean;
 }) {
-  const { nodes, selected, viewport, snapGrid, edges } = useCanvas();
+  const {
+    nodes: allNodes,
+    selected,
+    viewport,
+    snapGrid,
+    edges,
+    areaScope,
+  } = useCanvas();
+  const nodes = allNodes.filter((n) => inArea(n, areaScope));
   const [linkDraft, setLinkDraft] = useState<{
     source: Point;
     target: Point;
@@ -85,7 +94,7 @@ export function Canvas({
     const keydown = (e: KeyboardEvent) => {
       if (disabled) return;
       const editable = (e.target as HTMLElement)?.closest(
-        'input,textarea,select,.dialog,[contenteditable="true"],.terminal-host',
+        'input,textarea,select,.dialog,[role="dialog"],[contenteditable="true"],.terminal-host',
       );
       if (editable) return;
       if (
@@ -126,9 +135,12 @@ export function Canvas({
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        useCanvas
-          .getState()
-          .select(useCanvas.getState().nodes.map((n) => n.id));
+        useCanvas.getState().select(
+          useCanvas
+            .getState()
+            .nodes.filter((n) => inArea(n, useCanvas.getState().areaScope))
+            .map((n) => n.id),
+        );
       }
       if (e.key === 'Delete') {
         e.preventDefault();
@@ -144,11 +156,15 @@ export function Canvas({
       }
       if (e.key === 'Home') {
         e.preventDefault();
-        useCanvas
-          .getState()
-          .setViewport(
-            fitViewport(useCanvas.getState().nodes, size.width, size.height),
-          );
+        useCanvas.getState().setViewport(
+          fitViewport(
+            useCanvas
+              .getState()
+              .nodes.filter((n) => inArea(n, useCanvas.getState().areaScope)),
+            size.width,
+            size.height,
+          ),
+        );
       }
     };
     const release = () => {
@@ -365,7 +381,9 @@ export function Canvas({
       s.select([
         ...new Set([
           ...g.additive,
-          ...s.nodes.filter((n) => intersects(n, area)).map((n) => n.id),
+          ...s.nodes
+            .filter((n) => inArea(n, s.areaScope) && intersects(n, area))
+            .map((n) => n.id),
         ]),
       ]);
       return;

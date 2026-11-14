@@ -40,6 +40,8 @@ pub struct Node {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relative_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shape: Option<Shape>,
@@ -212,6 +214,7 @@ impl Layout {
         let mut terminals = 0;
         for n in &self.nodes {
             if !id_valid(&n.id)
+                || n.area_id.as_deref().is_some_and(|id| !id_valid(id))
                 || !ids.insert(&n.id)
                 || n.title.chars().count() > 80
                 || n.title.contains('\0')

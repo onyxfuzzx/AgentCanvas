@@ -58,6 +58,8 @@ pub struct Attempt {
     pub lease_until: u64,
     pub summary: String,
     pub artifacts: Vec<String>,
+    #[serde(default)]
+    pub checkout_ref: Option<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -135,6 +137,10 @@ pub enum Action {
     },
     Ready {
         id: String,
+    },
+    Checkout {
+        id: String,
+        area_id: Option<String>,
     },
     Dispatch {
         id: String,
@@ -241,6 +247,7 @@ impl Board {
             }
             for a in &t.attempts {
                 if !id_valid(&a.id)
+                    || a.checkout_ref.as_deref().is_some_and(|id| !id_valid(id))
                     || !id_valid(&a.generation)
                     || !attempts.insert(&a.id)
                     || !text(&a.summary, 512, true)
@@ -593,6 +600,7 @@ fn apply(
     }
     let id = match &action {
         Action::Edit { id, .. }
+        | Action::Checkout { id, .. }
         | Action::Ready { id }
         | Action::Dispatch { id, .. }
         | Action::Accept { id }
@@ -623,13 +631,14 @@ fn apply(
         }
         if board.tasks.iter().any(|other| {
             other.id != id
-                && other.assigned_to == t.assigned_to
+                && (other.assigned_to == t.assigned_to
+                    || (t.checkout_ref.is_some() && other.checkout_ref == t.checkout_ref))
                 && other
                     .attempts
                     .last()
                     .is_some_and(|a| a.state.active() || a.state == AttemptStatus::Interrupted)
         }) {
-            return Err("Agent has another active or unreconciled task".into());
+            return Err("Agent or checkout has another active or unreconciled task".into());
         }
     }
     let t = &mut board.tasks[index];
@@ -651,6 +660,9 @@ fn apply(
         }
     }
     match action {
+        Action::Checkout { area_id, .. } if t.state == Status::Draft => {
+            t.checkout_ref = area_id;
+        }
         Action::Edit {
             title,
             brief,
@@ -675,6 +687,7 @@ fn apply(
                 .ok_or("Start the assigned agent before dispatch")?
                 .clone();
             t.attempts.push(Attempt {
+                checkout_ref: t.checkout_ref.clone(),
                 id: attempt_id,
                 generation,
                 state: AttemptStatus::Dispatched,

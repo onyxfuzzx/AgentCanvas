@@ -17,15 +17,19 @@ export function NewTerminal({
   existing,
   defaultCwd = '',
   agentMode = false,
+  areaId,
 }: {
   onClose: () => void;
   existing?: CanvasNode;
   defaultCwd?: string;
   agentMode?: boolean;
+  areaId?: string;
 }) {
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [shell, setShell] = useState<Shell>(existing?.shell ?? 'powershell');
   const [cwd, setCwd] = useState(existing?.cwd ?? defaultCwd);
+  const managedArea =
+    existing?.areaId ?? areaId ?? useCanvas.getState().areaScope ?? undefined;
   const [title, setTitle] = useState(existing?.title ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -116,6 +120,7 @@ export function NewTerminal({
       shell: mode === 'agent' ? 'cmd' : shell,
       ...(mode === 'agent' ? { agent } : {}),
       cwd: cwd.trim(),
+      ...(managedArea ? { areaId: managedArea } : {}),
       color: '#708f7c',
       ...point,
       width: 660,
@@ -186,6 +191,11 @@ export function NewTerminal({
               ? 'Start an agent.'
               : 'Start a terminal.'}
         </h2>
+        <p>
+          {managedArea
+            ? 'Managed task area. The checkout directory is validated before launch.'
+            : 'Shared directory execution. This launch has no managed Git isolation guarantee.'}
+        </p>
         <label htmlFor="launch-mode">Launch</label>
         <select
           id="launch-mode"

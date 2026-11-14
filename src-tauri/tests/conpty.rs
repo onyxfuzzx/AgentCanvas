@@ -45,6 +45,7 @@ fn wait_output(manager: &PtyManager, id: &str, predicate: impl Fn(&str) -> bool)
 #[test]
 fn conpty_roundtrip_resize_and_close() {
     let manager = PtyManager::with_host(PathBuf::from(env!("CARGO_BIN_EXE_pty-host")));
+    manager.require_idle().unwrap();
     let id = "00000000-0000-4000-8000-000000000010";
     manager
         .spawn(
@@ -58,6 +59,11 @@ fn conpty_roundtrip_resize_and_close() {
             24,
         )
         .expect("spawn cmd");
+    assert!(manager.require_idle().is_err());
+    assert_eq!(
+        std::fs::canonicalize(manager.launched_directory(id).unwrap()).unwrap(),
+        std::fs::canonicalize(std::env::current_dir().unwrap()).unwrap()
+    );
     wait_output(&manager, id, |text| text.contains('>'));
     manager.resize(id, 100, 32).expect("resize ConPTY");
     manager
@@ -66,6 +72,7 @@ fn conpty_roundtrip_resize_and_close() {
     wait_output(&manager, id, |text| text.contains("__PTY_READY__"));
     manager.close(id).expect("close session");
     manager.close(id).expect("idempotent close");
+    manager.require_idle().unwrap();
     assert!(manager.poll(id, 1024).is_err());
 }
 

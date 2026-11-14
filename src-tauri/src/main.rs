@@ -30,6 +30,7 @@ fn main() {
     }
     tauri::Builder::default()
         .manage(manager)
+        .manage(Arc::new(Mutex::new(())))
         .manage(collaboration)
         .manage(Arc::new(agent_canvas_desktop::browser::Browsers::default()))
         .setup(move |app| {
@@ -58,6 +59,11 @@ fn main() {
                 commands::agent_providers,
                 commands::task_snapshot,
                 commands::task_action,
+                commands::area_catalog,
+                commands::area_review,
+                commands::area_file,
+                commands::area_preview,
+                commands::area_action,
                 commands::agent_catalog,
                 commands::agent_catalog_save,
                 commands::terminal_spawn,

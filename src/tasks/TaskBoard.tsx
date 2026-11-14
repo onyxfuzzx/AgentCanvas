@@ -4,6 +4,7 @@ import { useCanvas } from '../canvas/store';
 import { useDialogFocus } from '../ui/useDialogFocus';
 import { taskMutations } from './runtime';
 import { stopSession } from '../terminal/registry';
+import type { AreaCatalog } from '../areas/model';
 import {
   visibleTasks,
   type Task,
@@ -21,6 +22,7 @@ export function TaskBoard({
   const nodes = useCanvas((s) => s.nodes);
   const terminals = nodes.filter((n) => n.kind === 'terminal');
   const [snapshot, setSnapshot] = useState<TaskSnapshot>();
+  const [areas, setAreas] = useState<AreaCatalog>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState('');
@@ -59,6 +61,9 @@ export function TaskBoard({
   useEffect(() => {
     alive.current = true;
     void refresh();
+    void invoke<AreaCatalog>('area_catalog', { workspaceId })
+      .then(setAreas)
+      .catch((e) => setError(String(e)));
     return () => {
       alive.current = false;
     };
@@ -344,6 +349,37 @@ export function TaskBoard({
                   {new Date(current.updatedAt).toLocaleString()}
                 </p>
                 <code>{current.id}</code>
+                <label>
+                  Execution area
+                  <select
+                    disabled={readOnly || current.state !== 'draft'}
+                    value={current.checkoutRef ?? ''}
+                    onChange={(e) =>
+                      void send({
+                        type: 'checkout',
+                        id: current.id,
+                        areaId: e.target.value || null,
+                      })
+                    }
+                  >
+                    <option value="">
+                      Shared directory — no managed isolation
+                    </option>
+                    {areas?.areas
+                      .filter((a) => !a.removed)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} · {a.directory}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <p>
+                  Checkout reference:{' '}
+                  {current.checkoutRef || 'Shared directory'}. Managed tasks
+                  dispatch only to a terminal launched in that checkout. Git
+                  review and integration are in Task areas & Git.
+                </p>
                 {current.reason && <p role="status">{current.reason}</p>}
                 <div className="task-actions">
                   {['running', 'blocked'].includes(current.state) && (
@@ -449,6 +485,11 @@ export function TaskBoard({
                 {current.attempts.map((a) => (
                   <article key={a.id}>
                     <code>{a.id}</code>
+                    {a.checkoutRef && (
+                      <p>
+                        Attempt checkout: <code>{a.checkoutRef}</code>
+                      </p>
+                    )}
                     <p>
                       {a.state} · {new Date(a.at).toLocaleString()}
                     </p>

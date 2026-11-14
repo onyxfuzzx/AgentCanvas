@@ -2,7 +2,7 @@
 
 Updated: 2026-11-14. Baseline: commit `8880ada` (M8).
 
-This roadmap through M12 was written from the current implementation; it does not recover an earlier M9–M12 plan. The user authorized M9 on 2026-11-14. M9 implementation, automated checks, debug build and desktop smoke are complete; authenticated provider acceptance and deeper checks remain in VERIFICATION.md. M10–M12 remain proposed and unimplemented. See AGENTS.md for the current scope boundary.
+This roadmap through M12 was written from the current implementation; it does not recover an earlier M9–M12 plan. The user authorized M9 and full M10 on 2026-11-14. M0–M10 are implemented; automated checks, debug builds and desktop smoke evidence are recorded in VERIFICATION.md alongside remaining acceptance limits. M11–M12 remain proposed and unimplemented. See AGENTS.md for the current scope boundary.
 
 ## Product goal
 
@@ -41,7 +41,7 @@ Current peer sends type into another terminal. Delivery does not prove that an a
 | Milestone | Outcome                                                 | Depends on                              | Status                                 |
 | --------- | ------------------------------------------------------- | --------------------------------------- | -------------------------------------- |
 | M9        | Durable tasks and reliable agent communication          | M8; relevant existing acceptance checks | Implemented; deeper acceptance pending |
-| M10       | Isolated execution and reviewable Git integration       | M9                                      | Proposed                               |
+| M10       | Isolated execution and reviewable Git integration       | M9                                      | Implemented; see verification          |
 | M11       | Bounded coordinator and team operations                 | M9 + M10                                | Proposed                               |
 | M12       | Reusable workflows, project tools and qualified release | M9–M11                                  | Proposed                               |
 
@@ -132,7 +132,7 @@ Proposed boundaries build on existing modules; these paths are suggestions, not 
 | Task model and state-machine tests    | `src/tasks/`, `src-tauri/src/tasks.rs`               | Rust owns authoritative durable transitions; UI renders snapshots  |
 | Structured inbox and capabilities     | Existing `ipc.rs`, `collaboration.rs`, helper binary | Preserve bounded same-user transport and process-generation checks |
 | Provider capabilities and submission  | `src-tauri/src/agents/` or extracted adapters        | No shell interpolation; no assumed status from terminal scraping   |
-| Checkout provisioning and integration | `src-tauri/src/git.rs`, `src/areas/`                 | Native validation, exact refs and recoverable operations           |
+| Checkout provisioning and integration | `src-tauri/src/areas.rs`, `src/areas/`               | Native validation, exact refs and recoverable operations           |
 | Dispatch, leases and resource policy  | `src-tauri/src/orchestrator.rs`                      | Deterministic policy; coordinator proposes actions                 |
 | Review and check records              | `src/review/`, native validated records              | Bind findings/checks/approval to commit and attempt                |
 | Templates and context                 | `src/templates/`, `src/context/`                     | Versioned data, explicit launch and bounded filesystem access      |
@@ -167,7 +167,7 @@ Remote execution, cloud synchronization, multi-user collaboration, account/crede
 - [x] Record M0–M8 implementation baseline and its acceptance limitations.
 - [ ] Close M8 launch/persistence/restart checks needed for orchestration.
 - [x] M9: durable task protocol, adapter capabilities and restart reconciliation (deeper acceptance remains).
-- [ ] M10: isolated checkouts, commit-bound evidence and controlled integration.
+- [x] M10: isolated checkouts, commit-bound evidence and controlled integration (limits in VERIFICATION.md).
 - [ ] M11: bounded coordinator, team lifecycle, permissions and failure handling.
 - [ ] M12: templates, context/browser tools and qualified release artifacts.
 - [ ] Run repeatable outcome comparisons before claiming improvement over another product.

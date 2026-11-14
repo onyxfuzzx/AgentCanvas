@@ -14,6 +14,7 @@ const MAX_SESSIONS: usize = 20;
 const MAX_INPUT: usize = 65536;
 
 struct Session {
+    cwd: std::path::PathBuf,
     job: Job,
     master: Mutex<Option<Box<dyn MasterPty + Send>>>,
     writer: Mutex<Box<dyn Write + Send>>,
@@ -118,6 +119,20 @@ fn size(cols: u16, rows: u16) -> Result<PtySize, String> {
 }
 
 impl PtyManager {
+    pub fn launched_directory(&self, id: &str) -> Result<std::path::PathBuf, String> {
+        Ok(self.get(id)?.cwd.clone())
+    }
+    pub fn require_idle(&self) -> Result<(), String> {
+        if !self
+            .sessions
+            .lock()
+            .map_err(|_| "Terminal state unavailable")?
+            .is_empty()
+        {
+            return Err("Stop all terminals before changing task areas, recording evidence, integrating or cleaning up".into());
+        }
+        Ok(())
+    }
     /// Trusted helper override for native lifecycle tests; never exposed over IPC.
     pub fn with_host(host: std::path::PathBuf) -> Self {
         Self {
@@ -253,6 +268,7 @@ impl PtyManager {
             drop(pair.slave);
             let output = Arc::new(Mutex::new(Output::default()));
             let session = Arc::new(Session {
+                cwd: cwd.clone(),
                 job,
                 master: Mutex::new(Some(pair.master)),
                 writer: Mutex::new(writer),

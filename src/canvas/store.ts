@@ -4,6 +4,9 @@ import { reflow, withoutNodes } from './whiteboard';
 
 const LIMIT = 80;
 type State = {
+  areaScope: string | null;
+  areaDirectory: string;
+  setAreaScope: (id: string | null, directory?: string) => void;
   nodes: CanvasNode[];
   edges: Connection[];
   connect: (source: string, target: string) => void;
@@ -33,6 +36,10 @@ type State = {
   setTerminalLaunch: (node: CanvasNode) => void;
 };
 export const useCanvas = create<State>((set) => ({
+  areaScope: null,
+  areaDirectory: '',
+  setAreaScope: (areaScope, areaDirectory = '') =>
+    set({ areaScope, areaDirectory, selected: [] }),
   nodes: [],
   edges: [],
   connect: (source, target) =>
@@ -104,8 +111,9 @@ export const useCanvas = create<State>((set) => ({
       ),
     })),
   add: (node) =>
-    set((s) =>
-      s.nodes.length >= 500
+    set((s) => {
+      if (s.areaScope && !node.areaId) node = { ...node, areaId: s.areaScope };
+      return s.nodes.length >= 500
         ? {}
         : {
             nodes: [...s.nodes, node],
@@ -115,8 +123,8 @@ export const useCanvas = create<State>((set) => ({
                 ? s.past.map((snapshot) => [...snapshot, node])
                 : [...s.past, s.nodes].slice(-LIMIT),
             future: [],
-          },
-    ),
+          };
+    }),
   remove: (ids) =>
     set((s) => {
       // Process destruction is irreversible: purge closed terminals from every layout snapshot.
@@ -171,6 +179,8 @@ export const useCanvas = create<State>((set) => ({
   toggleSnap: () => set((s) => ({ snapGrid: !s.snapGrid })),
   restore: (nodes, viewport, snapGrid, edges = []) =>
     set({
+      areaScope: null,
+      areaDirectory: '',
       nodes,
       viewport,
       snapGrid,

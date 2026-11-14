@@ -44,6 +44,7 @@ impl Drop for Fixture {
 fn layout() -> Layout {
     Layout {
         nodes: vec![Node {
+            area_id: None,
             agent: None,
             id: "00000000-0000-4000-8000-000000000001".into(),
             kind: "terminal".into(),

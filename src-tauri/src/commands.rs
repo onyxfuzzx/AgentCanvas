@@ -38,6 +38,7 @@ pub async fn agent_catalog_save(
 #[allow(clippy::too_many_arguments)] // Flat IPC fields preserve the existing shell command contract.
 pub async fn terminal_spawn(
     manager: State<'_, Arc<PtyManager>>,
+    git_gate: State<'_, Arc<Mutex<()>>>,
     collaboration: State<'_, Arc<Collaboration>>,
     id: String,
     shell: String,
@@ -51,10 +52,15 @@ pub async fn terminal_spawn(
     }
     let manager = manager.inner().clone();
     let collaboration = collaboration.inner().clone();
+    let git_gate = git_gate.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let _gate = git_gate
+            .lock()
+            .map_err(|_| "Git operation gate unavailable")?;
         if manager.has_session(&id)? {
             return Err("Terminal already exists; stop it before starting again".into());
         }
+        collaboration.validate_area_launch(&id, &cwd)?;
         let environment = collaboration.attach(&id)?;
         let result = match agent {
             Some(agent) => manager.spawn_agent(id.clone(), agent, cwd, cols, rows, environment),
@@ -172,6 +178,76 @@ pub async fn collaboration_decide(
 }
 
 type Storage = Arc<Mutex<WorkspaceStore>>;
+#[tauri::command]
+pub async fn area_catalog(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+) -> Result<crate::areas::Catalog, String> {
+    with_storage(storage, move |s| {
+        crate::areas::catalog(s.folder(&workspace_id)?)
+    })
+    .await
+}
+#[tauri::command]
+pub async fn area_review(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+    id: String,
+) -> Result<crate::areas::Review, String> {
+    with_storage(storage, move |s| {
+        crate::areas::review(s.folder(&workspace_id)?, &id)
+    })
+    .await
+}
+#[tauri::command]
+pub async fn area_file(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+    id: String,
+    relative: String,
+) -> Result<String, String> {
+    with_storage(storage, move |s| {
+        crate::areas::file(s.folder(&workspace_id)?, &id, &relative)
+    })
+    .await
+}
+#[tauri::command]
+pub async fn area_preview(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+    id: String,
+    target: String,
+) -> Result<crate::areas::Approval, String> {
+    with_storage(storage, move |s| {
+        crate::areas::preview(s.folder(&workspace_id)?, &id, &target)
+    })
+    .await
+}
+#[tauri::command]
+pub async fn area_action(
+    storage: State<'_, Storage>,
+    manager: State<'_, Arc<PtyManager>>,
+    collaboration: State<'_, Arc<Collaboration>>,
+    git_gate: State<'_, Arc<Mutex<()>>>,
+    workspace_id: String,
+    action: crate::areas::Action,
+) -> Result<crate::areas::Catalog, String> {
+    let manager = manager.inner().clone();
+    let collaboration = collaboration.inner().clone();
+    let gate = git_gate.inner().clone();
+    with_storage(storage, move |s| {
+        let _gate = gate.lock().map_err(|_| "Git operation gate unavailable")?;
+        manager.require_idle()?;
+        match &action {
+            crate::areas::Action::Cleanup { id } | crate::areas::Action::Integrate { id, .. } => {
+                collaboration.area_available(&workspace_id, id)?
+            }
+            _ => {}
+        }
+        crate::areas::action(s.folder(&workspace_id)?, action)
+    })
+    .await
+}
 #[tauri::command]
 pub async fn task_snapshot(
     collaboration: State<'_, Arc<Collaboration>>,

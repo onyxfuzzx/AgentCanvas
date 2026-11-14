@@ -22,6 +22,7 @@ export type Attempt = {
   leaseUntil: number;
   summary: string;
   artifacts: string[];
+  checkoutRef?: string | null;
 };
 export type Task = {
   id: string;
@@ -54,6 +55,7 @@ export type TaskAction =
     }
   | { type: 'ready' | 'accept' | 'cancel'; id: string }
   | { type: 'dispatch'; id: string; attemptId: string }
+  | { type: 'checkout'; id: string; areaId: string | null }
   | { type: 'reject'; id: string; reason: string }
   | {
       type: 'resolve';
