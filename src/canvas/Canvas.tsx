@@ -1,3 +1,5 @@
+import { Icon } from '../ui/Icon';
+import { NodeStatus } from '../terminal/NodeStatus';
 import {
   useEffect,
   useRef,
@@ -38,10 +40,16 @@ export function Canvas({
   renderNode,
   onClose,
   disabled = false,
+  insets = { left: 0, right: 0, top: 0, bottom: 0 },
+  onRestart,
+  onConnections,
 }: {
   renderNode?: (node: CanvasNode, visible: boolean) => ReactNode;
   onClose: (ids: string[]) => void;
   disabled?: boolean;
+  insets?: import('./model').CanvasInsets;
+  onRestart?: (id: string) => void;
+  onConnections?: () => void;
 }) {
   const {
     nodes: allNodes,
@@ -63,6 +71,15 @@ export function Canvas({
   const [panning, setPanning] = useState(false);
   const [tool, setTool] = useState<'select' | ShapeKind>('select');
   const [source, setSource] = useState<string | null>(null);
+  useEffect(() => {
+    const selectTool = () => {
+      setTool('select');
+      setSource(null);
+      setDraft(null);
+    };
+    window.addEventListener('canvas-tool', selectTool);
+    return () => window.removeEventListener('canvas-tool', selectTool);
+  }, []);
   const [draft, setDraft] = useState<CanvasNode | null>(null);
   useEffect(() => {
     if (disabled) {
@@ -163,6 +180,7 @@ export function Canvas({
               .nodes.filter((n) => inArea(n, useCanvas.getState().areaScope)),
             size.width,
             size.height,
+            insets,
           ),
         );
       }
@@ -182,7 +200,7 @@ export function Canvas({
       window.removeEventListener('keyup', keyup);
       window.removeEventListener('blur', release);
     };
-  }, [onClose, size, disabled]);
+  }, [onClose, size, disabled, insets]);
   useEffect(() => {
     const element = root.current!;
     const wheel = (e: WheelEvent) => {
@@ -579,7 +597,6 @@ export function Canvas({
                 width: node.width,
                 height: node.height,
                 zIndex: node.z,
-                borderTopColor: node.color,
               }}
               onPointerDown={(e) => begin(e, node)}
             >
@@ -597,27 +614,31 @@ export function Canvas({
                 }}
               >
                 <span className="node-kind">
-                  {node.kind === 'terminal'
-                    ? '>_'
-                    : node.kind === 'note'
-                      ? '▤'
-                      : '◇'}
+                  <Icon
+                    name={
+                      node.kind === 'terminal'
+                        ? node.agent
+                          ? 'agent'
+                          : 'terminal'
+                        : node.kind === 'note'
+                          ? 'note'
+                          : node.kind === 'browser'
+                            ? 'browser'
+                            : 'card'
+                    }
+                  />
                 </span>
                 <strong>{node.title}</strong>
-                <span className="node-type">
-                  {node.kind === 'terminal'
-                    ? node.agent
-                      ? `${node.agent.provider} · ${node.agent.roleName}`
-                      : node.shell
-                    : node.kind === 'note'
-                      ? 'MARKDOWN'
-                      : node.kind === 'shape'
-                        ? 'WHITEBOARD'
-                        : node.kind === 'browser'
-                          ? 'BROWSER'
-                          : 'CANVAS CARD'}
-                </span>
+                {node.kind === 'terminal' && (
+                  <>
+                    <span className="node-type">
+                      {node.agent?.roleName ?? node.shell}
+                    </span>
+                    <NodeStatus id={node.id} />
+                  </>
+                )}
                 <button
+                  className="node-header-close"
                   title={`Close ${node.title}`}
                   aria-label={`Close ${node.title}`}
                   onClick={() => onClose([node.id])}
@@ -683,6 +704,38 @@ export function Canvas({
                   aria-label={`Resize ${node.title}`}
                   onPointerDown={(e) => beginResize(e, node)}
                 />
+              )}
+              {selected.length === 1 && selected.includes(node.id) && (
+                <div
+                  className="node-subbar"
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  {(node.kind === 'terminal' || node.kind === 'note') && (
+                    <button
+                      title="Connections"
+                      aria-label="Connections"
+                      onClick={onConnections}
+                    >
+                      <Icon name="link" />
+                    </button>
+                  )}
+                  {node.kind === 'terminal' && (
+                    <button
+                      title="Restart settings"
+                      aria-label="Restart settings"
+                      onClick={() => onRestart?.(node.id)}
+                    >
+                      <Icon name="refresh" />
+                    </button>
+                  )}
+                  <button
+                    title="Remove node"
+                    aria-label="Remove node"
+                    onClick={() => onClose([node.id])}
+                  >
+                    <Icon name="close" />
+                  </button>
+                </div>
               )}
             </section>
           );
@@ -836,7 +889,7 @@ export function Canvas({
           onClick={() =>
             useCanvas
               .getState()
-              .setViewport(fitViewport(nodes, size.width, size.height))
+              .setViewport(fitViewport(nodes, size.width, size.height, insets))
           }
         >
           Fit
@@ -849,70 +902,6 @@ export function Canvas({
           ⌗
         </button>
       </div>
-      <Minimap nodes={nodes} width={size.width} height={size.height} />
-    </div>
-  );
-}
-function Minimap({
-  nodes,
-  width,
-  height,
-}: {
-  nodes: CanvasNode[];
-  width: number;
-  height: number;
-}) {
-  const v = useCanvas((s) => s.viewport);
-  const view = {
-    x: -v.x / v.zoom,
-    y: -v.y / v.zoom,
-    width: width / v.zoom,
-    height: height / v.zoom,
-  };
-  const left = Math.min(view.x, ...nodes.map((n) => n.x)) - 100,
-    top = Math.min(view.y, ...nodes.map((n) => n.y)) - 100;
-  const right =
-      Math.max(view.x + view.width, ...nodes.map((n) => n.x + n.width)) + 100,
-    bottom =
-      Math.max(view.y + view.height, ...nodes.map((n) => n.y + n.height)) + 100;
-  return (
-    <div className="minimap" onPointerDown={(e) => e.stopPropagation()}>
-      <span>OVERVIEW</span>
-      <svg
-        aria-label="Workspace minimap"
-        viewBox={`${left} ${top} ${right - left} ${bottom - top}`}
-        onPointerDown={(e) => {
-          const ctm = e.currentTarget.getScreenCTM();
-          if (!ctm) return;
-          const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(
-            ctm.inverse(),
-          );
-          useCanvas.getState().setViewport({
-            ...v,
-            x: width / 2 - p.x * v.zoom,
-            y: height / 2 - p.y * v.zoom,
-          });
-        }}
-      >
-        {nodes.map((n) => (
-          <rect
-            key={n.id}
-            x={n.x}
-            y={n.y}
-            width={n.width}
-            height={n.height}
-            fill={n.color}
-            opacity="0.6"
-          />
-        ))}
-        <rect
-          className="minimap-view"
-          x={view.x}
-          y={view.y}
-          width={view.width}
-          height={view.height}
-        />
-      </svg>
     </div>
   );
 }

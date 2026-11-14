@@ -1,3 +1,4 @@
+import { terminalTheme } from './theme';
 import { Terminal } from '@xterm/xterm';
 import type { CanvasNode } from '../canvas/model';
 import { invoke } from '../native';
@@ -26,12 +27,7 @@ export function createSession(node: CanvasNode): Entry {
     scrollback: 2000,
     cursorBlink: true,
     allowProposedApi: false,
-    theme: {
-      background: '#171a1e',
-      foreground: '#d2d8df',
-      cursor: '#d4b080',
-      selectionBackground: '#53627380',
-    },
+    theme: terminalTheme(),
   });
   const session = new Session(node, terminal, invoke);
   // No OSC 52 clipboard access from untrusted process output.

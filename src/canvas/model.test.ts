@@ -99,6 +99,24 @@ test('fit handles negative world coordinates', () => {
   expect(snap(37, true)).toBe(48);
   expect(snap(37, false)).toBe(37);
 });
+
+test('fit keeps nodes inside the canvas area left by floating panels', () => {
+  const insets = { left: 260, right: 310, top: 100, bottom: 70 };
+  const v = fitViewport([node], 1440, 900, insets);
+  expect(node.x * v.zoom + v.x).toBeGreaterThanOrEqual(insets.left + 60);
+  expect((node.x + node.width) * v.zoom + v.x).toBeLessThanOrEqual(
+    1440 - insets.right - 60,
+  );
+  expect(node.y * v.zoom + v.y).toBeGreaterThanOrEqual(insets.top + 60);
+  expect((node.y + node.height) * v.zoom + v.y).toBeLessThanOrEqual(
+    900 - insets.bottom - 60,
+  );
+  expect(fitViewport([], 1440, 900, insets)).toEqual({
+    x: 340,
+    y: 180,
+    zoom: 1,
+  });
+});
 test('a multi-update drag is one undo unit and branching clears redo', () => {
   const s = () => useCanvas.getState();
   s().add(node);

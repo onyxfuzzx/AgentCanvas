@@ -38,7 +38,7 @@ export function startBrowserSurfaces() {
       invalidate();
   });
   const overlay =
-    '.modal-backdrop,.workspace-loading,.collaboration-panel,.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.workspace-warning,.notice,.marquee,.drawing-preview';
+    '.sidebar,.creation-toolbar,.workspace-actions,.inspector,.node-subbar,.design-page,.sidebar-reopen,.modal-backdrop,.workspace-loading,.collaboration-panel,.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.workspace-warning,.notice,.marquee,.drawing-preview';
   const mutations = new MutationObserver((records) => {
     if (
       records.some((r) => {
@@ -66,13 +66,19 @@ export function startBrowserSurfaces() {
     attributeFilter: ['class', 'style', 'inert'],
   });
   const resize = new ResizeObserver(invalidate);
-  const initialCanvas = document.querySelector('.canvas');
-  if (initialCanvas) resize.observe(initialCanvas);
+  let observedCanvas = document.querySelector('.canvas');
+  if (observedCanvas) resize.observe(observedCanvas);
   window.addEventListener('resize', invalidate);
   document.addEventListener('visibilitychange', invalidate);
   const tick = () => {
     if (stopped) return;
     const canvas = document.querySelector<HTMLElement>('.canvas');
+    if (canvas !== observedCanvas) {
+      if (observedCanvas) resize.unobserve(observedCanvas);
+      observedCanvas = canvas;
+      if (canvas) resize.observe(canvas);
+      invalidate();
+    }
     const state = useCanvas.getState();
     const sessions = browserState.getState().sessions;
     if (pixelRatio !== window.devicePixelRatio) {
@@ -86,7 +92,7 @@ export function startBrowserSurfaces() {
         document.hidden ||
         Boolean(
           document.querySelector(
-            '.modal-backdrop,.workspace-loading,[inert],.marquee,.drawing-preview',
+            '.modal-backdrop,.workspace-loading,.workspace-body[inert],.marquee,.drawing-preview',
           ),
         ) ||
         canvas?.classList.contains('drawing-ready') ||
@@ -96,7 +102,7 @@ export function startBrowserSurfaces() {
         const canvasRect = canvas.getBoundingClientRect();
         const covers = Array.from(
           document.querySelectorAll<HTMLElement>(
-            '.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.collaboration-panel,.workspace-warning,.notice',
+            '.sidebar,.creation-toolbar,.workspace-actions,.inspector,.node-subbar,.sidebar-reopen,.titlebar,.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.collaboration-panel,.workspace-warning,.notice',
           ),
         );
         const coverRects = covers.map((e) => e.getBoundingClientRect());

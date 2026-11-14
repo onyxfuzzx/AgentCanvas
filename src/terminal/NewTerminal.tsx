@@ -1,3 +1,4 @@
+import { readAppearance } from '../ui/design';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useCanvas } from '../canvas/store';
 import { toWorld, type CanvasNode, type Shell } from '../canvas/model';
@@ -26,7 +27,9 @@ export function NewTerminal({
   areaId?: string;
 }) {
   const [shells, setShells] = useState<ShellInfo[]>([]);
-  const [shell, setShell] = useState<Shell>(existing?.shell ?? 'powershell');
+  const [shell, setShell] = useState<Shell>(
+    existing?.shell ?? readAppearance().shell,
+  );
   const [cwd, setCwd] = useState(existing?.cwd ?? defaultCwd);
   const managedArea =
     existing?.areaId ?? areaId ?? useCanvas.getState().areaScope ?? undefined;
@@ -66,7 +69,10 @@ export function NewTerminal({
       .then((result) => {
         if (active) {
           setShells(result);
-          const first = result.find((s) => s.available);
+          const first =
+            result.find(
+              (s) => s.id === readAppearance().shell && s.available,
+            ) ?? result.find((s) => s.available);
           if (first && !existing) setShell(first.id);
         }
       })
@@ -100,11 +106,19 @@ export function NewTerminal({
       setError('This session supports up to 20 terminals.');
       return;
     }
-    const canvas = document.querySelector('.canvas')!;
+    const canvas =
+      document.querySelector('.canvas') ??
+      document.querySelector('.main-workspace')!;
+    const sidebarWidth = document.querySelector('.sidebar[inert]') ? 0 : 260;
     const point = toWorld(
       {
-        x: Math.max(30, (canvas.clientWidth - 660 * s.viewport.zoom) / 2),
-        y: Math.max(30, (canvas.clientHeight - 430 * s.viewport.zoom) / 2),
+        x:
+          sidebarWidth +
+          Math.max(
+            20,
+            (canvas.clientWidth - sidebarWidth - 660 * s.viewport.zoom) / 2,
+          ),
+        y: Math.max(100, (canvas.clientHeight - 430 * s.viewport.zoom) / 2),
       },
       s.viewport,
     );

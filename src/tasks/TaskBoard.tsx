@@ -1,3 +1,4 @@
+import { descriptions } from '../ui/design';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '../native';
 import { useCanvas } from '../canvas/store';
@@ -13,9 +14,13 @@ import {
 } from './model';
 
 export function TaskBoard({
+  embedded = false,
+  initialSelected,
   workspaceId,
   onClose,
 }: {
+  embedded?: boolean;
+  initialSelected?: string;
   workspaceId: string;
   onClose: () => void;
 }) {
@@ -27,6 +32,8 @@ export function TaskBoard({
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState('');
   const [search, setSearch] = useState('');
+  const [mode, setMode] = useState<'board' | 'list'>('board');
+  const initialApplied = useRef('');
   const [attention, setAttention] = useState(false);
   const [title, setTitle] = useState('');
   const [brief, setBrief] = useState('');
@@ -95,6 +102,14 @@ export function TaskBoard({
     setDependencies(task?.dependencies ?? []);
     setReason('');
   };
+  useEffect(() => {
+    if (!initialSelected || initialApplied.current === initialSelected) return;
+    const task = tasks.find((t) => t.id === initialSelected);
+    if (task) {
+      choose(task);
+      initialApplied.current = initialSelected;
+    }
+  }, [initialSelected, snapshot]);
   const send = async (action?: TaskAction) => {
     if (!snapshot || operation.current) return;
     const request = action
@@ -167,26 +182,63 @@ export function TaskBoard({
       JSON.stringify(dependencies) !== JSON.stringify(current.dependencies));
   const readOnly = busy || Boolean(pending);
   return (
-    <div className="modal-backdrop">
+    <div className={embedded ? 'design-page' : 'modal-backdrop'}>
       <section
         className="task-board"
         ref={dialog}
-        role="dialog"
-        aria-modal="true"
+        role={embedded ? 'region' : 'dialog'}
+        aria-modal={embedded ? undefined : true}
         aria-labelledby="tasks-title"
         tabIndex={-1}
       >
-        <header>
-          <h2 id="tasks-title">Tasks</h2>
-          <button onClick={onClose} disabled={busy}>
-            Close
-          </button>
+        <header className="page-heading">
+          <div>
+            <h2 id="tasks-title">Tasks</h2>
+            <p>{descriptions.tasks}</p>
+          </div>
+          <div className="page-actions">
+            <input
+              className="task-search"
+              aria-label="Search tasks"
+              placeholder="Search tasks"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <button
+              className={attention ? 'on' : ''}
+              aria-pressed={attention}
+              onClick={() => setAttention(!attention)}
+            >
+              Needs attention
+            </button>
+            <span className="segmented">
+              <button
+                className={mode === 'board' ? 'on' : ''}
+                onClick={() => setMode('board')}
+              >
+                Board
+              </button>
+              <button
+                className={mode === 'list' ? 'on' : ''}
+                onClick={() => setMode('list')}
+              >
+                List
+              </button>
+            </span>
+            <button
+              className="primary"
+              disabled={readOnly}
+              onClick={() => choose()}
+            >
+              New task
+            </button>
+            {!embedded && (
+              <button onClick={onClose} disabled={busy}>
+                Close
+              </button>
+            )}
+          </div>
         </header>
-        <p>
-          Cooperative inbox delivery. Start an agent, brief it with the helper
-          protocol, then dispatch. Acknowledgements and results come from the
-          agent; completion requires your acceptance.
-        </p>
         {snapshot?.recovered && (
           <p role="status">
             Recovered task backup. The corrupt original will be archived on the
@@ -215,47 +267,106 @@ export function TaskBoard({
           </div>
         )}
         <div className="task-columns">
-          <nav aria-label="Task list">
-            <div className="task-actions">
-              <button disabled={readOnly} onClick={() => choose()}>
-                New task
-              </button>
+          <div className="task-overview">
+            <div className="task-board-controls">
               <button disabled={readOnly} onClick={() => void refresh()}>
                 Refresh
               </button>
+              <span>{tasks.length} tasks</span>
             </div>
-            <label>
-              Search
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={attention}
-                onChange={(e) => setAttention(e.target.checked)}
-              />{' '}
-              Needs attention
-            </label>
-            {visibleTasks(tasks, search, attention).map((t) => (
-              <button
-                className={t.id === selected ? 'chosen' : ''}
-                key={t.id}
-                disabled={readOnly}
-                onClick={() => choose(t)}
-              >
-                <strong>{t.title}</strong>
-                <small>
-                  {t.state} ·{' '}
-                  {nodes.find((n) => n.id === t.assignedTo)?.title ??
-                    'Missing agent'}
-                </small>
-              </button>
-            ))}
-            {!tasks.length && <p>No tasks yet.</p>}
-          </nav>
+            {mode === 'board' ? (
+              <div className="kanban-scroll">
+                <div className="kanban-columns">
+                  {(
+                    [
+                      ['ready', 'Ready'],
+                      ['running', 'In progress'],
+                      ['review', 'Review'],
+                      ['done', 'Done'],
+                    ] as const
+                  ).map(([state, label]) => {
+                    const rows = visibleTasks(tasks, search, attention).filter(
+                      (t) =>
+                        state === 'ready'
+                          ? [
+                              'draft',
+                              'ready',
+                              'blocked',
+                              'failed',
+                              'cancelled',
+                            ].includes(t.state)
+                          : t.state === state,
+                    );
+                    return (
+                      <section className="kanban-column" key={state}>
+                        <h3>
+                          {label}
+                          <span>{rows.length}</span>
+                        </h3>
+                        {rows.map((t) => (
+                          <button
+                            className={`task-tile ${t.id === selected ? 'on' : ''}`}
+                            key={t.id}
+                            disabled={readOnly}
+                            onClick={() => choose(t)}
+                          >
+                            <strong>{t.title}</strong>
+                            <small>
+                              <span
+                                className={`task-state task-state-${t.state}`}
+                              >
+                                {t.state}
+                              </span>{' '}
+                              ?{' '}
+                              {nodes.find((n) => n.id === t.assignedTo)
+                                ?.title ?? 'Missing agent'}
+                            </small>
+                            {t.dependencies.length > 0 && (
+                              <small>
+                                {t.dependencies.length} dependencies
+                              </small>
+                            )}
+                          </button>
+                        ))}
+                        <button
+                          className="column-add"
+                          disabled={readOnly}
+                          onClick={() => choose()}
+                        >
+                          Add task
+                        </button>
+                      </section>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <nav className="task-list-view" aria-label="Task list">
+                {visibleTasks(tasks, search, attention).map((t) => (
+                  <button
+                    key={t.id}
+                    className={t.id === selected ? 'on' : ''}
+                    disabled={readOnly}
+                    onClick={() => choose(t)}
+                  >
+                    <strong>{t.title}</strong>
+                    <span className={`task-state task-state-${t.state}`}>
+                      {t.state}
+                    </span>
+                    <small>
+                      {nodes.find((n) => n.id === t.assignedTo)?.title ??
+                        'Missing agent'}
+                    </small>
+                  </button>
+                ))}
+              </nav>
+            )}
+            {!tasks.length && (
+              <p className="page-caption">
+                No tasks yet. Give the team one clear piece of work.
+              </p>
+            )}
+          </div>
           <div className="task-detail">
             <form
               onSubmit={(e) => {

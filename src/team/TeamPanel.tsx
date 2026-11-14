@@ -1,3 +1,4 @@
+import { descriptions } from '../ui/design';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '../native';
 import { useDialogFocus } from '../ui/useDialogFocus';
@@ -17,6 +18,7 @@ import {
 } from './model';
 
 export function TeamPanel({
+  embedded = false,
   workspaceId,
   onClose,
   onRecruit,
@@ -24,6 +26,7 @@ export function TeamPanel({
   onAreas,
   onTasks,
 }: {
+  embedded?: boolean;
   workspaceId: string;
   onClose: () => void;
   onRecruit: () => void;
@@ -152,22 +155,27 @@ export function TeamPanel({
           repositories: [],
         } as Plan);
   return (
-    <div className="modal-backdrop">
+    <div className={embedded ? 'design-page' : 'modal-backdrop'}>
       <section
         className="task-board area-panel team-panel"
         ref={dialog}
-        role="dialog"
-        aria-modal="true"
+        role={embedded ? 'region' : 'dialog'}
+        aria-modal={embedded ? undefined : true}
         aria-labelledby="team-title"
         tabIndex={-1}
       >
-        <header>
-          <h2 id="team-title">Team run</h2>
+        <header className="page-heading">
+          <div>
+            <h2 id="team-title">Team run</h2>
+            <p>{descriptions.team}</p>
+          </div>
           <div className="task-actions">
             <button onClick={() => void emergency()}>Emergency stop</button>
-            <button disabled={busy} onClick={onClose}>
-              Close
-            </button>
+            {!embedded && (
+              <button disabled={busy} onClick={onClose}>
+                Close
+              </button>
+            )}
           </div>
         </header>
         <p>
@@ -194,18 +202,53 @@ export function TeamPanel({
           </p>
         )}
         {run && (
-          <div role="status" className="team-status">
-            <strong>{run.state}</strong> · {run.reason}
-            <p>
-              {scoped.filter((t) => t.state === 'running').length}/
-              {run.limits.concurrency} active · {run.dispatched}/
-              {run.limits.dispatches} dispatches ·{' '}
-              {Math.floor(run.elapsedMs / 1000)}/
-              {Math.floor(run.limits.runtimeMs / 1000)} seconds ·{' '}
-              {data?.agents.filter((a) => a.live).length} live agents. Cost and
-              tokens: unknown.
+          <section role="status" className="team-status design-card">
+            <p className="page-caption">
+              {run.id}{' '}
+              <span className={`task-state task-state-${run.state}`}>
+                {run.state}
+              </span>
             </p>
-          </div>
+            <h2>{run.goal}</h2>
+            <p>{run.reason}</p>
+            <div className="run-progress">
+              <i
+                style={{
+                  width: `${scoped.length ? (scoped.filter((t) => t.state === 'done').length / scoped.length) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <small>
+              {scoped.filter((t) => t.state === 'done').length} of{' '}
+              {scoped.length} accepted
+            </small>
+            <div className="run-metrics">
+              <div>
+                <small>Concurrency</small>
+                <strong>
+                  {scoped.filter((t) => t.state === 'running').length} /{' '}
+                  {run.limits.concurrency}
+                </strong>
+              </div>
+              <div>
+                <small>Elapsed time</small>
+                <strong>
+                  {Math.floor(run.elapsedMs / 60000)} m{' '}
+                  {Math.floor(run.elapsedMs / 1000) % 60} s
+                </strong>
+                <small>
+                  of {Math.floor(run.limits.runtimeMs / 60000)} minute budget
+                </small>
+              </div>
+              <div>
+                <small>Dispatches</small>
+                <strong>
+                  {run.dispatched} / {run.limits.dispatches}
+                </strong>
+                <small>Cost and tokens: unknown</small>
+              </div>
+            </div>
+          </section>
         )}
         <fieldset disabled={busy}>
           <div className="task-actions">

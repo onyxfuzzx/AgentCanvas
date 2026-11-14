@@ -21,7 +21,7 @@ export function NoteNode({
     },
     () => entry.snapshot,
   );
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(true);
   const [confirmReload, setConfirmReload] = useState(false);
   useEffect(() => {
     if (visible) void notes.load(entry).catch(() => {});

@@ -74,12 +74,22 @@ export function nearViewport(n: CanvasNode, v: Viewport, w: number, h: number) {
     height: (h + 480) / v.zoom,
   });
 }
+export type CanvasInsets = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
 export function fitViewport(
   nodes: CanvasNode[],
   width: number,
   height: number,
+  insets: CanvasInsets = { left: 0, right: 0, top: 0, bottom: 0 },
 ): Viewport {
-  if (!nodes.length) return { x: 80, y: 80, zoom: 1 };
+  width = Math.max(1, width - insets.left - insets.right);
+  height = Math.max(1, height - insets.top - insets.bottom);
+  if (!nodes.length)
+    return { x: insets.left + 80, y: insets.top + 80, zoom: 1 };
   const left = Math.min(...nodes.map((n) => n.x));
   const top = Math.min(...nodes.map((n) => n.y));
   const right = Math.max(...nodes.map((n) => n.x + n.width));
@@ -93,8 +103,8 @@ export function fitViewport(
     ),
   );
   return {
-    x: (width - (right - left) * zoom) / 2 - left * zoom,
-    y: (height - (bottom - top) * zoom) / 2 - top * zoom,
+    x: insets.left + (width - (right - left) * zoom) / 2 - left * zoom,
+    y: insets.top + (height - (bottom - top) * zoom) / 2 - top * zoom,
     zoom,
   };
 }

@@ -8,3 +8,6 @@ package-lock.json
 src-tauri/tauri.generated.json
 src-tauri/gen
 artifacts
+
+# User-authored visual reference; preserve the original.
+AgentCanvas.html

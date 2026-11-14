@@ -5,6 +5,17 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { Icon } from './ui/Icon';
+import { views, readAppearance, type View } from './ui/design';
+import {
+  NotesPage,
+  ActivityPage,
+  SettingsPage,
+  PageHeading,
+} from './ui/WorkspacePages';
+import { CommandPalette, type PaletteAction } from './ui/CommandPalette';
+import { teamOperations } from './team/runtime';
+import type { AreaCatalog } from './areas/model';
 import { Canvas } from './canvas/Canvas';
 import { useCanvas } from './canvas/store';
 import { toWorld } from './canvas/model';
@@ -43,13 +54,27 @@ export function App() {
   const selected = useCanvas((s) => s.selected);
   const past = useCanvas((s) => s.past);
   const future = useCanvas((s) => s.future);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [filter, setFilter] = useState('');
   const [help, setHelp] = useState(false);
   const [newTerminal, setNewTerminal] = useState(false);
   const [newAgent, setNewAgent] = useState(false);
   const [agentPresets, setAgentPresets] = useState(false);
-  const [tasksOpen, setTasksOpen] = useState(false);
-  const [areasOpen, setAreasOpen] = useState(false);
-  const [teamOpen, setTeamOpen] = useState(false);
+  const [view, setView] = useState<View>('canvas');
+  const tasksOpen = view === 'tasks';
+  const areasOpen = view === 'areas' || view === 'review';
+  const teamOpen = view === 'team';
+  const setTasksOpen = (open: boolean) => setView(open ? 'tasks' : 'canvas');
+  const setAreasOpen = (open: boolean) => setView(open ? 'areas' : 'canvas');
+  const setTeamOpen = (open: boolean) => setView(open ? 'team' : 'canvas');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [appearance, setAppearance] = useState(readAppearance);
+  const [treeOpen, setTreeOpen] = useState(true);
+  const [drawOpen, setDrawOpen] = useState(false);
+  const [catalog, setCatalog] = useState<AreaCatalog>();
+  const [teamData, setTeamData] = useState<TeamSnapshot>();
+  const [teamControlBusy, setTeamControlBusy] = useState(false);
   const [teamAreaScope, setTeamAreaScope] = useState<string>();
   const [teamAttention, setTeamAttention] = useState('');
   const [launchArea, setLaunchArea] = useState<Area>();
@@ -65,12 +90,16 @@ export function App() {
   const work = useWorkspace();
   useEffect(() => {
     const workspaceId = work.active?.document.id;
+    setTeamData(undefined);
+    setCatalog(undefined);
+    setTeamAttention('');
     if (!workspaceId || work.phase !== 'ready') return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
       try {
         const d = await invoke<TeamSnapshot>('team_snapshot', { workspaceId });
+        if (!stopped) setTeamData(d);
         const r = d.snapshot.board.orchestration;
         if (!stopped)
           setTeamAttention(
@@ -82,6 +111,11 @@ export function App() {
       if (!stopped) timer = setTimeout(() => void tick(), 3000);
     };
     void tick();
+    void invoke<AreaCatalog>('area_catalog', { workspaceId })
+      .then((c) => {
+        if (!stopped) setCatalog(c);
+      })
+      .catch(() => {});
     return () => {
       stopped = true;
       clearTimeout(timer);
@@ -160,12 +194,16 @@ export function App() {
       return;
     }
     const p = toWorld(
-      { x: 160 + (nodes.length % 4) * 40, y: 110 + (nodes.length % 4) * 40 },
+      {
+        x: (sidebarOpen ? 280 : 40) + (nodes.length % 4) * 24,
+        y: 130 + (nodes.length % 4) * 24,
+      },
       s.viewport,
     );
     s.add({
       id: crypto.randomUUID(),
       kind,
+      ...(s.areaScope ? { areaId: s.areaScope } : {}),
       title: kind === 'browser' ? 'Browser' : `Untitled ${nodes.length + 1}`,
       color: '#c9934b',
       ...p,
@@ -196,19 +234,20 @@ export function App() {
       const s = useCanvas.getState();
       const p = toWorld(
         {
-          x: 180 + (s.nodes.length % 4) * 40,
-          y: 150 + (s.nodes.length % 4) * 40,
+          x: (sidebarOpen ? 280 : 40) + (s.nodes.length % 4) * 24,
+          y: 140 + (s.nodes.length % 4) * 24,
         },
         s.viewport,
       );
       s.add({
         id,
         kind: 'note',
+        ...(s.areaScope ? { areaId: s.areaScope } : {}),
         title: 'New note',
         color: '#c9934b',
         ...p,
-        width: 460,
-        height: 400,
+        width: 300,
+        height: 200,
         z: Math.max(0, ...s.nodes.map((n) => n.z)) + 1,
         relativePath,
       });
@@ -219,348 +258,642 @@ export function App() {
         setCreatingNote(false);
       });
   };
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.grid = String(appearance.grid);
+    root.dataset.motion = String(appearance.motion);
+    if (appearance.accent)
+      root.style.setProperty('--accent', appearance.accent);
+    else root.style.removeProperty('--accent');
+    try {
+      localStorage.setItem(
+        'agentcanvas.appearance',
+        JSON.stringify(appearance),
+      );
+    } catch {
+      /* Preferences still work without storage. */
+    }
+  }, [appearance]);
+  useEffect(() => {
+    const keydown = (e: KeyboardEvent) => {
+      if (document.querySelector('[aria-modal="true"]')) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+      if (
+        (e.target as HTMLElement)?.closest(
+          'input,textarea,select,[contenteditable="true"],.terminal-host',
+        )
+      )
+        return;
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && /^[1-8]$/.test(e.key))
+        setView(views[Number(e.key) - 1][0]);
+    };
+    document.addEventListener('keydown', keydown);
+    return () => document.removeEventListener('keydown', keydown);
+  }, []);
+  const focusNode = (id: string) => {
+    setView('canvas');
+    useCanvas.getState().select([id]);
+    requestAnimationFrame(() => {
+      const node = useCanvas.getState().nodes.find((n) => n.id === id);
+      const canvas = document.querySelector('.canvas');
+      if (!node || !canvas) return;
+      if (
+        useCanvas.getState().areaScope &&
+        node.areaId !== useCanvas.getState().areaScope
+      )
+        useCanvas.getState().setAreaScope(null);
+      const v = useCanvas.getState().viewport;
+      const left = sidebarOpen ? 260 : 0,
+        right = inspectorOpen ? 310 : 0;
+      useCanvas.getState().setViewport({
+        ...v,
+        x:
+          left +
+          (canvas.clientWidth - left - right) / 2 -
+          (node.x + node.width / 2) * v.zoom,
+        y: canvas.clientHeight / 2 - (node.y + node.height / 2) * v.zoom,
+      });
+    });
+  };
+  const paletteActions: PaletteAction[] = [
+    ...views.map(([id, label, icon], i) => ({
+      label,
+      icon,
+      detail: `View ${i + 1}`,
+      run: () => setView(id),
+    })),
+    ...nodes.map((n) => ({
+      label: n.title,
+      icon: n.kind === 'note' ? ('note' as const) : ('terminal' as const),
+      detail: n.kind,
+      run: () => focusNode(n.id),
+    })),
+    ...(teamData?.snapshot.board.tasks ?? []).map((t) => ({
+      label: t.title,
+      icon: 'tasks' as const,
+      detail: t.id,
+      run: () => {
+        setView('tasks');
+        setTaskSelection(t.id);
+      },
+    })),
+    {
+      label: 'New agent',
+      icon: 'agent',
+      detail: 'Action',
+      run: () => setNewAgent(true),
+    },
+    {
+      label: 'New terminal',
+      icon: 'terminal',
+      detail: 'Action',
+      run: () => setNewTerminal(true),
+    },
+    { label: 'New note', icon: 'note', detail: 'Action', run: addNote },
+    {
+      label: 'Connections',
+      icon: 'link',
+      detail: 'Action',
+      run: () => setConnectionsOpen(true),
+    },
+    {
+      label: 'Keyboard shortcuts',
+      icon: 'command',
+      detail: 'Action',
+      run: () => setHelp(true),
+    },
+  ];
+  const run = teamData?.snapshot.board.orchestration;
+  const toggleDispatch = async () => {
+    const workspaceId = work.active?.document.id;
+    if (!workspaceId || !run || run.state !== 'running' || teamControlBusy) {
+      setView('team');
+      return;
+    }
+    setTeamControlBusy(true);
+    try {
+      await teamOperations.invoke('team_control', {
+        workspaceId,
+        revision: teamData.snapshot.board.revision,
+        control: { type: 'pause' },
+      });
+      setTeamData(await invoke<TeamSnapshot>('team_snapshot', { workspaceId }));
+    } catch (error) {
+      setNotice(String(error));
+    } finally {
+      setTeamControlBusy(false);
+    }
+  };
+  const [taskSelection, setTaskSelection] = useState<string>();
   const focus = nodes.find((n) => n.id === selected[0]);
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-view={view} data-drawing={drawOpen}>
       <header
         className="titlebar"
+        aria-hidden="true"
         onPointerDown={(e) => {
-          if (e.button === 0 && !(e.target as HTMLElement).closest('button'))
-            void windowAction('startDragging');
+          if (e.button === 0) void windowAction('startDragging');
         }}
         onDoubleClick={() => void windowAction('toggleMaximize')}
+      />
+      <div
+        className={`workspace-body ${sidebarOpen ? '' : 'sidebar-hidden'} ${inspectorOpen ? 'inspector-visible' : ''}`}
+        inert={busy}
       >
-        <div className="brand-mark">
-          <span />
-          <span />
-          <span />
-        </div>
-        <strong>{__PRODUCT_NAME__}</strong>
-        <span className="title-divider" />
-        <span>{work.active?.document.name ?? 'Workspace'}</span>
-        <span className="title-session">
-          {isDesktop() ? 'LOCAL WORKSPACE' : 'WEB PREVIEW'}
-        </span>
-        {isDesktop() && (
-          <div className="window-controls">
-            <button
-              aria-label="Minimize"
-              onClick={() => void windowAction('minimize')}
-            >
-              −
-            </button>
-            <button
-              aria-label="Maximize"
-              onClick={() => void windowAction('toggleMaximize')}
-            >
-              □
-            </button>
-            <button
-              className="window-close"
-              aria-label="Close application"
-              onClick={() => void windowAction('close')}
-            >
-              ×
-            </button>
-          </div>
-        )}
-      </header>
-      <div className="workspace-body" inert={busy}>
-        <aside className="sidebar">
-          <button
-            className="workspace-label workspace-picker"
-            disabled={!isDesktop()}
-            onClick={() => setWorkspacesOpen(true)}
-            title={work.active?.folder ?? 'Choose a workspace'}
+        <aside
+          className="sidebar"
+          aria-label="Workspace navigation"
+          inert={!sidebarOpen}
+        >
+          <div
+            className="sidebar-heading"
+            onPointerDown={(e) => {
+              if (
+                e.button === 0 &&
+                !(e.target as HTMLElement).closest('button')
+              )
+                void windowAction('startDragging');
+            }}
+            onDoubleClick={(e) => {
+              if (!(e.target as HTMLElement).closest('button'))
+                void windowAction('toggleMaximize');
+            }}
           >
-            <span className="workspace-icon">⌗</span>
-            <div>
-              <strong>
-                {work.active?.document.name ?? 'Personal workspace'}
-              </strong>
-              <small>
-                {isDesktop() ? 'Manage workspaces ↗' : 'Temporary web preview'}
-              </small>
+            <div className="window-lights" aria-label="Window controls">
+              <button
+                className="light-close"
+                title="Close application"
+                aria-label="Close application"
+                disabled={!isDesktop()}
+                onClick={requestClose}
+              />
+              <button
+                className="light-minimize"
+                title="Minimize"
+                aria-label="Minimize"
+                disabled={!isDesktop()}
+                onClick={() => void windowAction('minimize')}
+              />
+              <button
+                className="light-maximize"
+                title="Maximize"
+                aria-label="Maximize"
+                disabled={!isDesktop()}
+                onClick={() => void windowAction('toggleMaximize')}
+              />
             </div>
-          </button>
-          <div className="section-label">
-            EXPLORER <span>{nodes.length.toString().padStart(2, '0')}</span>
-          </div>
-          <div className="workspace-nav">
-            <span>▦</span> Canvas <small>Live</small>
-          </div>
-          <button
-            disabled={busy || !work.active}
-            onClick={() => setTasksOpen(true)}
-          >
-            Tasks
-          </button>
-          <button
-            disabled={busy || !work.active}
-            onClick={() => setTeamOpen(true)}
-          >
-            Team run{teamAttention ? ' · attention' : ''}
-          </button>
-          <button
-            disabled={busy || !work.active}
-            onClick={() => setAreasOpen(true)}
-          >
-            Task areas & Git
-          </button>
-          {areaScope && (
-            <button onClick={() => useCanvas.getState().setAreaScope(null)}>
-              Show whole canvas
+            <button
+              className="sidebar-pill"
+              title="New terminal"
+              aria-label="New terminal"
+              onClick={() => setNewTerminal(true)}
+            >
+              <Icon name="plus" />
             </button>
-          )}
-          <div className="node-list">
-            {nodes
-              .filter((n) => !areaScope || n.areaId === areaScope)
-              .map((n) => (
+            <button
+              className="sidebar-pill"
+              title="Hide sidebar"
+              aria-label="Hide sidebar"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Icon name="sidebar" />
+            </button>
+          </div>
+          <label className="sidebar-filter">
+            <Icon name="search" />
+            <input
+              aria-label="Filter nodes"
+              placeholder="Filter"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </label>
+          <nav className="project-tree" aria-label="Projects">
+            <button
+              className={`project-group ${treeOpen ? '' : 'shut'}`}
+              onClick={() => setTreeOpen(!treeOpen)}
+              aria-expanded={treeOpen}
+            >
+              <Icon name="chev" />
+              {work.active?.document.name ?? 'My workspace'}
+            </button>
+            {treeOpen && (
+              <>
                 <button
-                  key={n.id}
-                  className={selected.includes(n.id) ? 'chosen' : ''}
+                  className={`project-item ${!areaScope && view === 'canvas' ? 'on' : ''}`}
                   onClick={() => {
-                    useCanvas.getState().select([n.id]);
-                    const canvas = document.querySelector('.canvas')!;
-                    const v = useCanvas.getState().viewport;
-                    useCanvas.getState().setViewport({
-                      ...v,
-                      x: canvas.clientWidth / 2 - (n.x + n.width / 2) * v.zoom,
-                      y:
-                        canvas.clientHeight / 2 - (n.y + n.height / 2) * v.zoom,
-                    });
+                    useCanvas.getState().setAreaScope(null);
+                    setView('canvas');
                   }}
                 >
-                  <span style={{ color: n.color }}>
-                    {n.kind === 'terminal' ? '>_' : '◇'}
-                  </span>
-                  <span>{n.title}</span>
+                  <Icon name="folder" />
+                  <span>Whole canvas</span>
+                  <small>
+                    <Icon name="terminal" />
+                    {nodes.filter((n) => n.kind === 'terminal').length}
+                  </small>
                 </button>
-              ))}
-            {!nodes.length && (
-              <p className="sidebar-empty">Your nodes will appear here.</p>
+                {catalog?.areas
+                  .filter(
+                    (a) =>
+                      !a.removed &&
+                      a.name.toLowerCase().includes(filter.toLowerCase()),
+                  )
+                  .map((a) => (
+                    <button
+                      key={a.id}
+                      className={`project-item ${areaScope === a.id && view === 'canvas' ? 'on' : ''}`}
+                      onClick={() => {
+                        useCanvas.getState().setAreaScope(a.id, a.directory);
+                        setView('canvas');
+                      }}
+                    >
+                      <Icon name="link" />
+                      <span>{a.name}</span>
+                      <small>
+                        {
+                          nodes.filter(
+                            (n) => n.areaId === a.id && n.kind === 'terminal',
+                          ).length
+                        }
+                      </small>
+                    </button>
+                  ))}
+                {nodes
+                  .filter(
+                    (n) =>
+                      (!areaScope || n.areaId === areaScope) &&
+                      n.title.toLowerCase().includes(filter.toLowerCase()),
+                  )
+                  .map((n) => (
+                    <button
+                      key={n.id}
+                      className={`project-item node-tree-item ${selected.includes(n.id) && view === 'canvas' ? 'selected' : ''}`}
+                      onClick={() => focusNode(n.id)}
+                    >
+                      <Icon
+                        name={
+                          n.kind === 'terminal'
+                            ? 'terminal'
+                            : n.kind === 'note'
+                              ? 'note'
+                              : n.kind === 'browser'
+                                ? 'browser'
+                                : 'card'
+                        }
+                      />
+                      <span>{n.title}</span>
+                    </button>
+                  ))}
+              </>
             )}
-          </div>
-          {focus && (
-            <div className="inspector">
-              <div className="section-label">NODE DETAILS</div>
-              <label>
-                Title
-                <input
-                  value={focus.title}
-                  maxLength={80}
-                  onFocus={() => useCanvas.getState().checkpoint()}
-                  onChange={(e) =>
-                    useCanvas
-                      .getState()
-                      .patch({ [focus.id]: { title: e.target.value } })
-                  }
-                />
-              </label>
-              <label>
-                Accent
-                <input
-                  type="color"
-                  value={focus.color}
-                  onFocus={() => useCanvas.getState().checkpoint()}
-                  onChange={(e) =>
-                    useCanvas
-                      .getState()
-                      .patch({ [focus.id]: { color: e.target.value } })
-                  }
-                />
-              </label>
-              <small>
-                {Math.round(focus.x)}, {Math.round(focus.y)} ·{' '}
-                {Math.round(focus.width)} × {Math.round(focus.height)}
-              </small>
-              {focus.kind === 'terminal' && <TerminalActivity id={focus.id} />}
-              {focus.agent && (
-                <small title={focus.agent.instructions}>
-                  {focus.agent.provider} · {focus.agent.roleName}
-                  <br />
-                  Preset: {focus.agent.profileName}
-                </small>
-              )}
-              {focus.kind === 'shape' && focus.shape?.kind === 'text' && (
-                <label>
-                  Text
-                  <textarea
-                    aria-label="Whiteboard text"
-                    value={focus.shape.text ?? ''}
-                    maxLength={4096}
-                    onFocus={() => useCanvas.getState().checkpoint()}
-                    onChange={(e) =>
-                      useCanvas.getState().patch({
-                        [focus.id]: {
-                          shape: { ...focus.shape!, text: e.target.value },
-                        },
-                      })
-                    }
-                  />
-                </label>
-              )}
-              <div className="layer-buttons">
-                <button
-                  title="Bring to front"
-                  onClick={() => {
-                    const s = useCanvas.getState();
-                    s.checkpoint();
-                    s.patch({
-                      [focus.id]: {
-                        z: Math.max(0, ...nodes.map((n) => n.z)) + 1,
-                      },
-                    });
-                  }}
-                >
-                  To front
-                </button>
-                <button
-                  title="Send to back"
-                  onClick={() => {
-                    const s = useCanvas.getState();
-                    s.checkpoint();
-                    s.patch(
-                      Object.fromEntries(
-                        nodes.map((n) => [
-                          n.id,
-                          { z: n.id === focus.id ? 0 : n.z + 1 },
-                        ]),
-                      ),
-                    );
-                  }}
-                >
-                  To back
-                </button>
-              </div>
-              {focus.kind === 'terminal' && (
-                <RestartTerminal
-                  id={focus.id}
-                  onRestart={() => setRestartId(focus.id)}
-                />
-              )}
-            </div>
-          )}
-          <div className="sidebar-footer">
-            <ThemeControl />
-            <button
-              className="presets-button"
-              onClick={() => setAgentPresets(true)}
-              disabled={busy}
-            >
-              Agent presets
-            </button>
-            <span className="local-dot" /> Workspace saves stay on your device
-            <small>
-              {work.active
-                ? 'Layout autosaves to your workspace folder.'
-                : 'Open the desktop app to save workspaces.'}
-            </small>
-            <button onClick={() => setHelp(true)}>
-              Keyboard shortcuts <kbd>?</kbd>
-            </button>
-          </div>
+          </nav>
+          <nav className="view-navigation" aria-label="Views">
+            <small>{work.active?.document.name ?? 'Local'} workspace</small>
+            {views.map(([id, label, icon]) => (
+              <button
+                key={id}
+                className={view === id ? 'on' : ''}
+                aria-current={view === id ? 'page' : undefined}
+                onClick={() => setView(id)}
+              >
+                <Icon name={icon} />
+                <span>{label}</span>
+                {id === 'review' &&
+                  Boolean(
+                    teamData?.snapshot.board.tasks.some(
+                      (t) => t.state === 'review',
+                    ),
+                  ) && (
+                    <b>
+                      {
+                        teamData?.snapshot.board.tasks.filter(
+                          (t) => t.state === 'review',
+                        ).length
+                      }
+                    </b>
+                  )}
+                {id === 'team' && teamAttention && (
+                  <i className="attention-dot" />
+                )}
+              </button>
+            ))}
+          </nav>
         </aside>
         <main className="main-workspace">
-          <div className="toolbar">
-            <div className="breadcrumb">
-              Workspace <span>/</span>
-              <strong>Canvas</strong>
-            </div>
-            <div className="toolbar-actions">
-              {work.active && (
-                <button
-                  className="save-workspace"
-                  onClick={() =>
-                    void workspace
-                      .save()
-                      .catch((error) => setNotice(String(error)))
-                  }
-                  title={work.active.folder}
-                >
-                  {noteState.state === 'error'
-                    ? 'Note error · retry'
-                    : noteState.state === 'saving'
-                      ? 'Saving notes…'
-                      : noteState.state === 'unsaved'
-                        ? 'Save notes'
-                        : work.saveState === 'saving'
-                          ? 'Saving…'
-                          : work.saveState === 'error'
-                            ? 'Retry save'
-                            : work.saveState === 'unsaved'
-                              ? 'Save now'
-                              : 'Saved ✓'}
-                </button>
-              )}
-              <button
-                title="Undo (Ctrl+Z)"
-                disabled={!past.length}
-                onClick={() => useCanvas.getState().undo()}
-              >
-                ↶
-              </button>
-              <button
-                title="Redo (Ctrl+Shift+Z)"
-                disabled={!future.length}
-                onClick={() => useCanvas.getState().redo()}
-              >
-                ↷
-              </button>
-              <i />
-              <button
-                className="connections-button"
-                onClick={() => setConnectionsOpen(!connectionsOpen)}
-                title="Agent links, shared notes and message approval logs"
-              >
-                ↔ Links {pendingMessages > 0 && <b>{pendingMessages}</b>}
-              </button>
-              <button
-                className="add-card"
-                title="New layout card"
-                onClick={() => add()}
-              >
-                ◇ Card
-              </button>
-              <button className="new-node" onClick={() => setNewTerminal(true)}>
-                <span>+</span> New terminal
-              </button>
-              <button className="new-node" onClick={() => setNewAgent(true)}>
-                + Agent
-              </button>
-              <button
-                className="add-note"
-                title="Create a Markdown note file"
-                onClick={addNote}
-              >
-                ▤ Note
-              </button>
-              <button
-                className="add-browser"
-                onClick={() => add('browser')}
-                title="New browser node"
-              >
-                ◎ Browser
-              </button>
-            </div>
+          {!sidebarOpen && (
+            <button
+              className="sidebar-reopen"
+              aria-label="Show sidebar"
+              title="Show sidebar"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Icon name="sidebar" />
+            </button>
+          )}
+          <div
+            className="creation-toolbar"
+            role="toolbar"
+            aria-label="Canvas tools"
+          >
+            <button
+              title="Select"
+              aria-label="Select"
+              className={!drawOpen ? 'on' : ''}
+              onClick={() => {
+                setDrawOpen(false);
+                window.dispatchEvent(
+                  new CustomEvent('canvas-tool', { detail: 'select' }),
+                );
+              }}
+            >
+              <Icon name="select" />
+            </button>
+            <button
+              title="New agent"
+              aria-label="New agent"
+              onClick={() => setNewAgent(true)}
+            >
+              <Icon name="agent" />
+            </button>
+            <button
+              title="New terminal"
+              aria-label="New terminal"
+              onClick={() => setNewTerminal(true)}
+            >
+              <Icon name="terminal" />
+            </button>
+            <button title="New note" aria-label="New note" onClick={addNote}>
+              <Icon name="note" />
+            </button>
+            <button
+              title="New portal"
+              aria-label="New portal"
+              onClick={() => add('browser')}
+            >
+              <Icon name="browser" />
+            </button>
+            <button
+              title="Draw a shape"
+              aria-label="Draw a shape"
+              aria-pressed={drawOpen}
+              className={drawOpen ? 'on' : ''}
+              onClick={() => {
+                setDrawOpen(!drawOpen);
+                if (drawOpen)
+                  window.dispatchEvent(
+                    new CustomEvent('canvas-tool', { detail: 'select' }),
+                  );
+              }}
+            >
+              <Icon name="card" />
+            </button>
           </div>
-          <Canvas
-            disabled={busy}
-            onClose={close}
-            renderNode={(node, visible) =>
-              node.kind === 'terminal' ? (
-                <TerminalNode node={node} visible={visible} />
-              ) : node.kind === 'note' && work.active ? (
-                <NoteNode
-                  node={node}
-                  workspaceId={work.active.document.id}
-                  visible={visible}
-                />
-              ) : node.kind === 'browser' ? (
-                <BrowserNode node={node} />
-              ) : undefined
-            }
-          />
+          <div className="workspace-actions">
+            <button
+              className="workspace-switch"
+              title="Manage workspaces"
+              onClick={() => setWorkspacesOpen(true)}
+            >
+              <Icon name="layers" />
+              <span>{work.active?.document.name ?? 'Workspace'}</span>
+            </button>
+            <button
+              aria-label="Toggle inspector"
+              title="Toggle inspector"
+              aria-pressed={inspectorOpen}
+              onClick={() => setInspectorOpen(!inspectorOpen)}
+            >
+              <Icon name="sidebar" />
+            </button>
+            <button
+              title={
+                run?.state === 'running'
+                  ? 'Pause dispatch; running tasks continue'
+                  : 'Open team or resume dispatch'
+              }
+              disabled={teamControlBusy}
+              onClick={() => void toggleDispatch()}
+            >
+              <Icon name={run?.state === 'running' ? 'pause' : 'play'} />
+              <span>
+                {run?.state === 'running' ? 'Pause dispatch' : 'Team run'}
+              </span>
+            </button>
+            <button
+              title="Command palette (Ctrl+K)"
+              aria-label="Command palette"
+              onClick={() => setPaletteOpen(true)}
+            >
+              <Icon name="command" />
+              <span>Ctrl K</span>
+            </button>
+            <ThemeControl compact />
+          </div>
+          {inspectorOpen && view === 'canvas' && (
+            <aside className="inspector" aria-label="Node inspector">
+              <header className="inspector-heading">
+                <h2>Inspector</h2>
+                <button
+                  aria-label="Close inspector"
+                  onClick={() => setInspectorOpen(false)}
+                >
+                  <Icon name="close" />
+                </button>
+              </header>
+              {focus ? (
+                <>
+                  <div className="section-label">NODE DETAILS</div>
+                  <label>
+                    Title
+                    <input
+                      value={focus.title}
+                      maxLength={80}
+                      onFocus={() => useCanvas.getState().checkpoint()}
+                      onChange={(e) =>
+                        useCanvas
+                          .getState()
+                          .patch({ [focus.id]: { title: e.target.value } })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Accent
+                    <input
+                      type="color"
+                      value={focus.color}
+                      onFocus={() => useCanvas.getState().checkpoint()}
+                      onChange={(e) =>
+                        useCanvas
+                          .getState()
+                          .patch({ [focus.id]: { color: e.target.value } })
+                      }
+                    />
+                  </label>
+                  <small>
+                    {Math.round(focus.x)}, {Math.round(focus.y)} ·{' '}
+                    {Math.round(focus.width)} × {Math.round(focus.height)}
+                  </small>
+                  {focus.kind === 'terminal' && (
+                    <TerminalActivity id={focus.id} />
+                  )}
+                  {focus.agent && (
+                    <small title={focus.agent.instructions}>
+                      {focus.agent.provider} · {focus.agent.roleName}
+                      <br />
+                      Preset: {focus.agent.profileName}
+                    </small>
+                  )}
+                  {focus.kind === 'shape' && focus.shape?.kind === 'text' && (
+                    <label>
+                      Text
+                      <textarea
+                        aria-label="Whiteboard text"
+                        value={focus.shape.text ?? ''}
+                        maxLength={4096}
+                        onFocus={() => useCanvas.getState().checkpoint()}
+                        onChange={(e) =>
+                          useCanvas.getState().patch({
+                            [focus.id]: {
+                              shape: { ...focus.shape!, text: e.target.value },
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                  )}
+                  <div className="layer-buttons">
+                    <button
+                      title="Undo (Ctrl+Z)"
+                      disabled={!past.length}
+                      onClick={() => useCanvas.getState().undo()}
+                    >
+                      <Icon name="undo" />
+                    </button>
+                    <button
+                      title="Redo (Ctrl+Shift+Z)"
+                      disabled={!future.length}
+                      onClick={() => useCanvas.getState().redo()}
+                    >
+                      <Icon name="redo" />
+                    </button>
+                    <button
+                      title="Bring to front"
+                      onClick={() => {
+                        const s = useCanvas.getState();
+                        s.checkpoint();
+                        s.patch({
+                          [focus.id]: {
+                            z: Math.max(0, ...nodes.map((n) => n.z)) + 1,
+                          },
+                        });
+                      }}
+                    >
+                      To front
+                    </button>
+                    <button
+                      title="Send to back"
+                      onClick={() => {
+                        const s = useCanvas.getState();
+                        s.checkpoint();
+                        s.patch(
+                          Object.fromEntries(
+                            nodes.map((n) => [
+                              n.id,
+                              { z: n.id === focus.id ? 0 : n.z + 1 },
+                            ]),
+                          ),
+                        );
+                      }}
+                    >
+                      To back
+                    </button>
+                  </div>
+                  {focus.kind === 'terminal' && (
+                    <RestartTerminal
+                      id={focus.id}
+                      onRestart={() => setRestartId(focus.id)}
+                    />
+                  )}
+                </>
+              ) : (
+                <p className="inspector-empty">
+                  Select a node to see its details, role, and activity.
+                </p>
+              )}
+            </aside>
+          )}
+          {view === 'canvas' && (
+            <Canvas
+              disabled={busy}
+              insets={{
+                left: sidebarOpen ? 260 : 0,
+                right: inspectorOpen ? 310 : 0,
+                top: 100,
+                bottom: 70,
+              }}
+              onRestart={setRestartId}
+              onConnections={() => setConnectionsOpen(true)}
+              onClose={close}
+              renderNode={(node, visible) =>
+                node.kind === 'terminal' ? (
+                  <TerminalNode node={node} visible={visible} />
+                ) : node.kind === 'note' && work.active ? (
+                  <NoteNode
+                    node={node}
+                    workspaceId={work.active.document.id}
+                    visible={visible}
+                  />
+                ) : node.kind === 'browser' ? (
+                  <BrowserNode node={node} />
+                ) : undefined
+              }
+            />
+          )}
+          {view === 'notes' && (
+            <NotesPage
+              workspaceId={work.active?.document.id}
+              onNew={addNote}
+              onFocus={focusNode}
+            />
+          )}
+          {view === 'activity' && <ActivityPage data={teamData} />}
+          {view === 'settings' && (
+            <SettingsPage
+              appearance={appearance}
+              onChange={setAppearance}
+              workspaceName={work.active?.document.name ?? 'Workspace'}
+              onWorkspaces={() => setWorkspacesOpen(true)}
+              onShortcuts={() => setHelp(true)}
+              onPresets={() => setAgentPresets(true)}
+            />
+          )}
+          {['tasks', 'team', 'areas', 'review'].includes(view) &&
+            !work.active && (
+              <div className="design-page">
+                <div className="page-width">
+                  <PageHeading
+                    title={views.find(([id]) => id === view)?.[1] ?? ''}
+                    description="Open a desktop workspace to use your saved work."
+                  />
+                  <section className="design-card page-empty">
+                    <Icon name="folder" />
+                    <h2>Your workspace, ready for work.</h2>
+                    <p>
+                      Tasks, team runs and Git reviews use a local workspace
+                      folder.
+                    </p>
+                    <button onClick={() => setWorkspacesOpen(true)}>
+                      Choose workspace
+                    </button>
+                  </section>
+                </div>
+              </div>
+            )}
           <footer className="statusbar">
             <span>
               <span className="local-dot" /> Local workspace
@@ -568,7 +901,14 @@ export function App() {
             <span>
               {nodes.length} nodes <b>·</b> {selected.length} selected
             </span>
-            <span>
+            <button
+              className="save-status"
+              title="Save workspace"
+              disabled={!work.active}
+              onClick={() =>
+                void workspace.save().catch((error) => setNotice(String(error)))
+              }
+            >
               {noteState.state === 'error'
                 ? 'NOTE ERROR'
                 : noteState.state === 'saving'
@@ -584,10 +924,16 @@ export function App() {
                             ? 'UNSAVED CHANGES'
                             : 'SAVED LOCALLY'
                       : 'TEMPORARY PREVIEW'}
-            </span>
+            </button>
           </footer>
         </main>
       </div>
+      {paletteOpen && (
+        <CommandPalette
+          actions={paletteActions}
+          onClose={() => setPaletteOpen(false)}
+        />
+      )}
       {noteState.error && work.phase === 'ready' && (
         <div className="notes-warning" role="status">
           {noteState.error}
@@ -596,19 +942,26 @@ export function App() {
       {newTerminal && (
         <NewTerminal
           defaultCwd={areaDirectory || work.active?.folder}
-          onClose={() => setNewTerminal(false)}
+          onClose={() => {
+            setNewTerminal(false);
+            setView('canvas');
+          }}
         />
       )}
       {newAgent && (
         <NewTerminal
           agentMode
           defaultCwd={areaDirectory || work.active?.folder}
-          onClose={() => setNewAgent(false)}
+          onClose={() => {
+            setNewAgent(false);
+            setView('canvas');
+          }}
         />
       )}
       {agentPresets && <AgentPresets onClose={() => setAgentPresets(false)} />}
       {teamOpen && work.active && !busy && (
         <TeamPanel
+          embedded
           key={work.active.document.id}
           workspaceId={work.active.document.id}
           onClose={() => setTeamOpen(false)}
@@ -638,6 +991,9 @@ export function App() {
       )}
       {areasOpen && work.active && !busy && (
         <AreasPanel
+          embedded
+          reviewMode={view === 'review'}
+          onReview={() => setView('review')}
           runId={teamAreaScope}
           key={work.active.document.id}
           workspaceId={work.active.document.id}
@@ -665,6 +1021,8 @@ export function App() {
       )}
       {tasksOpen && work.active && !busy && (
         <TaskBoard
+          embedded
+          initialSelected={taskSelection}
           key={work.active.document.id}
           workspaceId={work.active.document.id}
           onClose={() => setTasksOpen(false)}

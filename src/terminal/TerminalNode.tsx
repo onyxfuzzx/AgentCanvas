@@ -1,3 +1,4 @@
+import { terminalTheme } from './theme';
 import {
   useEffect,
   useLayoutEffect,
@@ -69,6 +70,18 @@ function TerminalSurface({
   const host = useRef<HTMLDivElement>(null);
   const zoom = useCanvas((s) => s.viewport.zoom);
   const { session, terminal } = entry;
+  useLayoutEffect(() => {
+    const apply = () => {
+      terminal.options.theme = terminalTheme();
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    return () => observer.disconnect();
+  }, [terminal]);
   const meta = useSyncExternalStore(session.subscribe, session.snapshot);
   useLayoutEffect(() => {
     if (!visible || !host.current) return;
@@ -138,7 +151,7 @@ function TerminalSurface({
       className="terminal-view"
       style={{
         width: `${(node.width - 2) * zoom}px`,
-        height: `${(node.height - 42) * zoom}px`,
+        height: `${(node.height - 32) * zoom}px`,
         paddingBottom: `${24 * zoom}px`,
         transform: `scale(${1 / zoom})`,
         transformOrigin: '0 0',

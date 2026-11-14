@@ -1,3 +1,6 @@
+import { Icon } from '../ui/Icon';
+import { DiffViewer } from '../ui/DiffViewer';
+import { descriptions } from '../ui/design';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '../native';
 import { useDialogFocus } from '../ui/useDialogFocus';
@@ -8,12 +11,18 @@ import type { Area, AreaCatalog, Preview, Review } from './model';
 import type { TaskSnapshot } from '../tasks/model';
 
 export function AreasPanel({
+  embedded = false,
+  reviewMode = false,
+  onReview,
   workspaceId,
   onClose,
   onLaunch,
   onScope,
   runId,
 }: {
+  embedded?: boolean;
+  reviewMode?: boolean;
+  onReview?: () => void;
   workspaceId: string;
   onClose: () => void;
   onLaunch: (area: Area) => void;
@@ -96,21 +105,52 @@ export function AreasPanel({
     setFile('');
     setFindings('');
   }
+  useEffect(() => {
+    if (reviewMode && !selected && catalog?.areas.some((a) => !a.removed))
+      setSelected(catalog.areas.find((a) => !a.removed)!.id);
+  }, [reviewMode, selected, catalog]);
+  useEffect(() => {
+    if (
+      !reviewMode ||
+      !current ||
+      current.removed ||
+      current.operation.state !== 'complete'
+    )
+      return;
+    let cancelled = false;
+    void invoke<Review>('area_review', { workspaceId, id: current.id })
+      .then((r) => {
+        if (!cancelled) setReview(r);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reviewMode, current?.id, workspaceId]);
   return (
-    <div className="modal-backdrop">
+    <div className={embedded ? 'design-page' : 'modal-backdrop'}>
       <section
-        className="task-board area-panel"
-        role="dialog"
-        aria-modal="true"
+        className={`task-board area-panel ${reviewMode ? 'review-page' : 'areas-page'}`}
+        role={embedded ? 'region' : 'dialog'}
+        aria-modal={embedded ? undefined : true}
         aria-labelledby="areas-title"
         tabIndex={-1}
         ref={dialog}
       >
-        <header>
-          <h2 id="areas-title">Task areas & Git review</h2>
-          <button disabled={busy} onClick={onClose}>
-            Close
-          </button>
+        <header className="page-heading">
+          <div>
+            <h2 id="areas-title">
+              {reviewMode ? 'Review changes' : 'Task areas'}
+            </h2>
+            <p>{reviewMode ? descriptions.review : descriptions.areas}</p>
+          </div>
+          {!embedded && (
+            <button disabled={busy} onClick={onClose}>
+              Close
+            </button>
+          )}
         </header>
         <p>
           Each managed area has its own Git worktree, branch and canvas scope.
@@ -138,6 +178,47 @@ export function AreasPanel({
           </p>
         )}
         <fieldset disabled={busy}>
+          {!reviewMode && (
+            <div className="area-card-grid">
+              {catalog?.areas
+                .filter((a) => !a.removed)
+                .map((a) => (
+                  <section
+                    className={`design-card area-summary ${selected === a.id ? 'on' : ''}`}
+                    key={a.id}
+                  >
+                    <div className="area-summary-top">
+                      <Icon name="link" />
+                      <span className="task-state">
+                        {a.integrated ? 'Integrated' : a.operation.state}
+                      </span>
+                    </div>
+                    <h2>{a.name}</h2>
+                    <p className="area-branch">{a.branch}</p>
+                    <p className="area-directory">{a.directory}</p>
+                    <div className="page-actions">
+                      <button onClick={() => choose(a)}>Details</button>
+                      <button
+                        onClick={() => {
+                          choose(a);
+                          onReview?.();
+                        }}
+                      >
+                        Review
+                      </button>
+                      <button
+                        onClick={() => {
+                          onScope(a);
+                          onClose();
+                        }}
+                      >
+                        Canvas
+                      </button>
+                    </div>
+                  </section>
+                ))}
+            </div>
+          )}
           <div className="task-columns">
             <nav aria-label="Task areas">
               <button
@@ -173,61 +254,63 @@ export function AreasPanel({
                   </small>
                 </button>
               ))}
-              <h3>Create isolated area</h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const id = crypto.randomUUID();
-                  void run(async () => {
-                    await mutate({
-                      type: 'create',
-                      id,
-                      name,
-                      repository,
-                      base,
+              <details className="area-create">
+                <summary>Create task area</summary>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const id = crypto.randomUUID();
+                    void run(async () => {
+                      await mutate({
+                        type: 'create',
+                        id,
+                        name,
+                        repository,
+                        base,
+                      });
+                      setSelected(id);
                     });
-                    setSelected(id);
-                  });
-                }}
-              >
-                <label>
-                  Name
-                  <input
-                    required
-                    maxLength={120}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Repository root (absolute)
-                  <input
-                    required
-                    value={repository}
-                    onChange={(e) => setRepository(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Full base commit ID
-                  <input
-                    required
-                    pattern="[a-fA-F0-9]{40}|[a-fA-F0-9]{64}"
-                    value={base}
-                    onChange={(e) => setBase(e.target.value)}
-                  />
-                </label>
-                <p>
-                  The branch will be agentcanvas/&lt;area UUID&gt;. The
-                  directory will be task-areas/&lt;area UUID&gt; inside this
-                  workspace. Only the selected commit is checked out; dirty
-                  source files are excluded.
-                </p>
-                <p>
-                  Bootstrap allowlist: empty. No ignored files, dependencies,
-                  local settings or scripts are copied or run.
-                </p>
-                <button type="submit">Create worktree</button>
-              </form>
+                  }}
+                >
+                  <label>
+                    Name
+                    <input
+                      required
+                      maxLength={120}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Repository root (absolute)
+                    <input
+                      required
+                      value={repository}
+                      onChange={(e) => setRepository(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Full base commit ID
+                    <input
+                      required
+                      pattern="[a-fA-F0-9]{40}|[a-fA-F0-9]{64}"
+                      value={base}
+                      onChange={(e) => setBase(e.target.value)}
+                    />
+                  </label>
+                  <p>
+                    The branch will be agentcanvas/&lt;area UUID&gt;. The
+                    directory will be task-areas/&lt;area UUID&gt; inside this
+                    workspace. Only the selected commit is checked out; dirty
+                    source files are excluded.
+                  </p>
+                  <p>
+                    Bootstrap allowlist: empty. No ignored files, dependencies,
+                    local settings or scripts are copied or run.
+                  </p>
+                  <button type="submit">Create worktree</button>
+                </form>
+              </details>
             </nav>
             <div className="task-detail">
               {current ? (
@@ -335,10 +418,7 @@ export function AreasPanel({
                               {review.commits || 'No commits after base'}
                             </pre>
                           </details>
-                          <details>
-                            <summary>Diff from base (up to 1 MiB)</summary>
-                            <pre>{review.diff || 'No diff'}</pre>
-                          </details>
+                          <DiffViewer diff={review.diff} />
                           <form
                             onSubmit={(e) => {
                               e.preventDefault();

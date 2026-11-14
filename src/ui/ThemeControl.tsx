@@ -1,4 +1,5 @@
-import { useLayoutEffect, useState } from 'react';
+import { Icon } from './Icon';
+import { useEffect, useLayoutEffect, useState } from 'react';
 
 type Theme = 'system' | 'light' | 'dark';
 const key = 'agentcanvas.theme';
@@ -10,8 +11,20 @@ function savedTheme(): Theme {
     return 'system';
   }
 }
-export function ThemeControl() {
+export function ThemeControl({ compact = false }: { compact?: boolean }) {
   const [theme, setTheme] = useState<Theme>(savedTheme);
+  useEffect(() => {
+    const sync = (event: Event) =>
+      setTheme((event as CustomEvent<Theme>).detail);
+    window.addEventListener('agentcanvas-theme', sync);
+    return () => window.removeEventListener('agentcanvas-theme', sync);
+  }, []);
+  const change = (value: Theme) => {
+    setTheme(value);
+    window.dispatchEvent(
+      new CustomEvent('agentcanvas-theme', { detail: value }),
+    );
+  };
   useLayoutEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
@@ -27,13 +40,29 @@ export function ThemeControl() {
     }
     return () => media.removeEventListener('change', apply);
   }, [theme]);
+  if (compact)
+    return (
+      <button
+        title="Toggle theme"
+        aria-label="Toggle theme"
+        onClick={() =>
+          change(
+            document.documentElement.dataset.theme === 'dark'
+              ? 'light'
+              : 'dark',
+          )
+        }
+      >
+        <Icon name="sun" />
+      </button>
+    );
   return (
     <label className="theme-control">
       Theme
       <select
         aria-label="Theme"
         value={theme}
-        onChange={(e) => setTheme(e.target.value as Theme)}
+        onChange={(e) => change(e.target.value as Theme)}
       >
         <option value="system">System</option>
         <option value="light">Light</option>
