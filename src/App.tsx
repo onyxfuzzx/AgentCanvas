@@ -35,6 +35,8 @@ import { AgentPresets } from './agents/AgentPresets';
 import { TaskBoard } from './tasks/TaskBoard';
 import { AreasPanel } from './areas/AreasPanel';
 import type { Area } from './areas/model';
+import { TeamPanel } from './team/TeamPanel';
+import type { TeamSnapshot } from './team/model';
 
 export function App() {
   const nodes = useCanvas((s) => s.nodes);
@@ -47,6 +49,9 @@ export function App() {
   const [agentPresets, setAgentPresets] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [areasOpen, setAreasOpen] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [teamAreaScope, setTeamAreaScope] = useState<string>();
+  const [teamAttention, setTeamAttention] = useState('');
   const [launchArea, setLaunchArea] = useState<Area>();
   const areaScope = useCanvas((s) => s.areaScope);
   const areaDirectory = useCanvas((s) => s.areaDirectory);
@@ -58,6 +63,30 @@ export function App() {
   const [creatingNote, setCreatingNote] = useState(false);
   const creation = useRef<Promise<void> | null>(null);
   const work = useWorkspace();
+  useEffect(() => {
+    const workspaceId = work.active?.document.id;
+    if (!workspaceId || work.phase !== 'ready') return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      try {
+        const d = await invoke<TeamSnapshot>('team_snapshot', { workspaceId });
+        const r = d.snapshot.board.orchestration;
+        if (!stopped)
+          setTeamAttention(
+            d.schedulerError || (r?.state === 'blocked' ? r.reason : ''),
+          );
+      } catch {
+        /* The team panel displays actionable native errors. */
+      }
+      if (!stopped) timer = setTimeout(() => void tick(), 3000);
+    };
+    void tick();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [work.active?.document.id, work.phase]);
   const noteState = useSyncExternalStore(notes.subscribe, notes.snapshot);
   const links = useStore(collaboration.state);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
@@ -265,6 +294,12 @@ export function App() {
             onClick={() => setTasksOpen(true)}
           >
             Tasks
+          </button>
+          <button
+            disabled={busy || !work.active}
+            onClick={() => setTeamOpen(true)}
+          >
+            Team run{teamAttention ? ' · attention' : ''}
           </button>
           <button
             disabled={busy || !work.active}
@@ -572,11 +607,44 @@ export function App() {
         />
       )}
       {agentPresets && <AgentPresets onClose={() => setAgentPresets(false)} />}
-      {areasOpen && work.active && !busy && (
-        <AreasPanel
+      {teamOpen && work.active && !busy && (
+        <TeamPanel
           key={work.active.document.id}
           workspaceId={work.active.document.id}
-          onClose={() => setAreasOpen(false)}
+          onClose={() => setTeamOpen(false)}
+          onRecruit={() => {
+            setTeamOpen(false);
+            setNewAgent(true);
+          }}
+          onEdit={(node) => {
+            setTeamOpen(false);
+            setRestartId(node.id);
+          }}
+          onAreas={(id) => {
+            setTeamOpen(false);
+            setTeamAreaScope(id);
+            setAreasOpen(true);
+          }}
+          onTasks={() => {
+            setTeamOpen(false);
+            setTasksOpen(true);
+          }}
+        />
+      )}
+      {teamAttention && !teamOpen && (
+        <button className="pending-badge" onClick={() => setTeamOpen(true)}>
+          Team needs attention: {teamAttention}
+        </button>
+      )}
+      {areasOpen && work.active && !busy && (
+        <AreasPanel
+          runId={teamAreaScope}
+          key={work.active.document.id}
+          workspaceId={work.active.document.id}
+          onClose={() => {
+            setAreasOpen(false);
+            setTeamAreaScope(undefined);
+          }}
           onScope={(area) =>
             useCanvas.getState().setAreaScope(area?.id ?? null, area?.directory)
           }

@@ -2,7 +2,7 @@
 
 Updated: 2026-11-14. Baseline: commit `8880ada` (M8).
 
-This roadmap through M12 was written from the current implementation; it does not recover an earlier M9–M12 plan. The user authorized M9 and full M10 on 2026-11-14. M0–M10 are implemented; automated checks, debug builds and desktop smoke evidence are recorded in VERIFICATION.md alongside remaining acceptance limits. M11–M12 remain proposed and unimplemented. See AGENTS.md for the current scope boundary.
+This roadmap through M12 was written from the current implementation; it does not recover an earlier M9–M12 plan. The user authorized M9, full M10 and full M11 on 2026-11-14. M0–M11 are implemented; automated checks, debug builds and desktop smoke evidence are recorded in VERIFICATION.md alongside remaining acceptance limits. M12 remains proposed and unimplemented. See AGENTS.md for the current scope boundary.
 
 ## Product goal
 
@@ -42,7 +42,7 @@ Current peer sends type into another terminal. Delivery does not prove that an a
 | --------- | ------------------------------------------------------- | --------------------------------------- | -------------------------------------- |
 | M9        | Durable tasks and reliable agent communication          | M8; relevant existing acceptance checks | Implemented; deeper acceptance pending |
 | M10       | Isolated execution and reviewable Git integration       | M9                                      | Implemented; see verification          |
-| M11       | Bounded coordinator and team operations                 | M9 + M10                                | Proposed                               |
+| M11       | Bounded coordinator and team operations                 | M9 + M10                                | Implemented; see verification          |
 | M12       | Reusable workflows, project tools and qualified release | M9–M11                                  | Proposed                               |
 
 Complete and commit each milestone independently. Split each into the stages below so a large milestone does not hide incomplete behavior. Record executed checks and remaining limits in VERIFICATION.md. Finish M8's relevant launch, persistence and restart acceptance before depending on it for unattended execution.
@@ -168,6 +168,6 @@ Remote execution, cloud synchronization, multi-user collaboration, account/crede
 - [ ] Close M8 launch/persistence/restart checks needed for orchestration.
 - [x] M9: durable task protocol, adapter capabilities and restart reconciliation (deeper acceptance remains).
 - [x] M10: isolated checkouts, commit-bound evidence and controlled integration (limits in VERIFICATION.md).
-- [ ] M11: bounded coordinator, team lifecycle, permissions and failure handling.
+- [x] M11: bounded coordinator, team lifecycle, permissions and failure handling (provider/platform limits in VERIFICATION.md).
 - [ ] M12: templates, context/browser tools and qualified release artifacts.
 - [ ] Run repeatable outcome comparisons before claiming improvement over another product.

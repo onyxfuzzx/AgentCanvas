@@ -179,6 +179,104 @@ pub async fn collaboration_decide(
 
 type Storage = Arc<Mutex<WorkspaceStore>>;
 #[tauri::command]
+pub async fn team_pause_workspace(
+    collaboration: State<'_, Arc<Collaboration>>,
+    workspace_id: String,
+) -> Result<(), String> {
+    let c = collaboration.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || c.team_pause(&workspace_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn team_snapshot(
+    collaboration: State<'_, Arc<Collaboration>>,
+    checks: State<'_, Arc<crate::check_runner::CheckRunner>>,
+    workspace_id: String,
+) -> Result<serde_json::Value, String> {
+    let c = collaboration.inner().clone();
+    let checks = checks.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut reply = c.team_snapshot(&workspace_id)?;
+        reply["activeCheck"] = serde_json::json!(checks.active());
+        Ok(reply)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn team_control(
+    collaboration: State<'_, Arc<Collaboration>>,
+    checks: State<'_, Arc<crate::check_runner::CheckRunner>>,
+    workspace_id: String,
+    revision: u64,
+    control: crate::orchestrator::Control,
+) -> Result<crate::tasks::Snapshot, String> {
+    let c = collaboration.inner().clone();
+    let checks = checks.inner().clone();
+    tauri::async_runtime::spawn_blocking(move||{let revoke=matches!(&control,crate::orchestrator::Control::Permissions{permissions} if !permissions.checks)||matches!(&control,crate::orchestrator::Control::Cancel);let result=c.team_control(&workspace_id,revision,control)?;if revoke{checks.stop();}Ok(result)}).await.map_err(|e|e.to_string())?
+}
+#[tauri::command]
+pub async fn team_emergency_stop(
+    collaboration: State<'_, Arc<Collaboration>>,
+    checks: State<'_, Arc<crate::check_runner::CheckRunner>>,
+    workspace_id: String,
+) -> Result<serde_json::Value, String> {
+    let c = collaboration.inner().clone();
+    let checks = checks.inner().clone();
+    checks.stop();
+    tauri::async_runtime::spawn_blocking(move || c.team_stop(&workspace_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn team_launch(
+    collaboration: State<'_, Arc<Collaboration>>,
+    git_gate: State<'_, Arc<Mutex<()>>>,
+    workspace_id: String,
+    id: String,
+    cols: u16,
+    rows: u16,
+) -> Result<crate::pty::SpawnReply, String> {
+    let c = collaboration.inner().clone();
+    let gate = git_gate.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _lock = gate.lock().map_err(|_| "Launch unavailable")?;
+        c.team_launch(&workspace_id, &id, cols, rows)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+#[allow(clippy::too_many_arguments)] // IPC scope and process ownership services are explicit.
+pub async fn team_check_run(
+    storage: State<'_, Storage>,
+    collaboration: State<'_, Arc<Collaboration>>,
+    manager: State<'_, Arc<PtyManager>>,
+    checks: State<'_, Arc<crate::check_runner::CheckRunner>>,
+    git_gate: State<'_, Arc<Mutex<()>>>,
+    workspace_id: String,
+    run_id: String,
+    id: String,
+) -> Result<crate::areas::Catalog, String> {
+    let c = collaboration.inner().clone();
+    let manager = manager.inner().clone();
+    let checks = checks.inner().clone();
+    let gate = git_gate.inner().clone();
+    with_storage(storage,move|s|{
+  let _lock=gate.lock().map_err(|_|"Git/check gate unavailable")?;manager.require_idle()?;
+  let (spec,cwd,head)=c.team_check(&workspace_id,&run_id,&id)?;
+  c.team_event(&workspace_id,&run_id,"checkStarted",&format!("Declared check {} at commit {head}",spec.id))?;
+  let result=checks.run(&spec,&cwd,||c.team_authority(&workspace_id,&run_id,"checks",None,None));
+  let state=match result{Ok(state)=>state,Err(e)=>{let _=c.team_event(&workspace_id,&run_id,"checkStopped",&e);return Err(e);}};
+  c.team_authority(&workspace_id,&run_id,"checks",None,None)?;
+  let snapshot=c.task_snapshot(&workspace_id)?;let t=snapshot.board.tasks.iter().find(|t|t.id==spec.task).ok_or("Task changed")?;let area=t.checkout_ref.as_deref().ok_or("Checkout changed")?;
+  let current=crate::areas::review(s.folder(&workspace_id)?,area)?;if current.head!=head||!current.status.is_empty(){return Err("Check modified the checkout or commit; evidence is stale and was not recorded".into());}
+  let catalog=crate::areas::action(s.folder(&workspace_id)?,crate::areas::Action::Check{id:area.into(),head,name:spec.name,state:state.clone(),detail:format!("Declared check {}; native exit status {state}. Output discarded; no shell history retained.",spec.id)})?;
+  c.team_event(&workspace_id,&run_id,"checkFinished",&state)?;Ok(catalog)
+ }).await
+}
+#[tauri::command]
 pub async fn area_catalog(
     storage: State<'_, Storage>,
     workspace_id: String,
@@ -231,6 +329,7 @@ pub async fn area_action(
     git_gate: State<'_, Arc<Mutex<()>>>,
     workspace_id: String,
     action: crate::areas::Action,
+    run_id: Option<String>,
 ) -> Result<crate::areas::Catalog, String> {
     let manager = manager.inner().clone();
     let collaboration = collaboration.inner().clone();
@@ -238,6 +337,27 @@ pub async fn area_action(
     with_storage(storage, move |s| {
         let _gate = gate.lock().map_err(|_| "Git operation gate unavailable")?;
         manager.require_idle()?;
+        if let Some(run) = &run_id {
+            use crate::areas::Action;
+            match &action {
+                Action::Create { repository, .. } => collaboration.team_authority(
+                    &workspace_id,
+                    run,
+                    "provision",
+                    None,
+                    Some(repository),
+                )?,
+                Action::Check { id, .. } | Action::Findings { id, .. } => {
+                    collaboration.team_authority(&workspace_id, run, "checks", Some(id), None)?
+                }
+                Action::Approve { id, .. } | Action::Integrate { id, .. } => {
+                    collaboration.team_authority(&workspace_id, run, "integrate", Some(id), None)?
+                }
+                Action::Cleanup { id } | Action::Reconcile { id } => {
+                    collaboration.team_authority(&workspace_id, run, "provision", Some(id), None)?
+                }
+            }
+        }
         match &action {
             crate::areas::Action::Cleanup { id } | crate::areas::Action::Integrate { id, .. } => {
                 collaboration.area_available(&workspace_id, id)?

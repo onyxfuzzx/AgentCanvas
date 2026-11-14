@@ -23,6 +23,7 @@ export type Attempt = {
   summary: string;
   artifacts: string[];
   checkoutRef?: string | null;
+  assignedTo?: string | null;
 };
 export type Task = {
   id: string;
@@ -37,9 +38,15 @@ export type Task = {
   updatedAt: number;
   source: string;
   attempts: Attempt[];
+  reviewOf?: string | null;
 };
 export type TaskSnapshot = {
-  board: { version: number; revision: number; tasks: Task[] };
+  board: {
+    version: number;
+    revision: number;
+    tasks: Task[];
+    orchestration?: import('../team/model').Run | null;
+  };
   recovered: boolean;
   leaseMs: number;
 };

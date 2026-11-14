@@ -133,6 +133,41 @@ function harness() {
   };
 }
 beforeEach(() => vi.useFakeTimers());
+test('workspace switch and normal close pause native dispatch before flushing or stopping processes', async () => {
+  const h = harness();
+  await h.coordinator.initialize();
+  const order: string[] = [];
+  h.ports.pauseDispatch = async () => {
+    order.push('pause');
+  };
+  h.ports.flushNotes = async () => {
+    order.push('flush');
+  };
+  h.ports.closeAll = async () => {
+    order.push('stop');
+  };
+  await h.coordinator.switchTo('two');
+  expect(order.indexOf('pause')).toBeLessThan(order.indexOf('flush'));
+  expect(order.indexOf('pause')).toBeLessThan(order.indexOf('stop'));
+  order.length = 0;
+  await h.coordinator.prepareToClose();
+  expect(order[0]).toBe('pause');
+  expect(order[1]).toBe('flush');
+});
+test('failed dispatch pause preserves the old workspace and its processes', async () => {
+  const h = harness();
+  await h.coordinator.initialize();
+  const stopped = vi.fn(async () => {});
+  h.ports.closeAll = stopped;
+  h.ports.pauseDispatch = async () => {
+    throw new Error('cannot save pause');
+  };
+  await expect(h.coordinator.switchTo('two')).rejects.toThrow(
+    'cannot save pause',
+  );
+  expect(h.state.getState().active?.document.id).toBe('one');
+  expect(stopped).not.toHaveBeenCalled();
+});
 afterEach(() => vi.useRealTimers());
 test('restore prepares agent nodes but starts only shell terminals, including after workspace switches', async () => {
   const h = harness();

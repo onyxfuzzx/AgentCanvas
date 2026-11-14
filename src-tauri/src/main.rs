@@ -6,6 +6,10 @@ use std::sync::{Arc, Mutex};
 fn main() {
     let manager = Arc::new(pty::PtyManager::default());
     let shutdown = manager.clone();
+    let checks = Arc::new(agent_canvas_desktop::check_runner::CheckRunner::default());
+    let stop_checks = checks.clone();
+    let scheduler_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop_scheduler = scheduler_stop.clone();
     let collaboration = Arc::new(
         agent_canvas_desktop::collaboration::Collaboration::new(manager.clone())
             .expect("local collaboration setup"),
@@ -14,6 +18,17 @@ fn main() {
         agent_canvas_desktop::ipc::Server::start(collaboration.clone())
             .expect("local named-pipe server"),
     ));
+    let scheduler = Arc::downgrade(&collaboration);
+    std::thread::spawn(move || {
+        while !scheduler_stop.load(std::sync::atomic::Ordering::SeqCst) {
+            let Some(c) = scheduler.upgrade() else {
+                break;
+            };
+            c.team_tick();
+            drop(c);
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+    });
     let product: serde_json::Value =
         serde_json::from_str(include_str!("../../product.json")).expect("product configuration");
     let title = product["name"].as_str().expect("product name").to_owned();
@@ -30,6 +45,7 @@ fn main() {
     }
     tauri::Builder::default()
         .manage(manager)
+        .manage(checks)
         .manage(Arc::new(Mutex::new(())))
         .manage(collaboration)
         .manage(Arc::new(agent_canvas_desktop::browser::Browsers::default()))
@@ -59,6 +75,12 @@ fn main() {
                 commands::agent_providers,
                 commands::task_snapshot,
                 commands::task_action,
+                commands::team_snapshot,
+                commands::team_pause_workspace,
+                commands::team_control,
+                commands::team_emergency_stop,
+                commands::team_launch,
+                commands::team_check_run,
                 commands::area_catalog,
                 commands::area_review,
                 commands::area_file,
@@ -94,6 +116,8 @@ fn main() {
                 event,
                 tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
             ) {
+                stop_scheduler.store(true, std::sync::atomic::Ordering::SeqCst);
+                stop_checks.stop();
                 shutdown.shutdown();
                 if let Ok(mut server) = server.lock() {
                     server.take();

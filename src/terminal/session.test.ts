@@ -54,6 +54,35 @@ function harness(
   return { emulator, calls, session: new Session(node, emulator, transport) };
 }
 beforeEach(() => vi.useFakeTimers());
+test('team launches use native run authority once and keep the normal terminal renderer lifecycle', async () => {
+  const h = harness(async (command) =>
+    command === 'team_launch'
+      ? { cwd: 'C:\\managed' }
+      : command === 'terminal_poll'
+        ? { bytes: [], dropped: 0, exited: false, exitCode: null, error: null }
+        : undefined,
+  );
+  await Promise.all([
+    h.session.start(node, 'workspace-id'),
+    h.session.start(node, 'workspace-id'),
+  ]);
+  expect(h.calls.filter((c) => c.command === 'team_launch')).toEqual([
+    {
+      command: 'team_launch',
+      args: {
+        workspaceId: 'workspace-id',
+        id: node.id,
+        cols: h.session.meta.cols,
+        rows: h.session.meta.rows,
+      },
+    },
+  ]);
+  expect(h.calls.some((c) => c.command === 'terminal_spawn')).toBe(false);
+  expect(h.session.meta.cwd).toBe('C:\\managed');
+  await h.session.stop();
+  expect(h.emulator.dispose).not.toHaveBeenCalled();
+  expect(h.session.meta.status).toBe('exited');
+});
 afterEach(() => vi.useRealTimers());
 test('restored agents stay paused, reject input and launch once with the current node identity', async () => {
   const h = harness();

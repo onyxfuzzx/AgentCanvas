@@ -60,6 +60,8 @@ pub struct Attempt {
     pub artifacts: Vec<String>,
     #[serde(default)]
     pub checkout_ref: Option<String>,
+    #[serde(default)]
+    pub assigned_to: Option<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -77,6 +79,8 @@ pub struct Task {
     pub updated_at: u64,
     pub source: String,
     pub attempts: Vec<Attempt>,
+    #[serde(default)]
+    pub review_of: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -92,6 +96,8 @@ pub struct Board {
     pub revision: u64,
     pub tasks: Vec<Task>,
     receipts: Vec<Receipt>,
+    #[serde(default)]
+    pub orchestration: Option<crate::orchestrator::Run>,
 }
 impl Default for Board {
     fn default() -> Self {
@@ -100,6 +106,7 @@ impl Default for Board {
             revision: 0,
             tasks: Vec::new(),
             receipts: Vec::new(),
+            orchestration: None,
         }
     }
 }
@@ -119,6 +126,11 @@ pub struct Snapshot {
     deny_unknown_fields
 )]
 pub enum Action {
+    Propose {
+        plan: crate::orchestrator::Plan,
+    },
+    CoordinatorHeartbeat,
+    Team,
     Create {
         id: String,
         title: String,
@@ -219,6 +231,34 @@ impl Board {
             return Err("Unsupported task schema or task/receipt limit exceeded".into());
         }
         let ids: HashSet<_> = self.tasks.iter().map(|t| t.id.as_str()).collect();
+        if let Some(r) = &self.orchestration {
+            crate::orchestrator::validate(r)?;
+            if r.tasks.iter().any(|id| !ids.contains(id.as_str())) {
+                return Err("Run references missing tasks".into());
+            }
+            for v in &r.reviews {
+                let builder = self
+                    .tasks
+                    .iter()
+                    .find(|t| t.id == v.builder)
+                    .ok_or("Missing builder")?;
+                let reviewer = self
+                    .tasks
+                    .iter()
+                    .find(|t| t.id == v.reviewer)
+                    .ok_or("Missing reviewer")?;
+                if builder.assigned_to == reviewer.assigned_to
+                    || builder.checkout_ref.is_none()
+                    || builder.checkout_ref != reviewer.checkout_ref
+                    || reviewer.review_of.as_ref() != Some(&builder.id)
+                    || v.head.as_ref().is_some_and(|h| {
+                        ![40, 64].contains(&h.len()) || !h.bytes().all(|c| c.is_ascii_hexdigit())
+                    })
+                {
+                    return Err("Invalid independent review binding".into());
+                }
+            }
+        }
         if ids.len() != self.tasks.len() {
             return Err("Duplicate task IDs".into());
         }
@@ -227,6 +267,7 @@ impl Board {
             if !id_valid(&t.id)
                 || !id_valid(&t.assigned_to)
                 || t.checkout_ref.as_deref().is_some_and(|id| !id_valid(id))
+                || t.review_of.as_deref().is_some_and(|id| !ids.contains(id))
                 || !text(&t.title, 120, false)
                 || !text(&t.brief, 4096, false)
                 || !text(&t.criteria, 2048, false)
@@ -248,6 +289,7 @@ impl Board {
             for a in &t.attempts {
                 if !id_valid(&a.id)
                     || a.checkout_ref.as_deref().is_some_and(|id| !id_valid(id))
+                    || a.assigned_to.as_deref().is_some_and(|id| !id_valid(id))
                     || !id_valid(&a.generation)
                     || !attempts.insert(&a.id)
                     || !text(&a.summary, 512, true)
@@ -366,13 +408,37 @@ impl Store {
             },
         };
         let good = serde_json::to_vec_pretty(&board).map_err(|e| e.to_string())?;
-        Ok(Self {
+        let mut store = Self {
             folder: folder.into(),
             board,
             baseline: primary,
             good,
             recovered,
-        })
+        };
+        if store
+            .board
+            .orchestration
+            .as_ref()
+            .is_some_and(|r| ["running", "manual"].contains(&r.state.as_str()))
+        {
+            let mut next = store.board.clone();
+            let r = next.orchestration.as_mut().unwrap();
+            r.state = "paused".into();
+            r.reason="Application restarted or workspace reopened; reconcile attempts and explicitly resume".into();
+            crate::orchestrator::event(
+                r,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+                "recovery",
+                "paused",
+                None,
+                "No run or task replayed after restart",
+            );
+            store.commit(next)?;
+        }
+        Ok(store)
     }
     fn commit(&mut self, mut next: Board) -> Result<(), String> {
         next.revision = next
@@ -447,6 +513,98 @@ impl Store {
             lease_ms: LEASE_MS,
         }
     }
+    pub fn control(
+        &mut self,
+        expected: u64,
+        control: crate::orchestrator::Control,
+        live: &HashMap<String, String>,
+        now: u64,
+        heads: &HashMap<String, String>,
+    ) -> Result<Snapshot, String> {
+        self.reconcile(live, now)?;
+        if self.board.revision != expected {
+            return Err("Task/run state changed; refresh before controlling the run".into());
+        }
+        let mut next = self.board.clone();
+        crate::orchestrator::advance(&mut next, now, live);
+        crate::orchestrator::apply_control(&mut next, control, live, now, heads)?;
+        self.commit(next)?;
+        Ok(self.snapshot())
+    }
+    pub fn scheduler_tick(
+        &mut self,
+        live: &HashMap<String, String>,
+        available: &HashSet<String>,
+        now: u64,
+        heads: &HashMap<String, String>,
+    ) -> Result<(), String> {
+        self.reconcile(live, now)?;
+        let mut next = self.board.clone();
+        let mut changed = crate::orchestrator::advance(&mut next, now, live);
+        if next
+            .orchestration
+            .as_ref()
+            .is_some_and(|r| r.state == "running")
+        {
+            let ids = next.orchestration.as_ref().unwrap().tasks.clone();
+            for id in ids {
+                if !available.contains(&id)
+                    || !next
+                        .tasks
+                        .iter()
+                        .any(|t| t.id == id && t.state == Status::Ready)
+                {
+                    continue;
+                }
+                let mut candidate = next.clone();
+                match crate::orchestrator::dispatch(&mut candidate, &id, live, now, heads) {
+                    Ok(()) => {
+                        if let Some(t) = candidate.tasks.iter_mut().find(|t| t.id == id) {
+                            t.source = "scheduler".into();
+                        }
+                        if let Some(e) = candidate
+                            .orchestration
+                            .as_mut()
+                            .and_then(|r| r.events.last_mut())
+                        {
+                            e.source = "scheduler".into();
+                        }
+                        next = candidate;
+                        changed = true;
+                    }
+                    Err(e) if e.contains("budget exhausted") => {
+                        let r = next.orchestration.as_mut().unwrap();
+                        r.state = "blocked".into();
+                        r.reason = e.clone();
+                        crate::orchestrator::event(r, now, "scheduler", "budget", Some(id), &e);
+                        changed = true;
+                        break;
+                    }
+                    Err(_) => {}
+                }
+            }
+        }
+        if changed {
+            self.commit(next)?;
+        }
+        Ok(())
+    }
+    pub fn run_event(
+        &mut self,
+        run_id: &str,
+        kind: &str,
+        detail: &str,
+        now: u64,
+    ) -> Result<(), String> {
+        let mut next = self.board.clone();
+        let r = next
+            .orchestration
+            .as_mut()
+            .filter(|r| r.id == run_id)
+            .ok_or("Run changed")?;
+        crate::orchestrator::event(r, now, "native", kind, None, detail);
+        self.commit(next)
+    }
     pub fn user_replayed(&self, request: &str, action: &Action) -> Result<bool, String> {
         if let Some(receipt) = self
             .board
@@ -518,6 +676,20 @@ impl Store {
                 )
                 .map_err(|e| e.to_string());
             }
+            Action::Team => {
+                let Actor::Agent { node, .. } = actor else {
+                    return Err("Team inspection requires an agent".into());
+                };
+                let r = self
+                    .board
+                    .orchestration
+                    .as_ref()
+                    .filter(|r| r.coordinator.as_deref() == Some(node))
+                    .ok_or("Only the designated coordinator can inspect its run")?;
+                return Ok(
+                    json!({"run":r,"tasks":self.board.tasks.iter().filter(|t|r.tasks.contains(&t.id)).collect::<Vec<_>>()}),
+                );
+            }
             _ => {}
         }
         if matches!(actor, Actor::User) && expected != Some(self.board.revision) {
@@ -538,13 +710,50 @@ impl Store {
     }
 }
 
-fn apply(
+pub(crate) fn apply(
     board: &mut Board,
     actor: &Actor<'_>,
     action: Action,
     live: &HashMap<String, String>,
     now: u64,
 ) -> Result<Value, String> {
+    if matches!(
+        &action,
+        Action::Propose { .. } | Action::CoordinatorHeartbeat
+    ) {
+        let Actor::Agent { node, generation } = actor else {
+            return Err("Coordinator action requires a live agent".into());
+        };
+        let r = board
+            .orchestration
+            .as_mut()
+            .filter(|r| r.coordinator.as_deref() == Some(*node))
+            .ok_or("Only the user-designated coordinator may propose")?;
+        if ["cancelled", "done"].contains(&r.state.as_str()) {
+            return Err(
+                "Coordinator scope ended; no more proposals or heartbeats are accepted".into(),
+            );
+        }
+        if live.get(*node).map(String::as_str) != Some(*generation) {
+            return Err("Coordinator generation expired".into());
+        }
+        if let Action::Propose { plan } = action {
+            crate::orchestrator::validate_plan(&plan)?;
+            r.proposal = Some(plan);
+            crate::orchestrator::event(
+                r,
+                now,
+                "coordinator",
+                "proposal",
+                None,
+                "Untrusted proposal saved for user editing and adoption; no authority granted",
+            );
+        }
+        r.coordinator_until = now.saturating_add(LEASE_MS);
+        return Ok(json!({"proposed":true,"heartbeatUntil":r.coordinator_until}));
+    }
+    crate::orchestrator::guard_task(board, &action, now)?;
+    let audit_action = action.clone();
     match &action {
         Action::Progress { summary, .. } | Action::Result { summary, .. }
             if !text(summary, 512, false) =>
@@ -595,6 +804,7 @@ fn apply(
             updated_at: now,
             source: "user".into(),
             attempts: Vec::new(),
+            review_of: None,
         });
         return Ok(json!({"id":id}));
     }
@@ -622,10 +832,11 @@ fn apply(
     if matches!(action, Action::Dispatch { .. }) {
         let t = &board.tasks[index];
         if t.dependencies.iter().any(|id| {
-            !board
-                .tasks
-                .iter()
-                .any(|d| &d.id == id && d.state == Status::Done)
+            !board.tasks.iter().any(|d| {
+                &d.id == id
+                    && (d.state == Status::Done
+                        || (t.review_of.as_ref() == Some(id) && d.state == Status::Review))
+            })
         }) {
             return Err("Dependencies must be accepted first".into());
         }
@@ -687,6 +898,7 @@ fn apply(
                 .ok_or("Start the assigned agent before dispatch")?
                 .clone();
             t.attempts.push(Attempt {
+                assigned_to: Some(t.assigned_to.clone()),
                 checkout_ref: t.checkout_ref.clone(),
                 id: attempt_id,
                 generation,
@@ -808,7 +1020,9 @@ fn apply(
         Actor::Agent { node, .. } => format!("agent:{node}"),
     };
     t.updated_at = now;
-    Ok(json!({"id":t.id,"state":t.state,"attemptId":t.attempts.last().map(|a|&a.id)}))
+    let result = json!({"id":t.id,"state":t.state,"attemptId":t.attempts.last().map(|a|&a.id)});
+    crate::orchestrator::record_task(board, &audit_action, now);
+    Ok(result)
 }
 
 #[cfg(test)]

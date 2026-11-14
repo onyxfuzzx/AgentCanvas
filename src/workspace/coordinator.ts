@@ -43,6 +43,7 @@ export interface WorkspacePorts {
   closeAll: () => Promise<void>;
   start: (node: CanvasNode) => Promise<void>;
   flushNotes?: () => Promise<void>;
+  pauseDispatch?: () => Promise<void>;
   resetNotes?: () => void;
 }
 export class WorkspaceCoordinator {
@@ -197,6 +198,7 @@ export class WorkspaceCoordinator {
     if (id === this.state.getState().active?.document.id)
       return Promise.resolve();
     return this.run(async () => {
+      await this.ports.pauseDispatch?.();
       await this.ports.flushNotes?.();
       await this.queue?.flush();
       await this.apply(
@@ -206,6 +208,7 @@ export class WorkspaceCoordinator {
   }
   create(name: string, folder: string) {
     return this.run(async () => {
+      await this.ports.pauseDispatch?.();
       await this.ports.flushNotes?.();
       await this.queue?.flush();
       await this.apply(
@@ -219,6 +222,7 @@ export class WorkspaceCoordinator {
   }
   openFolder(folder: string) {
     return this.run(async () => {
+      await this.ports.pauseDispatch?.();
       await this.ports.flushNotes?.();
       await this.queue?.flush();
       await this.apply(
@@ -236,6 +240,7 @@ export class WorkspaceCoordinator {
     this.state.setState({ closing: true });
     try {
       await this.operation?.catch(() => {});
+      await this.ports.pauseDispatch?.();
       await this.ports.flushNotes?.();
       await this.queue?.flush();
     } catch (error) {

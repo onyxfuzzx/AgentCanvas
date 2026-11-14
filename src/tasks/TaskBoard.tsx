@@ -485,6 +485,11 @@ export function TaskBoard({
                 {current.attempts.map((a) => (
                   <article key={a.id}>
                     <code>{a.id}</code>
+                    {a.assignedTo && (
+                      <p>
+                        Attempt agent: <code>{a.assignedTo}</code>
+                      </p>
+                    )}
                     {a.checkoutRef && (
                       <p>
                         Attempt checkout: <code>{a.checkoutRef}</code>

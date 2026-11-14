@@ -74,7 +74,7 @@ export function createSession(node: CanvasNode): Entry {
   return entry;
 }
 export const getSession = (id: string) => sessions.get(id);
-export async function startSession(node: CanvasNode) {
+export async function startSession(node: CanvasNode, teamWorkspaceId?: string) {
   const entry = createSession(node);
   try {
     await beforeStart();
@@ -82,7 +82,7 @@ export async function startSession(node: CanvasNode) {
     entry.session.reportError(error);
     throw error;
   }
-  await entry.session.start(node);
+  await entry.session.start(node, teamWorkspaceId);
   if (sessions.get(node.id) === entry)
     useCanvas.getState().setTerminalDirectory(node.id, entry.session.meta.cwd);
 }

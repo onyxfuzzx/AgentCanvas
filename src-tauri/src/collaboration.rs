@@ -82,6 +82,7 @@ impl Bucket {
 }
 #[derive(Default)]
 struct State {
+    scheduler_error: Option<String>,
     tasks: Option<crate::tasks::Store>,
     generations: HashMap<String, String>,
     closing_nodes: HashSet<String>,
@@ -111,6 +112,8 @@ pub struct Collaboration {
     pty: Arc<PtyManager>,
     pub pipe: String,
 }
+#[path = "team.rs"]
+mod team;
 fn same_secret(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |n, (a, b)| n | (a ^ b)) == 0
 }
@@ -302,6 +305,7 @@ impl Collaboration {
         }
         let mut state = self.state.lock().map_err(|_| "Collaboration unavailable")?;
         if state.workspace != workspace {
+            state.scheduler_error = None;
             state.tasks = None;
             state.generations.clear();
             state.cancel(|_| true);
@@ -543,6 +547,33 @@ impl Collaboration {
         if tasks.user_replayed(request_id, &action)? {
             return Ok(tasks.snapshot());
         }
+        if let crate::tasks::Action::Dispatch { id, .. } = &action {
+            let board = task_store(&mut s)?.snapshot().board;
+            if board
+                .orchestration
+                .as_ref()
+                .is_some_and(|r| r.tasks.contains(id))
+            {
+                let t = board
+                    .tasks
+                    .iter()
+                    .find(|t| &t.id == id)
+                    .ok_or("Task unavailable")?;
+                self.team_available(&s, t)?;
+            }
+            if task_store(&mut s)?
+                .snapshot()
+                .board
+                .orchestration
+                .as_ref()
+                .is_some_and(|r| r.reviews.iter().any(|v| &v.reviewer == id))
+            {
+                return Err("Use Team run dispatch so review captures the current commit".into());
+            }
+        }
+        if let crate::tasks::Action::Accept { id } = &action {
+            self.validate_team_accept(&mut s, id)?;
+        }
         let assigned = match &action {
             crate::tasks::Action::Create { assigned_to, .. }
             | crate::tasks::Action::Edit { assigned_to, .. } => Some(assigned_to),
@@ -726,10 +757,12 @@ impl Collaboration {
                 if !s.buckets.entry(key).or_insert(Bucket{tokens:5.0,updated:Instant::now()}).take() { return Err("RATE_LIMIT: task requests allow five burst, two per second".into()); }
                 let payload = r.payload.as_deref().ok_or("Missing task action JSON")?;
                 if payload.len() > 8192 {return Err("Task action exceeds 8192 bytes".into());}
-                let action = serde_json::from_str(payload).map_err(|e|format!("Invalid task action: {e}"))?;
+                let action:crate::tasks::Action = serde_json::from_str(payload).map_err(|e|format!("Invalid task action: {e}"))?;
                 let generation = s.generations.get(&r.node_id).ok_or("Task generation expired")?.clone();
                 let live = s.generations.clone();
-                task_store(&mut s)?.execute(crate::tasks::Actor::Agent {node:&r.node_id,generation:&generation}, &r.request_id, None, action, &live, task_now())
+                let inspect=matches!(&action,crate::tasks::Action::Team);
+                let mut result=task_store(&mut s)?.execute(crate::tasks::Actor::Agent {node:&r.node_id,generation:&generation}, &r.request_id, None, action, &live, task_now())?;
+                if inspect{result["agents"]=json!(s.nodes.values().filter(|n|n.kind=="terminal").map(|n|json!({"id":n.id,"title":n.title,"provider":n.agent.as_ref().map(|a|a.provider.id()),"role":n.agent.as_ref().map(|a|&a.role_name),"cwd":n.cwd,"areaId":n.area_id,"live":s.live.contains_key(&n.id)})).collect::<Vec<_>>());}Ok(result)
             },
             "peers"=>Ok(json!(s.edges.iter().filter(|e|e.kind=="agent"&&(e.source==r.node_id||e.target==r.node_id)).map(|e|{let id=if e.source==r.node_id{&e.target}else{&e.source};json!({"id":id,"title":s.nodes[id].title,"running":s.live.contains_key(id),"policy":e.policy})}).collect::<Vec<_>>())),
             "notes"=>{
@@ -743,6 +776,8 @@ impl Collaboration {
             },
             "status"=>{let id=r.message_id.ok_or("Missing message ID")?;let log=s.logs.iter().find(|l|l.id==id&&l.source==r.node_id).ok_or("Message unavailable")?;Ok(json!({"id":id,"status":log.status}))},
             "send"|"readRecent"=>{
+                let b=task_store(&mut s)?.snapshot().board;
+                if b.orchestration.as_ref().is_some_and(|run| !run.permissions.messaging && (run.coordinator.as_deref()==Some(&r.node_id) || run.coordinator.as_ref()==r.target_id.as_ref() && r.target_id.is_some() || b.tasks.iter().any(|t|run.tasks.contains(&t.id)&&(t.assigned_to==r.node_id || Some(&t.assigned_to)==r.target_id.as_ref())))) {return Err("Team messaging permission is revoked; peer links do not grant run authority".into());}
                 let target=r.target_id.as_deref().ok_or("Missing target ID")?;
                 let edge=s.edge(&r.node_id,target)?;
                 let text=if r.op=="send"{r.payload.as_deref().ok_or("Missing message text")?}else{"Read recent output"};

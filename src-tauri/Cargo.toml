@@ -9,6 +9,10 @@ default-run = "agent-canvas-desktop"
 name = "agent_launch"
 harness = false
 
+[[test]]
+name = "team_run"
+harness = false
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

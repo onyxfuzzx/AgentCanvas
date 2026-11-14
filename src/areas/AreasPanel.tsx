@@ -12,11 +12,13 @@ export function AreasPanel({
   onClose,
   onLaunch,
   onScope,
+  runId,
 }: {
   workspaceId: string;
   onClose: () => void;
   onLaunch: (area: Area) => void;
   onScope: (area: Area | null) => void;
+  runId?: string;
 }) {
   const [catalog, setCatalog] = useState<AreaCatalog>();
   const [tasks, setTasks] = useState<TaskSnapshot>();
@@ -76,7 +78,11 @@ export function AreasPanel({
     }
   }
   async function mutate(action: Record<string, unknown>) {
-    const next = await areaMutations.run<AreaCatalog>({ workspaceId, action });
+    const next = await areaMutations.run<AreaCatalog>({
+      workspaceId,
+      action,
+      ...(runId ? { runId } : {}),
+    });
     if (alive.current) {
       setCatalog(next);
       setPreview(undefined);

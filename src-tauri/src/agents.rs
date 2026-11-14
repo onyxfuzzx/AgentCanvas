@@ -86,7 +86,7 @@ impl AgentLaunch {
         self.settings.validate()
     }
     pub fn identity(&self, id: &str) -> String {
-        format!("Agent name: {}\nRole: {}\nCanvas node ID: {}\nRespect the project's instructions and your CLI's approval settings. Wait for the user to assign work. {}\nRole instructions:\n{}", self.name, self.settings.role_name, id, crate::tasks::AGENT_GUIDANCE, self.settings.instructions)
+        format!("Agent name: {}\nRole: {}\nCanvas node ID: {}\nRespect the project's instructions and your CLI's approval settings. Wait for the user to assign work. {}\nRole instructions:\n{}", self.name, self.settings.role_name, id, format_args!("{} {}",crate::tasks::AGENT_GUIDANCE,crate::orchestrator::COORDINATOR_GUIDANCE), self.settings.instructions)
     }
     pub fn arguments(&self, id: &str) -> Result<Vec<String>, String> {
         self.validate()?;

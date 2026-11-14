@@ -44,18 +44,27 @@ fn replace(from: &Path, to: &Path) -> Result<(), String> {
     };
     let from: Vec<u16> = from.as_os_str().encode_wide().chain(Some(0)).collect();
     let to: Vec<u16> = to.as_os_str().encode_wide().chain(Some(0)).collect();
-    if unsafe {
-        MoveFileExW(
-            from.as_ptr(),
-            to.as_ptr(),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-        )
-    } == 0
-    {
-        Err(std::io::Error::last_os_error().to_string())
-    } else {
-        Ok(())
+    for attempt in 0..6 {
+        if unsafe {
+            MoveFileExW(
+                from.as_ptr(),
+                to.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            )
+        } != 0
+        {
+            return Ok(());
+        }
+        let error = std::io::Error::last_os_error();
+        // Windows scanners may briefly hold a non-delete-sharing handle after close.
+        // Retry only transient access/sharing failures; keep the original and flushed
+        // temporary file intact. A persistent lock still fails within 620 ms.
+        if attempt == 5 || !matches!(error.raw_os_error(), Some(5 | 32 | 33)) {
+            return Err(error.to_string());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20u64 << attempt));
     }
+    unreachable!()
 }
 
 #[cfg(not(windows))]
@@ -85,5 +94,47 @@ impl Lock {
             .open(path)
             .map(|file| Self { _file: file })
             .map_err(|e| format!("Folder is already open in another app, or is not writable: {e}"))
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+    #[test]
+    fn atomic_replacement_tolerates_a_short_lived_windows_reader_without_losing_the_old_file() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let root = std::env::current_dir()
+            .unwrap()
+            .join("target")
+            .join(format!(
+                "atomic-retry-test-{}",
+                crate::ipc::random_secret().unwrap()
+            ));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("metadata.json");
+        fs::write(&path, b"old").unwrap();
+        let file = OpenOptions::new()
+            .read(true)
+            .share_mode(1)
+            .open(&path)
+            .unwrap();
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(70));
+            drop(file);
+        });
+        write(&path, b"new").unwrap();
+        release.join().unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"new");
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        let expected = std::env::current_dir().unwrap().join("target");
+        if root.parent() == Some(expected.as_path())
+            && root
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("atomic-retry-test-")
+        {
+            fs::remove_dir_all(root).unwrap();
+        }
     }
 }

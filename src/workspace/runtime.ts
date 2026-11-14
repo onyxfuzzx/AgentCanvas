@@ -12,6 +12,7 @@ import { createWorkspaceState, WorkspaceCoordinator } from './coordinator';
 import { notes } from '../notes/runtime';
 import { taskMutations } from '../tasks/runtime';
 import { areaMutations } from '../areas/runtime';
+import { teamOperations } from '../team/runtime';
 import { browsers } from '../browser/runtime';
 import {
   collaboration,
@@ -91,8 +92,18 @@ export const workspace = new WorkspaceCoordinator(
     flushNotes: async () => {
       await taskMutations.flush();
       await areaMutations.flush();
+      await teamOperations.flush();
       await notes.flush();
       await collaboration.sync();
+    },
+    pauseDispatch: async () => {
+      // A start/resume already sent must finish before the final pause is written.
+      await teamOperations.flush();
+      const active = workspaceState.getState().active;
+      if (active)
+        await invoke('team_pause_workspace', {
+          workspaceId: active.document.id,
+        });
     },
     resetNotes: () => notes.reset(),
   },
