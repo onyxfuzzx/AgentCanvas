@@ -11,7 +11,6 @@ import {
   defaultLimits,
   defaultPermissions,
   parsePlan,
-  type Limits,
   type Permissions,
   type Plan,
   type TeamSnapshot,
@@ -34,6 +33,8 @@ export function TeamPanel({
   onAreas: (runId: string) => void;
   onTasks: () => void;
 }) {
+  const [planOpen, setPlanOpen] = useState(false);
+  const planEditor = useRef<HTMLDetailsElement>(null);
   const [data, setData] = useState<TeamSnapshot>();
   const [areas, setAreas] = useState<AreaCatalog>();
   const [error, setError] = useState('');
@@ -170,7 +171,31 @@ export function TeamPanel({
             <p>{descriptions.team}</p>
           </div>
           <div className="task-actions">
-            <button onClick={() => void emergency()}>Emergency stop</button>
+            <button className="danger" onClick={() => void emergency()}>
+              Emergency stop
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                setPlanOpen(true);
+                requestAnimationFrame(() =>
+                  planEditor.current?.scrollIntoView({
+                    block: 'start',
+                    behavior: 'auto',
+                  }),
+                );
+              }}
+            >
+              Edit plan
+            </button>
+            {run && (
+              <button
+                disabled={busy || run.state !== 'running'}
+                onClick={() => void perform(() => control({ type: 'pause' }))}
+              >
+                Pause dispatch
+              </button>
+            )}
             {!embedded && (
               <button disabled={busy} onClick={onClose}>
                 Close
@@ -261,390 +286,332 @@ export function TeamPanel({
               </button>
             )}
           </div>
-          <div className="task-columns">
-            <nav aria-label="Existing agents">
-              <h3>Discover and reuse</h3>
+          <div className="team-dashboard-grid">
+            <section
+              className="team-section team-members"
+              aria-label="Existing agents"
+            >
+              <header className="team-card-heading">
+                <div>
+                  <h3>Your team</h3>
+                  <p>Reuse existing agents before recruiting more.</p>
+                </div>
+                <button onClick={onRecruit}>Recruit agent</button>
+              </header>
+              {!data?.agents.length && (
+                <p className="page-caption">
+                  No agents yet. Add an installed provider using a saved preset.
+                </p>
+              )}
               {data?.agents.map((a) => (
-                <article key={a.node.id}>
-                  <strong>{a.node.title}</strong>
-                  <small>
-                    {a.node.agent?.provider ?? 'cooperative shell'} ·{' '}
-                    {a.node.agent?.roleName ?? 'manual role'} ·{' '}
-                    {a.stopping
-                      ? 'still stopping'
-                      : a.live
-                        ? 'live'
-                        : 'stopped'}
-                  </small>
-                  <code>{a.node.id}</code>
-                  <p>{a.node.cwd || 'Workspace directory'}</p>
-                  <button
-                    onClick={() => {
-                      useCanvas.getState().select([a.node.id]);
-                      onClose();
-                    }}
-                  >
-                    Select node
-                  </button>
-                  <button onClick={() => onEdit(a.node)}>
-                    Role / replace preset…
-                  </button>
-                  <button
-                    onClick={() =>
-                      void perform(() =>
-                        teamOperations.track(stopSession(a.node.id)),
-                      )
-                    }
-                  >
-                    Stop
-                  </button>
-                  <button
-                    disabled={
-                      !run?.permissions.launch || !a.node.agent || a.live
-                    }
-                    onClick={() =>
-                      void perform(() =>
-                        teamOperations.track(startSession(a.node, workspaceId)),
-                      )
-                    }
-                  >
-                    Start run member
-                  </button>
-                </article>
-              ))}
-            </nav>
-            <div className="task-detail">
-              <details open={!run}>
-                <summary>Create a bounded run</summary>
-                <label>
-                  Goal
-                  <textarea
-                    value={goal}
-                    maxLength={4096}
-                    onChange={(e) => setGoal(e.target.value)}
+                <article className="team-member" key={a.node.id}>
+                  <span
+                    className={`status-dot ${a.live ? 'status-running' : 'status-paused'}`}
+                    aria-hidden="true"
                   />
-                </label>
-                <label>
-                  Optional coordinator
-                  <select
-                    value={coordinator}
-                    onChange={(e) => setCoordinator(e.target.value)}
-                  >
-                    <option value="">Human planning — no coordinator</option>
-                    {data?.agents
-                      .filter((a) => a.node.agent)
-                      .map((a) => (
-                        <option key={a.node.id} value={a.node.id}>
-                          {a.node.title}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                {(Object.keys(limits) as (keyof Limits)[]).map((key) => (
-                  <label key={key}>
-                    {
-                      {
-                        concurrency: 'Concurrent tasks (1–4)',
-                        queue: 'Queue capacity (1–64)',
-                        attempts:
-                          'Attempts per task, including review revisions (1–8)',
-                        dispatches: 'Total dispatch/iteration limit (1–256)',
-                        runtimeMs: 'Elapsed-time limit (milliseconds)',
-                        backoffMs: 'Retry backoff (milliseconds)',
-                      }[key]
-                    }
-                    <input
-                      type="number"
-                      value={limits[key]}
-                      onChange={(e) =>
-                        setLimits({ ...limits, [key]: Number(e.target.value) })
-                      }
-                    />
-                  </label>
-                ))}
-                <button
-                  disabled={!data || !goal.trim()}
-                  onClick={() =>
-                    void perform(() =>
-                      control({
-                        type: 'new',
-                        id: crypto.randomUUID(),
-                        goal,
-                        coordinator: coordinator || null,
-                        limits,
-                        permissions,
-                      }),
-                    )
-                  }
-                >
-                  Create run with these limits
-                </button>
-              </details>
-              <h3>Separate permissions</h3>
-              {(Object.keys(permissions) as (keyof Permissions)[]).map(
-                (key) => (
-                  <label className="team-permission" key={key}>
-                    <input
-                      type="checkbox"
-                      checked={permissions[key]}
-                      onChange={(e) =>
-                        setPermissions({
-                          ...permissions,
-                          [key]: e.target.checked,
-                        })
-                      }
-                    />
-                    {
-                      {
-                        dispatch: 'Dispatch adopted tasks',
-                        messaging:
-                          'Peer messaging for run agents (existing links still apply)',
-                        launch: 'Explicitly launch existing run members',
-                        provision:
-                          'Provision/clean areas in the adopted repository scope',
-                        checks: 'Run declared checks / record evidence',
-                        integrate:
-                          'Approve and integrate through the scoped Git panel',
-                      }[key]
-                    }
-                  </label>
-                ),
-              )}
-              {run && (
-                <button
-                  onClick={() =>
-                    void perform(() =>
-                      control({ type: 'permissions', permissions }),
-                    )
-                  }
-                >
-                  Apply permissions & pause dispatch
-                </button>
-              )}
-              <h3>Plan proposal</h3>
-              <p>
-                Review every assignment, dependency, checkout, check
-                executable/argument vector and repository allowlist before
-                adoption. Never put credentials in the plan. Declared commands
-                are intentional configuration, not saved terminal history.
-              </p>
-              {run?.proposal && (
-                <button
-                  onClick={() =>
-                    setEditor(JSON.stringify(run.proposal, null, 2))
-                  }
-                >
-                  Load coordinator proposal for editing
-                </button>
-              )}
-              {run?.plan && (
-                <button
-                  onClick={() => setEditor(JSON.stringify(run.plan, null, 2))}
-                >
-                  Load adopted plan
-                </button>
-              )}
-              <details>
-                <summary>Add a job to the editable plan</summary>
-                <label>
-                  Title
-                  <input
-                    value={title}
-                    maxLength={120}
-                    onChange={(e) => setTitle(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Brief
-                  <textarea
-                    value={brief}
-                    maxLength={4096}
-                    onChange={(e) => setBrief(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Acceptance criteria
-                  <textarea
-                    value={criteria}
-                    maxLength={2048}
-                    onChange={(e) => setCriteria(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Builder
-                  <select
-                    value={agent}
-                    onChange={(e) => setAgent(e.target.value)}
-                  >
-                    <option value="">Choose existing agent</option>
-                    {data?.agents.map((a) => (
-                      <option key={a.node.id} value={a.node.id}>
-                        {a.node.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Checkout
-                  <select
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                  >
-                    <option value="">
-                      Shared directory — no isolation guarantee
-                    </option>
-                    {areas?.areas
-                      .filter((a) => !a.removed)
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  Independent reviewer (launch in the same checkout)
-                  <select
-                    value={reviewer}
-                    onChange={(e) => setReviewer(e.target.value)}
-                  >
-                    <option value="">Manual review only</option>
-                    {data?.agents
-                      .filter((a) => a.node.id !== agent)
-                      .map((a) => (
-                        <option key={a.node.id} value={a.node.id}>
-                          {a.node.title}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  Dependency job IDs (comma-separated)
-                  <input
-                    value={deps.join(',')}
-                    onChange={(e) =>
-                      setDeps(
-                        e.target.value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean),
-                      )
-                    }
-                  />
-                </label>
-                <button
-                  disabled={!title || !brief || !criteria || !agent}
-                  onClick={() => {
-                    try {
-                      const p = plan();
-                      p.jobs.push({
-                        id: crypto.randomUUID(),
-                        title,
-                        brief,
-                        criteria,
-                        dependencies: deps,
-                        agent,
-                        area: area || null,
-                        reviewer: reviewer || null,
-                        reviewTask: reviewer ? crypto.randomUUID() : null,
-                      });
-                      setEditor(JSON.stringify(p, null, 2));
-                      setTitle('');
-                    } catch (e) {
-                      setError(String(e));
-                    }
-                  }}
-                >
-                  Add draft job
-                </button>
-              </details>
-              <label>
-                Editable plan JSON
-                <textarea
-                  rows={15}
-                  value={editor}
-                  onChange={(e) => setEditor(e.target.value)}
-                  spellCheck={false}
-                />
-              </label>
-              <button
-                disabled={!run || !editor.trim()}
-                onClick={() =>
-                  void perform(() =>
-                    control({ type: 'adopt', plan: parsePlan(editor) }),
-                  )
-                }
-              >
-                Validate & adopt plan
-              </button>
-              {run && (
-                <>
-                  <h3>Run controls</h3>
-                  <div className="task-actions">
+                  <div className="team-member-info">
+                    <strong>{a.node.title}</strong>
+                    <small>
+                      {a.node.agent?.provider ?? 'cooperative shell'} ·{' '}
+                      {a.node.agent?.roleName ?? 'manual role'} ·{' '}
+                      {a.stopping
+                        ? 'still stopping'
+                        : a.live
+                          ? 'live'
+                          : 'stopped'}
+                    </small>
+                    <p>{a.node.cwd || 'Workspace directory'}</p>
+                  </div>
+                  <div className="team-member-actions">
                     <button
-                      onClick={() =>
-                        void perform(() =>
-                          control({ type: 'start', automatic: false }),
-                        )
-                      }
+                      onClick={() => {
+                        useCanvas.getState().select([a.node.id]);
+                        onClose();
+                      }}
                     >
-                      Start / resume manually
+                      Select node
+                    </button>
+                    <button onClick={() => onEdit(a.node)}>
+                      Role / replace preset…
                     </button>
                     <button
                       onClick={() =>
                         void perform(() =>
-                          control({ type: 'start', automatic: true }),
+                          teamOperations.track(stopSession(a.node.id)),
                         )
                       }
                     >
-                      Start / resume automatic dispatch
+                      Stop
                     </button>
                     <button
-                      onClick={() =>
-                        void perform(() => control({ type: 'pause' }))
+                      disabled={
+                        !run?.permissions.launch || !a.node.agent || a.live
                       }
-                    >
-                      Pause dispatch
-                    </button>
-                    <button
-                      onClick={() =>
-                        void perform(() => control({ type: 'cancel' }))
-                      }
-                    >
-                      Request cancellation
-                    </button>
-                    <button
                       onClick={() =>
                         void perform(() =>
-                          control({ type: 'coordinator', node: null }),
+                          teamOperations.track(
+                            startSession(a.node, workspaceId),
+                          ),
                         )
                       }
                     >
-                      Continue with human planning
+                      Start run member
                     </button>
                   </div>
-                  <p>
-                    Pause stops new dispatches. Cancellation requests
-                    cooperative stop. Emergency stop revokes capabilities and
-                    terminates run processes. Interrupted work requires
-                    reconciliation before handoff or retry.
-                  </p>
-                  <h3>Work & attention</h3>
+                </article>
+              ))}
+            </section>
+            <div className="team-dashboard-sections">
+              <section className="team-section">
+                <details open={!run}>
+                  <summary>Create a bounded run</summary>
                   <label>
-                    Revision reason
-                    <input
-                      value={reason}
-                      maxLength={512}
-                      onChange={(e) => setReason(e.target.value)}
+                    Goal
+                    <textarea
+                      value={goal}
+                      maxLength={4096}
+                      onChange={(e) => setGoal(e.target.value)}
                     />
                   </label>
                   <label>
-                    Stopped replacement agent
+                    Optional coordinator
                     <select
-                      value={handoff}
-                      onChange={(e) => setHandoff(e.target.value)}
+                      value={coordinator}
+                      onChange={(e) => setCoordinator(e.target.value)}
                     >
-                      <option value="">Choose replacement</option>
+                      <option value="">Human planning — no coordinator</option>
+                      {data?.agents
+                        .filter((a) => a.node.agent)
+                        .map((a) => (
+                          <option key={a.node.id} value={a.node.id}>
+                            {a.node.title}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <div className="team-limit-inputs">
+                    {(
+                      [
+                        ['concurrency', 'Concurrent tasks', 1, 4, 1, 1],
+                        ['queue', 'Queue capacity', 1, 64, 1, 1],
+                        ['attempts', 'Attempts per task', 1, 8, 1, 1],
+                        ['dispatches', 'Dispatch limit', 1, 256, 1, 1],
+                        [
+                          'runtimeMs',
+                          'Time budget (seconds)',
+                          1,
+                          86400,
+                          1,
+                          1000,
+                        ],
+                        [
+                          'backoffMs',
+                          'Retry delay (seconds)',
+                          0.1,
+                          300,
+                          0.1,
+                          1000,
+                        ],
+                      ] as const
+                    ).map(([key, label, min, max, step, scale]) => (
+                      <label key={key}>
+                        {label}
+                        <input
+                          type="number"
+                          min={min}
+                          max={max}
+                          step={step}
+                          value={limits[key] / scale}
+                          onChange={(e) =>
+                            setLimits({
+                              ...limits,
+                              [key]: Math.round(Number(e.target.value) * scale),
+                            })
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    disabled={!data || !goal.trim()}
+                    onClick={() =>
+                      void perform(() =>
+                        control({
+                          type: 'new',
+                          id: crypto.randomUUID(),
+                          goal,
+                          coordinator: coordinator || null,
+                          limits,
+                          permissions,
+                        }),
+                      )
+                    }
+                  >
+                    Create run with these limits
+                  </button>
+                </details>
+              </section>
+              {run && (
+                <section className="team-section">
+                  <h3>Limits</h3>
+                  <div className="team-limit-grid">
+                    {[
+                      ['Concurrent tasks', run.limits.concurrency],
+                      ['Queue capacity', run.limits.queue],
+                      ['Attempts per task', run.limits.attempts],
+                      ['Dispatch limit', run.limits.dispatches],
+                      [
+                        'Time budget',
+                        `${run.limits.runtimeMs / 60000} minutes`,
+                      ],
+                      [
+                        'Retry backoff',
+                        `${run.limits.backoffMs / 1000} seconds`,
+                      ],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <small>{label}</small>
+                        <strong>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="page-caption">
+                    These limits belong to this run. Create a new run to use
+                    different limits.
+                  </p>
+                </section>
+              )}
+              <section className="team-section">
+                <h3>Permissions</h3>
+                <p className="page-caption">
+                  Stage changes here, then apply them. Applying permissions
+                  pauses new dispatches.
+                </p>
+                {(Object.keys(permissions) as (keyof Permissions)[]).map(
+                  (key) => (
+                    <div className="permission-row" key={key}>
+                      <span>
+                        <b>
+                          {
+                            {
+                              dispatch: 'Scoped dispatch',
+                              messaging: 'Peer messaging',
+                              launch: 'Launch existing members',
+                              provision: 'Provision task areas',
+                              checks: 'Run declared checks',
+                              integrate: 'Approve and integrate',
+                            }[key]
+                          }
+                        </b>
+                        <small>
+                          {
+                            {
+                              dispatch:
+                                'Start assigned tasks within the adopted plan and limits.',
+                              messaging:
+                                'Existing connections apply. A peer link grants no coordinator authority.',
+                              launch:
+                                'Explicitly start agents that already belong to this run.',
+                              provision:
+                                'Manage checkouts only within adopted repositories.',
+                              checks:
+                                'Run declared checks and record evidence for the exact commit.',
+                              integrate:
+                                'Keep user approval and scoped Git integration gates.',
+                            }[key]
+                          }
+                        </small>
+                      </span>
+                      <button
+                        type="button"
+                        className={`design-switch ${permissions[key] ? 'on' : ''}`}
+                        role="switch"
+                        aria-checked={permissions[key]}
+                        aria-label={key + ' permission'}
+                        onClick={() =>
+                          setPermissions({
+                            ...permissions,
+                            [key]: !permissions[key],
+                          })
+                        }
+                      />
+                    </div>
+                  ),
+                )}
+                {run && (
+                  <button
+                    onClick={() =>
+                      void perform(() =>
+                        control({ type: 'permissions', permissions }),
+                      )
+                    }
+                  >
+                    Apply permissions & pause dispatch
+                  </button>
+                )}
+              </section>
+              <details
+                className="team-section team-plan"
+                ref={planEditor}
+                open={planOpen}
+                onToggle={(e) => setPlanOpen(e.currentTarget.open)}
+              >
+                <summary>Plan proposal</summary>
+                <p>
+                  Review every assignment, dependency, checkout, check
+                  executable/argument vector and repository allowlist before
+                  adoption. Never put credentials in the plan. Declared commands
+                  are intentional configuration, not saved terminal history.
+                </p>
+                {run?.proposal && (
+                  <button
+                    onClick={() =>
+                      setEditor(JSON.stringify(run.proposal, null, 2))
+                    }
+                  >
+                    Load coordinator proposal for editing
+                  </button>
+                )}
+                {run?.plan && (
+                  <button
+                    onClick={() => setEditor(JSON.stringify(run.plan, null, 2))}
+                  >
+                    Load adopted plan
+                  </button>
+                )}
+                <details>
+                  <summary>Add a job to the editable plan</summary>
+                  <label>
+                    Title
+                    <input
+                      value={title}
+                      maxLength={120}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Brief
+                    <textarea
+                      value={brief}
+                      maxLength={4096}
+                      onChange={(e) => setBrief(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Acceptance criteria
+                    <textarea
+                      value={criteria}
+                      maxLength={2048}
+                      onChange={(e) => setCriteria(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Builder
+                    <select
+                      value={agent}
+                      onChange={(e) => setAgent(e.target.value)}
+                    >
+                      <option value="">Choose existing agent</option>
                       {data?.agents.map((a) => (
                         <option key={a.node.id} value={a.node.id}>
                           {a.node.title}
@@ -652,103 +619,304 @@ export function TeamPanel({
                       ))}
                     </select>
                   </label>
-                  {scoped.map((t) => (
-                    <article key={t.id}>
-                      <strong>
-                        {t.title}: {t.state}
-                      </strong>
-                      <code>{t.id}</code>
-                      {t.reason && <p role="status">{t.reason}</p>}
-                      <p>
-                        {t.attempts.length}/{run.limits.attempts} attempts ·{' '}
-                        {t.reviewOf ? 'Independent review' : 'Builder / task'} ·{' '}
-                        {t.assignedTo}
-                      </p>
-                      <div className="task-actions">
+                  <label>
+                    Checkout
+                    <select
+                      value={area}
+                      onChange={(e) => setArea(e.target.value)}
+                    >
+                      <option value="">
+                        Shared directory — no isolation guarantee
+                      </option>
+                      {areas?.areas
+                        .filter((a) => !a.removed)
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Independent reviewer (launch in the same checkout)
+                    <select
+                      value={reviewer}
+                      onChange={(e) => setReviewer(e.target.value)}
+                    >
+                      <option value="">Manual review only</option>
+                      {data?.agents
+                        .filter((a) => a.node.id !== agent)
+                        .map((a) => (
+                          <option key={a.node.id} value={a.node.id}>
+                            {a.node.title}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Dependency job IDs (comma-separated)
+                    <input
+                      value={deps.join(',')}
+                      onChange={(e) =>
+                        setDeps(
+                          e.target.value
+                            .split(',')
+                            .map((s) => s.trim())
+                            .filter(Boolean),
+                        )
+                      }
+                    />
+                  </label>
+                  <button
+                    disabled={!title || !brief || !criteria || !agent}
+                    onClick={() => {
+                      try {
+                        const p = plan();
+                        p.jobs.push({
+                          id: crypto.randomUUID(),
+                          title,
+                          brief,
+                          criteria,
+                          dependencies: deps,
+                          agent,
+                          area: area || null,
+                          reviewer: reviewer || null,
+                          reviewTask: reviewer ? crypto.randomUUID() : null,
+                        });
+                        setEditor(JSON.stringify(p, null, 2));
+                        setTitle('');
+                      } catch (e) {
+                        setError(String(e));
+                      }
+                    }}
+                  >
+                    Add draft job
+                  </button>
+                </details>
+                <label>
+                  Editable plan JSON
+                  <textarea
+                    rows={15}
+                    value={editor}
+                    onChange={(e) => setEditor(e.target.value)}
+                    spellCheck={false}
+                  />
+                </label>
+                <button
+                  disabled={!run || !editor.trim()}
+                  onClick={() =>
+                    void perform(() =>
+                      control({ type: 'adopt', plan: parsePlan(editor) }),
+                    )
+                  }
+                >
+                  Validate & adopt plan
+                </button>
+              </details>
+              {run && (
+                <>
+                  <section className="team-section">
+                    <h3>Run controls</h3>
+                    <div className="task-actions">
+                      <button
+                        onClick={() =>
+                          void perform(() =>
+                            control({ type: 'start', automatic: false }),
+                          )
+                        }
+                      >
+                        Start / resume manually
+                      </button>
+                      <button
+                        onClick={() =>
+                          void perform(() =>
+                            control({ type: 'start', automatic: true }),
+                          )
+                        }
+                      >
+                        Start / resume automatic dispatch
+                      </button>
+                      <button
+                        onClick={() =>
+                          void perform(() => control({ type: 'pause' }))
+                        }
+                      >
+                        Pause dispatch
+                      </button>
+                      <button
+                        onClick={() =>
+                          void perform(() => control({ type: 'cancel' }))
+                        }
+                      >
+                        Request cancellation
+                      </button>
+                      <button
+                        onClick={() =>
+                          void perform(() =>
+                            control({ type: 'coordinator', node: null }),
+                          )
+                        }
+                      >
+                        Continue with human planning
+                      </button>
+                    </div>
+                    <p>
+                      Pause stops new dispatches. Cancellation requests
+                      cooperative stop. Emergency stop revokes capabilities and
+                      terminates run processes. Interrupted work requires
+                      reconciliation before handoff or retry.
+                    </p>
+                  </section>
+                  <section className="team-section">
+                    <h3>Work & attention</h3>
+                    <label>
+                      Revision reason
+                      <input
+                        value={reason}
+                        maxLength={512}
+                        onChange={(e) => setReason(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Stopped replacement agent
+                      <select
+                        value={handoff}
+                        onChange={(e) => setHandoff(e.target.value)}
+                      >
+                        <option value="">Choose replacement</option>
+                        {data?.agents.map((a) => (
+                          <option key={a.node.id} value={a.node.id}>
+                            {a.node.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {scoped.map((t) => (
+                      <article key={t.id}>
+                        <strong>
+                          {t.title}: {t.state}
+                        </strong>
+                        <code>{t.id}</code>
+                        {t.reason && <p role="status">{t.reason}</p>}
+                        <p>
+                          {t.attempts.length}/{run.limits.attempts} attempts ·{' '}
+                          {t.reviewOf ? 'Independent review' : 'Builder / task'}{' '}
+                          · {t.assignedTo}
+                        </p>
+                        <div className="task-actions">
+                          <button
+                            disabled={t.state !== 'ready'}
+                            onClick={() =>
+                              void perform(() =>
+                                control({ type: 'dispatch', id: t.id }),
+                              )
+                            }
+                          >
+                            Dispatch one
+                          </button>
+                          <button
+                            disabled={Boolean(t.reviewOf) || !reason.trim()}
+                            onClick={() =>
+                              void perform(() =>
+                                control({ type: 'revise', id: t.id, reason }),
+                              )
+                            }
+                          >
+                            Stage bounded revision
+                          </button>
+                          <button
+                            disabled={!handoff}
+                            onClick={() =>
+                              void perform(() =>
+                                control({
+                                  type: 'handoff',
+                                  id: t.id,
+                                  agent: handoff,
+                                }),
+                              )
+                            }
+                          >
+                            Hand off after stop & reconciliation
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </section>
+                  <section className="team-section">
+                    <h3>Declared checks</h3>
+                    <p>
+                      Stop all terminals first. Exact adopted .exe argument
+                      vectors run locally with a timeout; output is discarded.
+                      Evidence is saved only if the commit and checkout remain
+                      unchanged.
+                    </p>
+                    {run.plan?.checks.map((c) => (
+                      <article key={c.id}>
+                        <strong>{c.name}</strong>
+                        <code>
+                          {c.program} {JSON.stringify(c.args)}
+                        </code>
+                        <p>
+                          {c.timeoutMs} ms · task {c.task}
+                        </p>
                         <button
-                          disabled={t.state !== 'ready'}
+                          disabled={!run.permissions.checks}
                           onClick={() =>
                             void perform(() =>
-                              control({ type: 'dispatch', id: t.id }),
-                            )
-                          }
-                        >
-                          Dispatch one
-                        </button>
-                        <button
-                          disabled={Boolean(t.reviewOf) || !reason.trim()}
-                          onClick={() =>
-                            void perform(() =>
-                              control({ type: 'revise', id: t.id, reason }),
-                            )
-                          }
-                        >
-                          Stage bounded revision
-                        </button>
-                        <button
-                          disabled={!handoff}
-                          onClick={() =>
-                            void perform(() =>
-                              control({
-                                type: 'handoff',
-                                id: t.id,
-                                agent: handoff,
+                              teamOperations.invoke('team_check_run', {
+                                workspaceId,
+                                runId: run.id,
+                                id: c.id,
                               }),
                             )
                           }
                         >
-                          Hand off after stop & reconciliation
+                          Run this declared check
                         </button>
-                      </div>
-                    </article>
-                  ))}
-                  <h3>Declared checks</h3>
-                  <p>
-                    Stop all terminals first. Exact adopted .exe argument
-                    vectors run locally with a timeout; output is discarded.
-                    Evidence is saved only if the commit and checkout remain
-                    unchanged.
-                  </p>
-                  {run.plan?.checks.map((c) => (
-                    <article key={c.id}>
-                      <strong>{c.name}</strong>
-                      <code>
-                        {c.program} {JSON.stringify(c.args)}
-                      </code>
-                      <p>
-                        {c.timeoutMs} ms · task {c.task}
+                      </article>
+                    ))}
+                  </section>
+                  <section className="team-section">
+                    <h3>Latest decisions</h3>
+                    {!run.events.length && (
+                      <p className="page-caption">
+                        Decisions and handoffs will appear here.
                       </p>
-                      <button
-                        disabled={!run.permissions.checks}
-                        onClick={() =>
-                          void perform(() =>
-                            teamOperations.invoke('team_check_run', {
-                              workspaceId,
-                              runId: run.id,
-                              id: c.id,
-                            }),
-                          )
-                        }
-                      >
-                        Run this declared check
-                      </button>
-                    </article>
-                  ))}
-                  <details open>
-                    <summary>
-                      Local decision timeline ({run.events.length}/256)
-                    </summary>
+                    )}
                     {run.events
-                      .slice()
+                      .slice(-3)
                       .reverse()
-                      .map((e, i) => (
-                        <p key={`${e.at}-${i}`}>
-                          <time>{new Date(e.at).toLocaleString()}</time> ·{' '}
-                          {e.source} · <strong>{e.kind}</strong> {e.task ?? ''}{' '}
-                          — {e.detail}
-                        </p>
+                      .map((event, i) => (
+                        <div className="event-row" key={`${event.at}-${i}`}>
+                          <time>
+                            {new Date(event.at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </time>
+                          <div>
+                            <strong>{event.kind.replaceAll('_', ' ')}</strong>
+                            <p>{event.detail}</p>
+                            <small>{event.source}</small>
+                          </div>
+                        </div>
                       ))}
-                  </details>
+                    <details>
+                      <summary>
+                        Full decision timeline ({run.events.length}/256)
+                      </summary>
+                      {run.events
+                        .slice()
+                        .reverse()
+                        .map((e, i) => (
+                          <p key={`${e.at}-${i}`}>
+                            <time>{new Date(e.at).toLocaleString()}</time> ·{' '}
+                            {e.source} · <strong>{e.kind}</strong>{' '}
+                            {e.task ?? ''} — {e.detail}
+                          </p>
+                        ))}
+                    </details>
+                  </section>
                 </>
               )}
             </div>

@@ -1,3 +1,4 @@
+import { boardColumns, taskMove, type BoardColumn } from './board';
 import { descriptions } from '../ui/design';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '../native';
@@ -32,6 +33,21 @@ export function TaskBoard({
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState('');
   const [search, setSearch] = useState('');
+  const pointerDrag = useRef<
+    | {
+        id: string;
+        revision: number;
+        pointer: number;
+        x: number;
+        y: number;
+        active: boolean;
+      }
+    | undefined
+  >(undefined);
+  const suppressClick = useRef(false);
+  const [dragged, setDragged] = useState<{ id: string; revision: number }>();
+  const [dropColumn, setDropColumn] = useState<BoardColumn>();
+  const [moveStatus, setMoveStatus] = useState('');
   const [mode, setMode] = useState<'board' | 'list'>('board');
   const initialApplied = useRef('');
   const [attention, setAttention] = useState(false);
@@ -133,7 +149,15 @@ export function TaskBoard({
       if (alive.current) {
         setSnapshot(next);
         setPending(undefined);
-        setSelected(request.action.id);
+        const updated = next.board.tasks.find(
+          (t) => t.id === request.action.id,
+        );
+        if (updated) {
+          choose(updated);
+          setMoveStatus(
+            `${updated.title}: ${updated.state}. Confirmed by the workspace.`,
+          );
+        }
       }
     } catch (e) {
       if (alive.current)
@@ -181,6 +205,44 @@ export function TaskBoard({
       (assignedTo || terminals[0]?.id) !== current.assignedTo ||
       JSON.stringify(dependencies) !== JSON.stringify(current.dependencies));
   const readOnly = busy || Boolean(pending);
+  const unsavedDraft = current
+    ? Boolean(dirty)
+    : Boolean(
+        title.trim() || brief.trim() || criteria.trim() || dependencies.length,
+      );
+  const canMove = !readOnly && !unsavedDraft;
+  const move = (id: string, target: BoardColumn, revision: number) => {
+    if (!canMove || !snapshot) {
+      setMoveStatus('Save your draft before moving a task.');
+      return;
+    }
+    if (revision !== snapshot.board.revision) {
+      setMoveStatus(
+        'The board changed. Pick up the task again to use its current state.',
+      );
+      return;
+    }
+    const task = tasks.find((t) => t.id === id);
+    if (!task) {
+      setMoveStatus('This task is no longer available.');
+      return;
+    }
+    const plan = taskMove(task, target, tasks);
+    if (!plan.allowed) {
+      setMoveStatus(plan.reason);
+      return;
+    }
+    choose(task);
+    setMoveStatus(
+      `${plan.label}: ${task.title}. Waiting for the workspace to confirm.`,
+    );
+    void send(
+      plan.action.type === 'dispatch'
+        ? { ...plan.action, attemptId: crypto.randomUUID() }
+        : plan.action,
+    );
+  };
+  const draggingTask = tasks.find((t) => t.id === dragged?.id);
   return (
     <div className={embedded ? 'design-page' : 'modal-backdrop'}>
       <section
@@ -274,17 +336,44 @@ export function TaskBoard({
               </button>
               <span>{tasks.length} tasks</span>
             </div>
+            <p className="board-move-status" role="status" aria-live="polite">
+              {moveStatus ||
+                (unsavedDraft
+                  ? 'Save your draft to enable task moves.'
+                  : 'Drag a task to dispatch it or accept a submitted result. Review starts with an agent result.')}
+            </p>
+            {current && (
+              <label className="keyboard-task-move">
+                Move selected task
+                <select
+                  aria-label="Move selected task"
+                  disabled={!canMove}
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value && snapshot)
+                      move(
+                        current.id,
+                        e.target.value as BoardColumn,
+                        snapshot.board.revision,
+                      );
+                  }}
+                >
+                  <option value="">Choose an action</option>
+                  {boardColumns.map(([column]) => {
+                    const plan = taskMove(current, column, tasks);
+                    return plan.allowed ? (
+                      <option key={column} value={column}>
+                        {plan.label}
+                      </option>
+                    ) : null;
+                  })}
+                </select>
+              </label>
+            )}
             {mode === 'board' ? (
               <div className="kanban-scroll">
                 <div className="kanban-columns">
-                  {(
-                    [
-                      ['ready', 'Ready'],
-                      ['running', 'In progress'],
-                      ['review', 'Review'],
-                      ['done', 'Done'],
-                    ] as const
-                  ).map(([state, label]) => {
+                  {boardColumns.map(([state, label]) => {
                     const rows = visibleTasks(tasks, search, attention).filter(
                       (t) =>
                         state === 'ready'
@@ -298,7 +387,11 @@ export function TaskBoard({
                           : t.state === state,
                     );
                     return (
-                      <section className="kanban-column" key={state}>
+                      <section
+                        className={`kanban-column ${dropColumn === state && draggingTask ? (taskMove(draggingTask, state, tasks).allowed ? 'drop-allowed' : 'drop-blocked') : ''}`}
+                        key={state}
+                        data-board-column={state}
+                      >
                         <h3>
                           {label}
                           <span>{rows.length}</span>
@@ -308,7 +401,110 @@ export function TaskBoard({
                             className={`task-tile ${t.id === selected ? 'on' : ''}`}
                             key={t.id}
                             disabled={readOnly}
-                            onClick={() => choose(t)}
+                            data-draggable={
+                              canMove &&
+                              !['done', 'cancelled', 'running'].includes(
+                                t.state,
+                              )
+                            }
+                            onPointerDown={(e) => {
+                              suppressClick.current = false;
+                              if (
+                                !canMove ||
+                                !snapshot ||
+                                e.button !== 0 ||
+                                ['done', 'cancelled', 'running'].includes(
+                                  t.state,
+                                )
+                              )
+                                return;
+                              pointerDrag.current = {
+                                id: t.id,
+                                revision: snapshot.board.revision,
+                                pointer: e.pointerId,
+                                x: e.clientX,
+                                y: e.clientY,
+                                active: false,
+                              };
+                              e.currentTarget.setPointerCapture(e.pointerId);
+                            }}
+                            onPointerMove={(e) => {
+                              const drag = pointerDrag.current;
+                              if (
+                                !drag ||
+                                drag.pointer !== e.pointerId ||
+                                Math.hypot(
+                                  e.clientX - drag.x,
+                                  e.clientY - drag.y,
+                                ) < 6
+                              )
+                                return;
+                              drag.active = true;
+                              suppressClick.current = true;
+                              setDragged({
+                                id: drag.id,
+                                revision: drag.revision,
+                              });
+                              const target = document
+                                .elementFromPoint(e.clientX, e.clientY)
+                                ?.closest('[data-board-column]')
+                                ?.getAttribute(
+                                  'data-board-column',
+                                ) as BoardColumn | null;
+                              setDropColumn(target ?? undefined);
+                              if (target) {
+                                const plan = taskMove(t, target, tasks);
+                                setMoveStatus(
+                                  plan.allowed
+                                    ? `Release to ${plan.label.toLowerCase()}.`
+                                    : plan.reason,
+                                );
+                              }
+                            }}
+                            onPointerUp={(e) => {
+                              const drag = pointerDrag.current;
+                              pointerDrag.current = undefined;
+                              if (
+                                e.currentTarget.hasPointerCapture(e.pointerId)
+                              )
+                                e.currentTarget.releasePointerCapture(
+                                  e.pointerId,
+                                );
+                              setDragged(undefined);
+                              setDropColumn(undefined);
+                              if (
+                                !drag ||
+                                drag.pointer !== e.pointerId ||
+                                (!drag.active &&
+                                  Math.hypot(
+                                    e.clientX - drag.x,
+                                    e.clientY - drag.y,
+                                  ) < 6)
+                              )
+                                return;
+                              suppressClick.current = true;
+                              e.preventDefault();
+                              const target = document
+                                .elementFromPoint(e.clientX, e.clientY)
+                                ?.closest('[data-board-column]')
+                                ?.getAttribute(
+                                  'data-board-column',
+                                ) as BoardColumn | null;
+                              if (target) move(drag.id, target, drag.revision);
+                            }}
+                            onPointerCancel={() => {
+                              pointerDrag.current = undefined;
+                              setDragged(undefined);
+                              setDropColumn(undefined);
+                            }}
+                            onLostPointerCapture={() => {
+                              pointerDrag.current = undefined;
+                              setDragged(undefined);
+                              setDropColumn(undefined);
+                            }}
+                            onClick={() => {
+                              if (!suppressClick.current) choose(t);
+                            }}
                           >
                             <strong>{t.title}</strong>
                             <small>
@@ -317,7 +513,7 @@ export function TaskBoard({
                               >
                                 {t.state}
                               </span>{' '}
-                              ?{' '}
+                              {'\u00b7'}{' '}
                               {nodes.find((n) => n.id === t.assignedTo)
                                 ?.title ?? 'Missing agent'}
                             </small>

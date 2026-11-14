@@ -1,4 +1,211 @@
 /* Geometry, colour, and component styling from the supplied AgentCanvas.html. */
+.kanban-column.drop-allowed {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+  background: var(--selection);
+}
+.kanban-column.drop-blocked {
+  outline: 1.5px dashed var(--muted);
+  outline-offset: -2px;
+}
+.task-tile[data-draggable='true'] {
+  cursor: grab;
+}
+.task-tile[data-draggable='true']:active {
+  cursor: grabbing;
+}
+.board-move-status {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  min-height: 17px;
+  margin: 0 0 10px;
+}
+.task-board .keyboard-task-move {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.keyboard-task-move select {
+  max-width: 240px;
+}
+.team-dashboard-grid,
+.team-dashboard-sections {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.team-section {
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: 0 0 0 0.5px var(--line-strong);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.team-section h3 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+.team-section > p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.team-section button {
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 13px;
+  background: var(--tbar);
+  font-size: 12px;
+}
+.team-section > details > summary,
+.team-plan > summary {
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.team-section > details[open] > summary,
+.team-plan[open] > summary {
+  margin-bottom: 12px;
+}
+.team-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.team-card-heading p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+.design-page .team-panel article.team-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 12px 0;
+  margin: 0;
+}
+.team-member:last-child {
+  border-bottom: 0 !important;
+}
+.team-member-info {
+  flex: 1;
+  min-width: 140px;
+}
+.team-member-info > strong {
+  font-size: 13px;
+}
+.team-member-info > small {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.team-member-info > p {
+  font:
+    11px/1.5 Consolas,
+    monospace;
+  color: var(--muted);
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.team-member-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.team-limit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 10px 0 16px;
+}
+.team-limit-grid small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.team-limit-grid strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+}
+.team-limit-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 14px;
+}
+.permission-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.permission-row > span {
+  flex: 1;
+}
+.permission-row small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.team-section .permission-row .design-switch {
+  padding: 0;
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--tbar);
+}
+.team-section .permission-row .design-switch.on {
+  background: var(--accent);
+}
+.design-page .team-panel .page-heading .danger {
+  color: #ff3b30;
+}
+.team-section label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.team-section .event-row strong {
+  font-size: 12px;
+  text-transform: capitalize;
+}
+@media (max-width: 900px) {
+  .team-member {
+    flex-wrap: wrap;
+  }
+  .team-member-actions {
+    width: 100%;
+    padding-left: 18px;
+  }
+  .team-limit-inputs,
+  .team-limit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .team-limit-inputs,
+  .team-limit-grid {
+    grid-template-columns: 1fr;
+  }
+  .task-board .keyboard-task-move {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 .area-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -1610,4 +1817,9 @@
 }
 .task-detail fieldset > button {
   margin-top: 8px;
+}
+
+.task-tile[data-draggable='true'] {
+  touch-action: none;
+  user-select: none;
 }
