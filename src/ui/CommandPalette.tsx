@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDialogFocus } from './useDialogFocus';
 import { Icon, type IconName } from './Icon';
 export type PaletteAction = {
@@ -16,6 +16,12 @@ export function CommandPalette({
 }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
+  const results = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    results.current
+      ?.querySelector('[aria-current="true"]')
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [index, query]);
   const ref = useDialogFocus<HTMLElement>(onClose);
   const matches = actions
     .filter((a) =>
@@ -53,7 +59,7 @@ export function CommandPalette({
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                setIndex(Math.min(index + 1, matches.length - 1));
+                setIndex(Math.max(0, Math.min(index + 1, matches.length - 1)));
               }
               if (e.key === 'ArrowUp') {
                 e.preventDefault();
@@ -69,11 +75,13 @@ export function CommandPalette({
             <kbd>Esc</kbd>
           </button>
         </div>
-        <div className="palette-results">
+        <div className="palette-results" ref={results}>
           {matches.map((a, i) => (
             <button
               key={`${a.detail}-${a.label}-${i}`}
               className={index === i ? 'on' : ''}
+              aria-current={index === i ? true : undefined}
+              onFocus={() => setIndex(i)}
               onClick={() => execute(i)}
             >
               <Icon name={a.icon} />

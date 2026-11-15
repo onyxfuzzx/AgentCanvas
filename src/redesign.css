@@ -581,7 +581,7 @@
   overflow: visible;
 }
 .canvas-node.selected {
-  box-shadow: var(--floating-shadow);
+  box-shadow: none;
   outline: 1.5px dashed var(--accent);
   outline-offset: 3px;
 }
@@ -651,7 +651,7 @@
 }
 .status-needs-input,
 .status-paused {
-  background: #c47b00;
+  background: var(--warning);
 }
 @keyframes status-pulse {
   50% {
@@ -1286,9 +1286,9 @@
 }
 .kanban-columns {
   display: grid;
-  grid-template-columns: repeat(4, minmax(170px, 1fr));
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
   gap: 12px;
-  min-width: 740px;
+  min-width: 800px;
 }
 .kanban-column {
   background: var(--side);
@@ -1352,10 +1352,10 @@
   color: #ff3b30;
 }
 .task-state-done {
-  color: #1f9d55;
+  color: var(--positive);
 }
 .task-state-review {
-  color: #c47b00;
+  color: var(--warning);
 }
 .task-list-view {
   background: var(--panel);
@@ -1529,9 +1529,7 @@
   overflow-wrap: anywhere;
 }
 .formatted-diff {
-  font:
-    12px/1.6 Consolas,
-    monospace;
+  font: 12px/1.6 var(--mono-font);
   background: var(--panel);
   border-radius: 12px;
   overflow: auto;
@@ -1555,7 +1553,7 @@
   padding-right: 12px;
 }
 .diff-line.add {
-  background: color-mix(in srgb, #1f9d55 15%, transparent);
+  background: color-mix(in srgb, var(--positive) 15%, transparent);
 }
 .diff-line.del {
   background: color-mix(in srgb, #ff3b30 15%, transparent);
@@ -1662,13 +1660,15 @@
   animation: none !important;
   transition: none !important;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1280px) {
   .workspace-actions > button > span {
     display: none;
   }
   .workspace-actions > button {
     padding: 0 12px;
   }
+}
+@media (max-width: 1100px) {
   .canvas-node .node-type {
     max-width: 95px;
   }
@@ -1940,7 +1940,7 @@
 .review-alert {
   padding: 12px 16px;
   background: var(--panel);
-  border: 1px solid #c47b00;
+  border: 1px solid var(--warning);
   border-radius: 12px;
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -2095,13 +2095,13 @@
   color: var(--muted);
 }
 .diff-added {
-  color: #1f9d55;
+  color: var(--positive);
   font:
     11px Consolas,
     monospace;
 }
 .diff-deleted {
-  color: #d23b32;
+  color: var(--negative);
   font:
     11px Consolas,
     monospace;
@@ -2148,10 +2148,10 @@
   color: var(--muted);
 }
 .file-status-A {
-  color: #1f9d55;
+  color: var(--positive);
 }
 .file-status-D {
-  color: #d23b32;
+  color: var(--negative);
 }
 .diff-pagination {
   display: flex;
@@ -2213,5 +2213,125 @@
 @media (max-width: 900px) {
   .review-workspace .diff-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Reference alignment and containment for short/scaled desktop windows. */
+.app-shell {
+  font: 13px/1.45 var(--ui-font);
+}
+.app-shell h1,
+.app-shell h2,
+.app-shell h3,
+.app-shell p {
+  overflow-wrap: anywhere;
+}
+.page-width,
+.page-heading > div,
+.page-actions,
+.design-card,
+.team-card-heading,
+.settings-row > span,
+.event-row > div,
+.notes-layout > nav,
+.notes-layout > nav button > span {
+  min-width: 0;
+}
+.page-heading > div:first-child {
+  flex: 1 1 240px;
+}
+.page-actions {
+  max-width: 100%;
+}
+.app-shell button:focus-visible,
+.app-shell input:focus-visible,
+.app-shell select:focus-visible,
+.app-shell textarea:focus-visible,
+.app-shell summary:focus-visible,
+.app-shell [tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.page-actions > button:hover:not(:disabled),
+.settings-row > button:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px var(--muted);
+}
+.design-page button.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+  box-shadow: none;
+}
+.inspector textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  background: var(--canvas);
+  color: var(--ink);
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 0 0 0.5px var(--line-strong);
+  font: inherit;
+  resize: vertical;
+}
+.modal-backdrop {
+  background: #0000004d;
+  backdrop-filter: none;
+  padding: 16px;
+}
+.command-palette {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
+}
+.palette-search {
+  flex: none;
+}
+.palette-results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  scroll-padding: 5px;
+}
+.palette-results > button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.palette-results small {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.kanban-scroll,
+.formatted-diff,
+.sidebar,
+.inspector,
+.dialog {
+  overscroll-behavior: contain;
+}
+.design-page .segmented {
+  max-width: 100%;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.segmented button {
+  white-space: nowrap;
+}
+.area-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
+}
+@media (max-width: 760px) {
+  .design-page {
+    padding-right: 14px;
+  }
+  .team-card-heading,
+  .task-board-controls,
+  .permission-row {
+    flex-wrap: wrap;
+  }
+  .permission-row > span {
+    min-width: min(180px, 100%);
+  }
+  .settings-row select {
+    max-width: 100%;
   }
 }

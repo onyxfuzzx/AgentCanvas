@@ -47,7 +47,8 @@ export function Canvas({
   renderNode?: (node: CanvasNode, visible: boolean) => ReactNode;
   onClose: (ids: string[]) => void;
   disabled?: boolean;
-  insets?: import('./model').CanvasInsets;
+  insets?:
+    import('./model').CanvasInsets | (() => import('./model').CanvasInsets);
   onRestart?: (id: string) => void;
   onConnections?: () => void;
 }) {
@@ -180,7 +181,7 @@ export function Canvas({
               .nodes.filter((n) => inArea(n, useCanvas.getState().areaScope)),
             size.width,
             size.height,
-            insets,
+            typeof insets === 'function' ? insets() : insets,
           ),
         );
       }
@@ -889,7 +890,14 @@ export function Canvas({
           onClick={() =>
             useCanvas
               .getState()
-              .setViewport(fitViewport(nodes, size.width, size.height, insets))
+              .setViewport(
+                fitViewport(
+                  nodes,
+                  size.width,
+                  size.height,
+                  typeof insets === 'function' ? insets() : insets,
+                ),
+              )
           }
         >
           Fit

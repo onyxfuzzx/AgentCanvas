@@ -6,6 +6,8 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Icon } from './ui/Icon';
+import { panelInsets } from './ui/layout';
+import { useCompactLayout } from './ui/useMediaQuery';
 import { views, readAppearance, type View } from './ui/design';
 import {
   NotesPage,
@@ -55,7 +57,14 @@ export function App() {
   const selected = useCanvas((s) => s.selected);
   const past = useCanvas((s) => s.past);
   const future = useCanvas((s) => s.future);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const compactLayout = useCompactLayout();
+  const [wideSidebarOpen, setWideSidebarOpen] = useState(true);
+  const [compactSidebarOpen, setCompactSidebarOpen] = useState(false);
+  const sidebarOpen = compactLayout ? compactSidebarOpen : wideSidebarOpen;
+  const setSidebarOpen = compactLayout
+    ? setCompactSidebarOpen
+    : setWideSidebarOpen;
+  const shell = useRef<HTMLDivElement>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [help, setHelp] = useState(false);
@@ -393,7 +402,12 @@ export function App() {
   const [taskSelection, setTaskSelection] = useState<string>();
   const focus = nodes.find((n) => n.id === selected[0]);
   return (
-    <div className="app-shell" data-view={view} data-drawing={drawOpen}>
+    <div
+      ref={shell}
+      className="app-shell"
+      data-view={view}
+      data-drawing={drawOpen}
+    >
       <header
         className="titlebar"
         aria-hidden="true"
@@ -408,6 +422,7 @@ export function App() {
       >
         <aside
           className="sidebar"
+          id="workspace-navigation"
           aria-label="Workspace navigation"
           inert={!sidebarOpen}
         >
@@ -561,7 +576,10 @@ export function App() {
                 key={id}
                 className={view === id ? 'on' : ''}
                 aria-current={view === id ? 'page' : undefined}
-                onClick={() => setView(id)}
+                onClick={() => {
+                  setView(id);
+                  if (compactLayout) setSidebarOpen(false);
+                }}
               >
                 <Icon name={icon} />
                 <span>{label}</span>
@@ -591,6 +609,8 @@ export function App() {
             <button
               className="sidebar-reopen"
               aria-label="Show sidebar"
+              aria-controls="workspace-navigation"
+              aria-expanded={false}
               title="Show sidebar"
               onClick={() => setSidebarOpen(true)}
             >
@@ -658,6 +678,7 @@ export function App() {
           <div className="workspace-actions">
             <button
               className="workspace-switch"
+              aria-label={`Manage workspaces: ${work.active?.document.name ?? 'Workspace'}`}
               title="Manage workspaces"
               onClick={() => setWorkspacesOpen(true)}
             >
@@ -673,6 +694,11 @@ export function App() {
               <Icon name="sidebar" />
             </button>
             <button
+              aria-label={
+                run?.state === 'running'
+                  ? 'Pause dispatch; running tasks continue'
+                  : 'Open team or resume dispatch'
+              }
               title={
                 run?.state === 'running'
                   ? 'Pause dispatch; running tasks continue'
@@ -832,11 +858,17 @@ export function App() {
           {view === 'canvas' && (
             <Canvas
               disabled={busy}
-              insets={{
-                left: sidebarOpen ? 260 : 0,
-                right: inspectorOpen ? 310 : 0,
-                top: 100,
-                bottom: 70,
+              insets={() => {
+                const root = shell.current!;
+                return panelInsets(
+                  root.getBoundingClientRect(),
+                  sidebarOpen
+                    ? root.querySelector('.sidebar')?.getBoundingClientRect()
+                    : undefined,
+                  inspectorOpen
+                    ? root.querySelector('.inspector')?.getBoundingClientRect()
+                    : undefined,
+                );
               }}
               onRestart={setRestartId}
               onConnections={() => setConnectionsOpen(true)}
