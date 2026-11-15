@@ -360,12 +360,24 @@
   flex: 1;
 }
 .window-lights button {
-  width: 12px;
-  height: 12px;
-  min-width: 12px;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
   border: 0;
   border-radius: 50%;
   padding: 0;
+  display: grid;
+  place-items: center;
+  color: #39271c;
+}
+.window-lights svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .window-lights .light-close {
   background: #ff5f57;
@@ -586,6 +598,31 @@
   left: 14px;
   top: 14px;
   z-index: 25;
+}
+.window-chrome-floating {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  height: 38px;
+  padding: 0 8px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border-radius: 19px;
+  box-shadow: var(--floating-shadow);
+  z-index: 29;
+}
+.window-chrome-floating .window-lights {
+  flex: none;
+}
+.window-chrome-floating .sidebar-reopen {
+  position: static;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .canvas {
   position: absolute;
@@ -1724,7 +1761,7 @@
     transform: none;
   }
   .sidebar-hidden .creation-toolbar {
-    left: 64px;
+    left: 164px;
   }
   .statusbar > span:nth-child(2) {
     display: none;

@@ -38,7 +38,7 @@ export function startBrowserSurfaces() {
       invalidate();
   });
   const overlay =
-    '.sidebar,.creation-toolbar,.workspace-actions,.inspector,.node-subbar,.design-page,.sidebar-reopen,.modal-backdrop,.workspace-loading,.collaboration-panel,.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.workspace-warning,.notice,.marquee,.drawing-preview';
+    '.sidebar,.creation-toolbar,.workspace-actions,.inspector,.node-subbar,.design-page,.sidebar-reopen,.window-chrome-floating,.modal-backdrop,.workspace-loading,.collaboration-panel,.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.workspace-warning,.notice,.marquee,.drawing-preview';
   const mutations = new MutationObserver((records) => {
     if (
       records.some((r) => {
@@ -102,7 +102,7 @@ export function startBrowserSurfaces() {
         const canvasRect = canvas.getBoundingClientRect();
         const covers = Array.from(
           document.querySelectorAll<HTMLElement>(
-            '.sidebar,.creation-toolbar,.workspace-actions,.inspector,.node-subbar,.sidebar-reopen,.titlebar,.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.collaboration-panel,.workspace-warning,.notice',
+            '.sidebar,.creation-toolbar,.workspace-actions,.inspector,.node-subbar,.sidebar-reopen,.window-chrome-floating,.titlebar,.drawing-tools,.canvas-controls,.minimap,.canvas-hint,.pending-badge,.notes-warning,.collaboration-panel,.workspace-warning,.notice',
           ),
         );
         const coverRects = covers.map((e) => e.getBoundingClientRect());

@@ -6,6 +6,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Icon, nodeIcon } from './ui/Icon';
+import { WindowControls } from './ui/WindowControls';
 import { panelInsets } from './ui/layout';
 import { useCompactLayout } from './ui/useMediaQuery';
 import { views, readAppearance, type View } from './ui/design';
@@ -440,29 +441,7 @@ export function App() {
                 void windowAction('toggleMaximize');
             }}
           >
-            <div className="window-lights" aria-label="Window controls">
-              <button
-                className="light-close"
-                title="Close application"
-                aria-label="Close application"
-                disabled={!isDesktop()}
-                onClick={requestClose}
-              />
-              <button
-                className="light-minimize"
-                title="Minimize"
-                aria-label="Minimize"
-                disabled={!isDesktop()}
-                onClick={() => void windowAction('minimize')}
-              />
-              <button
-                className="light-maximize"
-                title="Maximize"
-                aria-label="Maximize"
-                disabled={!isDesktop()}
-                onClick={() => void windowAction('toggleMaximize')}
-              />
-            </div>
+            <WindowControls onClose={requestClose} />
             <button
               className="sidebar-pill"
               title="New terminal"
@@ -596,16 +575,19 @@ export function App() {
         </aside>
         <main className="main-workspace">
           {!sidebarOpen && (
-            <button
-              className="sidebar-reopen"
-              aria-label="Show sidebar"
-              aria-controls="workspace-navigation"
-              aria-expanded={false}
-              title="Show sidebar"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Icon name="sidebar" />
-            </button>
+            <div className="window-chrome-floating">
+              <WindowControls onClose={requestClose} />
+              <button
+                className="sidebar-reopen"
+                aria-label="Show sidebar"
+                aria-controls="workspace-navigation"
+                aria-expanded={false}
+                title="Show sidebar"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Icon name="sidebar" />
+              </button>
+            </div>
           )}
           <div
             className="creation-toolbar"

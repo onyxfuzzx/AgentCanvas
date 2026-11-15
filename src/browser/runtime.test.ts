@@ -23,6 +23,7 @@ test('idle frames avoid layout measurement; geometry, DPR and modal changes inva
   };
   const host = { getBoundingClientRect: measure, closest: () => null };
   let modal = false;
+  let floatingControls = false;
   const cancel = vi.fn();
   vi.stubGlobal('window', {
     devicePixelRatio: 1,
@@ -42,7 +43,19 @@ test('idle frames avoid layout measurement; geometry, DPR and modal changes inva
           : modal
             ? {}
             : null,
-    querySelectorAll: () => [],
+    querySelectorAll: (selector: string) =>
+      floatingControls && selector.includes('.window-chrome-floating')
+        ? [
+            {
+              getBoundingClientRect: () => ({
+                x: 100,
+                y: 100,
+                width: 120,
+                height: 38,
+              }),
+            },
+          ]
+        : [],
   });
   vi.stubGlobal('Element', class Element {});
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -117,6 +130,28 @@ test('idle frames avoid layout measurement; geometry, DPR and modal changes inva
   window.devicePixelRatio = 1.5;
   await frame();
   expect(measure.mock.calls.length).toBeGreaterThan(beforeDpi);
+  floatingControls = true;
+  changed!(
+    [
+      { attributeName: 'inert', target: {}, addedNodes: [], removedNodes: [] },
+    ] as unknown as MutationRecord[],
+    {} as MutationObserver,
+  );
+  await frame();
+  const clipped = vi
+    .mocked(invoke)
+    .mock.calls.filter(([command]) => command === 'browser_sync')
+    .at(-1)?.[1];
+  expect(clipped).toMatchObject({
+    surfaces: [
+      {
+        clips: [
+          { x: 0, y: 38, width: 600, height: 362 },
+          { x: 120, y: 0, width: 480, height: 38 },
+        ],
+      },
+    ],
+  });
   modal = true;
   changed!(
     [
