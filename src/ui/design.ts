@@ -3,7 +3,7 @@ export const views = [
   ['canvas', 'Canvas', 'canvas'],
   ['tasks', 'Tasks', 'tasks'],
   ['team', 'Team run', 'team'],
-  ['areas', 'Task areas', 'layers'],
+  ['areas', 'Task areas', 'branch'],
   ['review', 'Review', 'review'],
   ['notes', 'Notes', 'note'],
   ['activity', 'Activity', 'activity'],

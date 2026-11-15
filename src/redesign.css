@@ -255,6 +255,30 @@
   fill: none;
   flex: none;
 }
+.canvas-controls button,
+.drawing-tools button,
+.dialog-close,
+.browser-navigation > button[aria-label],
+.node-grip .node-header-close,
+.node-grip .link-port {
+  display: grid;
+  place-items: center;
+}
+.node-grip .node-header-close .ui-icon,
+.node-grip .link-port .ui-icon {
+  width: 14px;
+  height: 14px;
+}
+.connection-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.empty-glyph .ui-icon {
+  width: 32px;
+  height: 32px;
+}
 .app-shell {
   height: 100dvh;
   font:
@@ -845,6 +869,7 @@
   height: 34px;
   border-radius: 50%;
   font-size: 14px;
+  padding: 0;
 }
 .canvas-controls span {
   min-width: 42px;

@@ -1,4 +1,4 @@
-import { Icon } from '../ui/Icon';
+import { Icon, nodeIcon } from '../ui/Icon';
 import { NodeStatus } from '../terminal/NodeStatus';
 import {
   useEffect,
@@ -615,19 +615,7 @@ export function Canvas({
                 }}
               >
                 <span className="node-kind">
-                  <Icon
-                    name={
-                      node.kind === 'terminal'
-                        ? node.agent
-                          ? 'agent'
-                          : 'terminal'
-                        : node.kind === 'note'
-                          ? 'note'
-                          : node.kind === 'browser'
-                            ? 'browser'
-                            : 'card'
-                    }
-                  />
+                  <Icon name={nodeIcon(node)} />
                 </span>
                 <strong>{node.title}</strong>
                 {node.kind === 'terminal' && (
@@ -644,7 +632,7 @@ export function Canvas({
                   aria-label={`Close ${node.title}`}
                   onClick={() => onClose([node.id])}
                 >
-                  ×
+                  <Icon name="close" />
                 </button>
                 {(node.kind === 'terminal' || node.kind === 'note') && (
                   <button
@@ -675,7 +663,7 @@ export function Canvas({
                       });
                     }}
                   >
-                    ↔
+                    <Icon name="link" />
                   </button>
                 )}
               </header>
@@ -722,11 +710,11 @@ export function Canvas({
                   )}
                   {node.kind === 'terminal' && (
                     <button
-                      title="Restart settings"
-                      aria-label="Restart settings"
+                      title="Configure terminal restart"
+                      aria-label="Configure terminal restart"
                       onClick={() => onRestart?.(node.id)}
                     >
-                      <Icon name="refresh" />
+                      <Icon name="settings" />
                     </button>
                   )}
                   <button
@@ -769,7 +757,9 @@ export function Canvas({
       </div>
       {!nodes.length && tool === 'select' && (
         <div className="empty-state">
-          <div className="empty-glyph">⌘</div>
+          <div className="empty-glyph">
+            <Icon name="canvas" />
+          </div>
           <span className="eyebrow">YOUR WORK, WITH ROOM TO BREATHE</span>
           <h1>
             A canvas for
@@ -814,23 +804,20 @@ export function Canvas({
                   ? 'Select and move'
                   : `Draw ${kind}`
             }
+            aria-label={
+              kind === 'connector'
+                ? 'Connect two nodes'
+                : kind === 'select'
+                  ? 'Select and move'
+                  : `Draw ${kind}`
+            }
             onClick={() => {
               setTool(kind);
               setSource(null);
               setDraft(null);
             }}
           >
-            {
-              {
-                select: '↖',
-                rectangle: '▭',
-                ellipse: '◯',
-                text: 'T',
-                arrow: '↗',
-                connector: '⇄',
-                freehand: '✎',
-              }[kind]
-            }
+            <Icon name={kind} />
           </button>
         ))}
         <span>
@@ -853,6 +840,7 @@ export function Canvas({
       >
         <button
           title="Zoom out"
+          aria-label="Zoom out"
           onClick={() =>
             useCanvas
               .getState()
@@ -865,11 +853,12 @@ export function Canvas({
               )
           }
         >
-          −
+          <Icon name="minus" />
         </button>
         <span>{Math.round(viewport.zoom * 100)}%</span>
         <button
           title="Zoom in"
+          aria-label="Zoom in"
           onClick={() =>
             useCanvas
               .getState()
@@ -882,11 +871,12 @@ export function Canvas({
               )
           }
         >
-          +
+          <Icon name="plus" />
         </button>
         <i />
         <button
           title="Fit all nodes"
+          aria-label="Fit all nodes"
           onClick={() =>
             useCanvas
               .getState()
@@ -900,14 +890,18 @@ export function Canvas({
               )
           }
         >
-          Fit
+          <Icon name="fit" />
         </button>
         <button
-          title="Toggle snap to grid"
+          title={snapGrid ? 'Turn off snap to grid' : 'Turn on snap to grid'}
+          aria-label={
+            snapGrid ? 'Turn off snap to grid' : 'Turn on snap to grid'
+          }
+          aria-pressed={snapGrid}
           className={snapGrid ? 'active' : ''}
           onClick={() => useCanvas.getState().toggleSnap()}
         >
-          ⌗
+          <Icon name="grid" />
         </button>
       </div>
     </div>

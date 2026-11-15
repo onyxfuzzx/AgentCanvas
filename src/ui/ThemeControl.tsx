@@ -1,8 +1,20 @@
 import { Icon } from './Icon';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 type Theme = 'system' | 'light' | 'dark';
 const key = 'agentcanvas.theme';
+const systemTheme = () =>
+  window.matchMedia('(prefers-color-scheme: dark)').matches;
+const subscribeSystemTheme = (notify: () => void) => {
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+  media.addEventListener('change', notify);
+  return () => media.removeEventListener('change', notify);
+};
 function savedTheme(): Theme {
   try {
     const value = localStorage.getItem(key);
@@ -13,6 +25,8 @@ function savedTheme(): Theme {
 }
 export function ThemeControl({ compact = false }: { compact?: boolean }) {
   const [theme, setTheme] = useState<Theme>(savedTheme);
+  const systemDark = useSyncExternalStore(subscribeSystemTheme, systemTheme);
+  const dark = theme === 'system' ? systemDark : theme === 'dark';
   useEffect(() => {
     const sync = (event: Event) =>
       setTheme((event as CustomEvent<Theme>).detail);
@@ -43,17 +57,11 @@ export function ThemeControl({ compact = false }: { compact?: boolean }) {
   if (compact)
     return (
       <button
-        title="Toggle theme"
-        aria-label="Toggle theme"
-        onClick={() =>
-          change(
-            document.documentElement.dataset.theme === 'dark'
-              ? 'light'
-              : 'dark',
-          )
-        }
+        title={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+        aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+        onClick={() => change(dark ? 'light' : 'dark')}
       >
-        <Icon name="sun" />
+        <Icon name={dark ? 'sun' : 'moon'} />
       </button>
     );
   return (

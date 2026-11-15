@@ -41,7 +41,7 @@ export function DiffViewer({ diff }: { diff: string }) {
                 setPage(0);
               }}
             >
-              <Icon name="note" />
+              <Icon name="file" />
               <span>{file.path}</span>
               <b className={`file-status file-status-${file.status}`}>
                 {file.status}

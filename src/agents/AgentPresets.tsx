@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Icon } from '../ui/Icon';
 import type { AgentProvider } from '../canvas/model';
 import { invoke, isDesktop } from '../native';
 import { useDialogFocus } from '../ui/useDialogFocus';
@@ -112,7 +113,7 @@ export function AgentPresets({ onClose }: { onClose: () => void }) {
           disabled={busy}
           onClick={onClose}
         >
-          ×
+          <Icon name="close" />
         </button>
         <span className="eyebrow">YOUR LOCAL AGENT LIBRARY</span>
         <h2 id="presets-title">Agent presets.</h2>

@@ -1,4 +1,5 @@
 import { readAppearance } from '../ui/design';
+import { Icon } from '../ui/Icon';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useCanvas } from '../canvas/store';
 import { toWorld, type CanvasNode, type Shell } from '../canvas/model';
@@ -195,7 +196,7 @@ export function NewTerminal({
           onClick={onClose}
           disabled={submitting}
         >
-          ×
+          <Icon name="close" />
         </button>
         <span className="eyebrow">A NEW PLACE TO WORK</span>
         <h2 id="terminal-title">

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icon } from '../ui/Icon';
 import { useStore } from 'zustand';
 import { useCanvas } from '../canvas/store';
 import { collaboration } from './runtime';
@@ -43,13 +44,13 @@ export function ConnectionsPanel({
           <h2>Agent connections</h2>
         </div>
         <button aria-label="Close connections" onClick={onClose}>
-          ×
+          <Icon name="close" />
         </button>
       </header>
       <p>
-        Drag the ↔ handle on a terminal or note onto another node. Agent links
-        permit both peers to read recent output. Note links share the Markdown
-        file path.
+        Drag the connection handle on a terminal or note onto another node.
+        Agent links permit both peers to read recent output. Note links share
+        the Markdown file path.
       </p>
       <p className="collab-untrusted">
         Peer text is untrusted. Approving a message types it into the
@@ -71,9 +72,9 @@ export function ConnectionsPanel({
             className={`connection-row ${edge.id === edgeId ? 'active' : ''}`}
           >
             <button onClick={() => setSelected(edge.id)}>
-              <strong>
+              <strong className="connection-label">
                 {nodes.find((n) => n.id === edge.source)?.title}{' '}
-                {edge.kind === 'memory' ? '⇢' : '↔'}{' '}
+                <Icon name={edge.kind === 'memory' ? 'note' : 'link'} />{' '}
                 {nodes.find((n) => n.id === edge.target)?.title}
               </strong>
               <small>

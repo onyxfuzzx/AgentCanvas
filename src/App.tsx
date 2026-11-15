@@ -5,7 +5,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { Icon } from './ui/Icon';
+import { Icon, nodeIcon } from './ui/Icon';
 import { panelInsets } from './ui/layout';
 import { useCompactLayout } from './ui/useMediaQuery';
 import { views, readAppearance, type View } from './ui/design';
@@ -339,7 +339,7 @@ export function App() {
     })),
     ...nodes.map((n) => ({
       label: n.title,
-      icon: n.kind === 'note' ? ('note' as const) : ('terminal' as const),
+      icon: nodeIcon(n),
       detail: n.kind,
       run: () => focusNode(n.id),
     })),
@@ -373,7 +373,7 @@ export function App() {
     },
     {
       label: 'Keyboard shortcuts',
-      icon: 'command',
+      icon: 'keyboard',
       detail: 'Action',
       run: () => setHelp(true),
     },
@@ -529,7 +529,7 @@ export function App() {
                         setView('canvas');
                       }}
                     >
-                      <Icon name="link" />
+                      <Icon name="branch" />
                       <span>{a.name}</span>
                       <small>
                         {
@@ -552,17 +552,7 @@ export function App() {
                       className={`project-item node-tree-item ${selected.includes(n.id) && view === 'canvas' ? 'selected' : ''}`}
                       onClick={() => focusNode(n.id)}
                     >
-                      <Icon
-                        name={
-                          n.kind === 'terminal'
-                            ? 'terminal'
-                            : n.kind === 'note'
-                              ? 'note'
-                              : n.kind === 'browser'
-                                ? 'browser'
-                                : 'card'
-                        }
-                      />
+                      <Icon name={nodeIcon(n)} />
                       <span>{n.title}</span>
                     </button>
                   ))}
@@ -672,7 +662,7 @@ export function App() {
                   );
               }}
             >
-              <Icon name="card" />
+              <Icon name="shapes" />
             </button>
           </div>
           <div className="workspace-actions">
@@ -691,23 +681,23 @@ export function App() {
               aria-pressed={inspectorOpen}
               onClick={() => setInspectorOpen(!inspectorOpen)}
             >
-              <Icon name="sidebar" />
+              <Icon name="inspector" />
             </button>
             <button
               aria-label={
                 run?.state === 'running'
                   ? 'Pause dispatch; running tasks continue'
-                  : 'Open team or resume dispatch'
+                  : 'Open team run'
               }
               title={
                 run?.state === 'running'
                   ? 'Pause dispatch; running tasks continue'
-                  : 'Open team or resume dispatch'
+                  : 'Open team run'
               }
               disabled={teamControlBusy}
               onClick={() => void toggleDispatch()}
             >
-              <Icon name={run?.state === 'running' ? 'pause' : 'play'} />
+              <Icon name={run?.state === 'running' ? 'pause' : 'team'} />
               <span>
                 {run?.state === 'running' ? 'Pause dispatch' : 'Team run'}
               </span>
@@ -1201,7 +1191,7 @@ export function App() {
         <div className="notice" role="alert">
           {notice}
           <button onClick={() => setNotice('')} aria-label="Dismiss error">
-            ×
+            <Icon name="close" />
           </button>
         </div>
       )}
@@ -1217,7 +1207,7 @@ export function App() {
               onClick={() => setHelp(false)}
               aria-label="Close shortcuts"
             >
-              ×
+              <Icon name="close" />
             </button>
             <span className="eyebrow">MAKE YOURSELF AT HOME</span>
             <h2 id="shortcut-title">A few useful shortcuts.</h2>

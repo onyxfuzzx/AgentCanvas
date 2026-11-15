@@ -317,7 +317,7 @@ export function ReviewPage({
               disabled={busy}
               onClick={() => setSelected(a.id)}
             >
-              <Icon name="link" />
+              <Icon name="branch" />
               {a.name}
             </button>
           ))}
@@ -338,7 +338,7 @@ export function ReviewPage({
         )}
         {!available.length && !busy && (
           <section className="design-card page-empty">
-            <Icon name="layers" />
+            <Icon name="branch" />
             <h2>No task areas to review.</h2>
             <p>Create a task area to inspect its committed changes.</p>
             <button onClick={onAreas}>Open task areas</button>
@@ -353,7 +353,7 @@ export function ReviewPage({
           <>
             <section className="design-card review-commit-card">
               <div className="review-commit-heading">
-                <Icon name="link" />
+                <Icon name="branch" />
                 <h2>{area.branch}</h2>
                 {review && (
                   <code title={review.head}>{review.head.slice(0, 12)}</code>

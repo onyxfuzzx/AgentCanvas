@@ -188,7 +188,7 @@ export function AreasPanel({
                     key={a.id}
                   >
                     <div className="area-summary-top">
-                      <Icon name="link" />
+                      <Icon name="branch" />
                       <span className="task-state">
                         {a.integrated
                           ? 'Integration recorded'

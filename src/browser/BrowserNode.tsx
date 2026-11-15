@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon } from '../ui/Icon';
 import { useStore } from 'zustand';
 import type { CanvasNode } from '../canvas/model';
 import { useCanvas } from '../canvas/store';
@@ -39,26 +40,29 @@ export function BrowserNode({ node }: { node: CanvasNode }) {
         <button
           type="button"
           aria-label="Back"
+          title="Back"
           disabled={!session || busy}
           onClick={() => perform(() => browsers.action(node.id, 'back'))}
         >
-          ←
+          <Icon name="back" />
         </button>
         <button
           type="button"
           aria-label="Forward"
+          title="Forward"
           disabled={!session || busy}
           onClick={() => perform(() => browsers.action(node.id, 'forward'))}
         >
-          →
+          <Icon name="forward" />
         </button>
         <button
           type="button"
           aria-label="Reload page"
+          title="Reload page"
           disabled={!session || busy}
           onClick={() => perform(() => browsers.action(node.id, 'reload'))}
         >
-          ↻
+          <Icon name="refresh" />
         </button>
         <input
           aria-label="Browser address"

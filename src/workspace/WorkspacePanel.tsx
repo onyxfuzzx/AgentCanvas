@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Icon } from '../ui/Icon';
 import { workspace, useWorkspace } from './runtime';
 import { useDialogFocus } from '../ui/useDialogFocus';
 
@@ -52,7 +53,7 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
           aria-label="Close workspaces"
           onClick={onClose}
         >
-          ×
+          <Icon name="close" />
         </button>
         <span className="eyebrow">A PLACE FOR EACH PROJECT</span>
         <h2 id="workspaces-title">Your workspaces.</h2>
