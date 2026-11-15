@@ -53,22 +53,24 @@ export function NotesPage({
             New note
           </button>
         </PageHeading>
-        <div className="notes-layout">
-          <nav aria-label="Workspace notes">
-            {nodes.map((n) => (
-              <button
-                className={current?.id === n.id ? 'on' : ''}
-                key={n.id}
-                onClick={() => setId(n.id)}
-              >
-                <Icon name="note" />
-                <span>
-                  {n.title}
-                  <small>Markdown</small>
-                </span>
-              </button>
-            ))}
-          </nav>
+        <div className="notes-layout" data-empty={!nodes.length}>
+          {nodes.length > 0 && (
+            <nav aria-label="Workspace notes">
+              {nodes.map((n) => (
+                <button
+                  className={current?.id === n.id ? 'on' : ''}
+                  key={n.id}
+                  onClick={() => setId(n.id)}
+                >
+                  <Icon name="note" />
+                  <span>
+                    {n.title}
+                    <small>Markdown</small>
+                  </span>
+                </button>
+              ))}
+            </nav>
+          )}
           <section className="design-card note-page-editor">
             {current && workspaceId ? (
               <>

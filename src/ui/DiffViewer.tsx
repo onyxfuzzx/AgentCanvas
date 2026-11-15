@@ -60,6 +60,7 @@ export function DiffViewer({ diff }: { diff: string }) {
             <p className="page-caption">Previously: {current.oldPath}</p>
           )}
           <div
+            key={`${current.path}-${activePage}`}
             className="formatted-diff"
             tabIndex={0}
             role="region"
@@ -87,7 +88,7 @@ export function DiffViewer({ diff }: { diff: string }) {
               >
                 Previous lines
               </button>
-              <span>
+              <span role="status">
                 Patch page {activePage + 1} of {pages}
               </span>
               <button

@@ -190,7 +190,9 @@ export function AreasPanel({
                     <div className="area-summary-top">
                       <Icon name="link" />
                       <span className="task-state">
-                        {a.integrated ? 'Integrated' : a.operation.state}
+                        {a.integrated
+                          ? 'Integration recorded'
+                          : a.operation.state}
                       </span>
                     </div>
                     <h2>{a.name}</h2>

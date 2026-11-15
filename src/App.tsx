@@ -257,7 +257,7 @@ export function App() {
         title: 'New note',
         color: '#c9934b',
         ...p,
-        width: 300,
+        width: 320,
         height: 200,
         z: Math.max(0, ...s.nodes.map((n) => n.z)) + 1,
         relativePath,

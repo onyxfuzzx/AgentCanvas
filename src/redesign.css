@@ -1144,6 +1144,9 @@
   grid-template-columns: 200px minmax(0, 1fr);
   gap: 14px;
 }
+.notes-layout[data-empty='true'] {
+  grid-template-columns: minmax(0, 1fr);
+}
 .notes-layout > nav button {
   display: flex;
   align-items: center;
