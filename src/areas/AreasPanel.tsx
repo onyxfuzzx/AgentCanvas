@@ -22,7 +22,7 @@ export function AreasPanel({
 }: {
   embedded?: boolean;
   reviewMode?: boolean;
-  onReview?: () => void;
+  onReview?: (id: string) => void;
   workspaceId: string;
   onClose: () => void;
   onLaunch: (area: Area) => void;
@@ -201,7 +201,7 @@ export function AreasPanel({
                       <button
                         onClick={() => {
                           choose(a);
-                          onReview?.();
+                          onReview?.(a.id);
                         }}
                       >
                         Review

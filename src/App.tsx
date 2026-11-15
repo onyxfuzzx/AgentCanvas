@@ -45,6 +45,7 @@ import { ModalSection } from './ui/ModalSection';
 import { AgentPresets } from './agents/AgentPresets';
 import { TaskBoard } from './tasks/TaskBoard';
 import { AreasPanel } from './areas/AreasPanel';
+import { ReviewPage } from './areas/ReviewPage';
 import type { Area } from './areas/model';
 import { TeamPanel } from './team/TeamPanel';
 import type { TeamSnapshot } from './team/model';
@@ -63,7 +64,7 @@ export function App() {
   const [agentPresets, setAgentPresets] = useState(false);
   const [view, setView] = useState<View>('canvas');
   const tasksOpen = view === 'tasks';
-  const areasOpen = view === 'areas' || view === 'review';
+  const areasOpen = view === 'areas';
   const teamOpen = view === 'team';
   const setTasksOpen = (open: boolean) => setView(open ? 'tasks' : 'canvas');
   const setAreasOpen = (open: boolean) => setView(open ? 'areas' : 'canvas');
@@ -75,6 +76,7 @@ export function App() {
   const [catalog, setCatalog] = useState<AreaCatalog>();
   const [teamData, setTeamData] = useState<TeamSnapshot>();
   const [teamControlBusy, setTeamControlBusy] = useState(false);
+  const [reviewAreaId, setReviewAreaId] = useState<string>();
   const [teamAreaScope, setTeamAreaScope] = useState<string>();
   const [teamAttention, setTeamAttention] = useState('');
   const [launchArea, setLaunchArea] = useState<Area>();
@@ -989,11 +991,26 @@ export function App() {
           Team needs attention: {teamAttention}
         </button>
       )}
+      {view === 'review' && work.active && !busy && (
+        <ReviewPage
+          key={work.active.document.id}
+          workspaceId={work.active.document.id}
+          initialAreaId={reviewAreaId}
+          runId={teamAreaScope}
+          onAreas={() => setView('areas')}
+          onScope={(area) => {
+            useCanvas.getState().setAreaScope(area.id, area.directory);
+            setView('canvas');
+          }}
+        />
+      )}
       {areasOpen && work.active && !busy && (
         <AreasPanel
           embedded
-          reviewMode={view === 'review'}
-          onReview={() => setView('review')}
+          onReview={(id) => {
+            setReviewAreaId(id);
+            setView('review');
+          }}
           runId={teamAreaScope}
           key={work.active.document.id}
           workspaceId={work.active.document.id}

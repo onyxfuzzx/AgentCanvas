@@ -1,72 +1,106 @@
-import { useState } from 'react';
-/** Render Git's bounded plain-text diff as text; filenames and source are untrusted. */
+import { useMemo, useState } from 'react';
+import { parseDiff } from '../areas/diff';
+import { Icon } from './Icon';
+const PAGE_SIZE = 500;
+/** Text-only Git rendering; paginate large patches so terminal-sized output cannot flood the DOM. */
 export function DiffViewer({ diff }: { diff: string }) {
+  const files = useMemo(() => parseDiff(diff), [diff]);
   const [selected, setSelected] = useState('');
-  const sections = diff
-    .split(/(?=^diff --git )/m)
-    .filter(Boolean)
-    .map((text, index) => {
-      const match =
-        text.match(/^\+\+\+ (?:b\/)?(.+)$/m) ??
-        text.match(/^diff --git a\/(.+) b\//m);
-      return {
-        id: String(index),
-        name: match?.[1] ?? 'Changes',
-        lines: text.split('\n'),
-      };
-    });
-  const current = sections.find((s) => s.id === selected) ?? sections[0];
-  if (!current) return <p className="page-caption">No diff from base.</p>;
-  let oldLine = 0,
-    newLine = 0;
+  const [page, setPage] = useState(0);
+  const current = files.find((f) => f.path === selected) ?? files[0];
+  if (!current)
+    return (
+      <div className="diff-empty">
+        <Icon name="review" />
+        <p>No changes from the base commit.</p>
+      </div>
+    );
+  const pages = Math.max(1, Math.ceil(current.lines.length / PAGE_SIZE));
+  const activePage = Math.min(page, pages - 1);
+  const additions = files.reduce((sum, f) => sum + f.additions, 0),
+    deletions = files.reduce((sum, f) => sum + f.deletions, 0);
   return (
-    <div className="diff-layout">
-      <nav aria-label="Changed files">
-        {sections.map((s) => (
-          <button
-            key={s.id}
-            className={s.id === current.id ? 'on' : ''}
-            onClick={() => setSelected(s.id)}
+    <section aria-label="Changed files and diff">
+      <div className="diff-summary">
+        <span>
+          {files.length} {files.length === 1 ? 'file' : 'files'} changed
+        </span>
+        <span className="diff-added">+{additions}</span>
+        <span className="diff-deleted">-{deletions}</span>
+      </div>
+      <div className="diff-layout">
+        <nav aria-label="Changed files">
+          {files.map((file, i) => (
+            <button
+              type="button"
+              key={`${file.path}-${i}`}
+              aria-pressed={file === current}
+              className={file === current ? 'on' : ''}
+              onClick={() => {
+                setSelected(file.path);
+                setPage(0);
+              }}
+            >
+              <Icon name="note" />
+              <span>{file.path}</span>
+              <b className={`file-status file-status-${file.status}`}>
+                {file.status}
+              </b>
+            </button>
+          ))}
+        </nav>
+        <div className="diff-content">
+          <div className="diff-file-heading">
+            <strong className="diff-filename">{current.path}</strong>
+            <span className="diff-added">+{current.additions}</span>
+            <span className="diff-deleted">-{current.deletions}</span>
+            {current.binary && <span className="task-state">Binary</span>}
+          </div>
+          {current.oldPath && current.oldPath !== current.path && (
+            <p className="page-caption">Previously: {current.oldPath}</p>
+          )}
+          <div
+            className="formatted-diff"
+            tabIndex={0}
+            role="region"
+            aria-label={`Diff for ${current.path}`}
           >
-            {s.name}
-          </button>
-        ))}
-      </nav>
-      <div>
-        <p className="diff-filename">{current.name}</p>
-        <div
-          className="formatted-diff"
-          tabIndex={0}
-          role="region"
-          aria-label={`Diff for ${current.name}`}
-        >
-          {current.lines.map((line, i) => {
-            const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)/);
-            if (hunk) {
-              oldLine = Number(hunk[1]);
-              newLine = Number(hunk[2]);
-            }
-            const kind =
-              line.startsWith('+') && !line.startsWith('+++')
-                ? 'add'
-                : line.startsWith('-') && !line.startsWith('---')
-                  ? 'del'
-                  : line.startsWith(' ')
-                    ? 'context'
-                    : 'meta';
-            const before =
-              kind === 'del' || kind === 'context' ? oldLine++ : '';
-            const after = kind === 'add' || kind === 'context' ? newLine++ : '';
-            return (
-              <div className={`diff-line ${kind}`} key={i}>
-                <span>{before}</span>
-                <span>{after}</span>
-                <code>{line || ' '}</code>
-              </div>
-            );
-          })}
+            {current.lines
+              .slice(activePage * PAGE_SIZE, (activePage + 1) * PAGE_SIZE)
+              .map((line, index) => (
+                <div
+                  className={`diff-line ${line.kind}`}
+                  key={activePage * PAGE_SIZE + index}
+                >
+                  <span>{line.before ?? ''}</span>
+                  <span>{line.after ?? ''}</span>
+                  <code>{line.text || ' '}</code>
+                </div>
+              ))}
+          </div>
+          {pages > 1 && (
+            <div className="diff-pagination">
+              <button
+                type="button"
+                disabled={activePage === 0}
+                onClick={() => setPage(activePage - 1)}
+              >
+                Previous lines
+              </button>
+              <span>
+                Patch page {activePage + 1} of {pages}
+              </span>
+              <button
+                type="button"
+                disabled={activePage + 1 === pages}
+                onClick={() => setPage(activePage + 1)}
+              >
+                Next lines
+              </button>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
