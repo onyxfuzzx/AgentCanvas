@@ -45,6 +45,7 @@ export interface WorkspacePorts {
   flushNotes?: () => Promise<void>;
   pauseDispatch?: () => Promise<void>;
   resetNotes?: () => void;
+  checkpoint?: (command: string, args: Record<string, unknown>) => void;
 }
 export class WorkspaceCoordinator {
   private queue: Autosave<WorkspaceLayout> | undefined;
@@ -186,6 +187,14 @@ export class WorkspaceCoordinator {
             ...(error ? { error } : saveState === 'saved' ? { error: '' } : {}),
           });
       },
+      750,
+      this.ports.checkpoint
+        ? (layout) =>
+            this.ports.checkpoint?.('workspace_save', {
+              id: loaded.document.id,
+              layout,
+            })
+        : undefined,
     );
     this.queue = queue;
     this.state.setState({

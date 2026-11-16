@@ -44,7 +44,13 @@ export class Notes {
     this.summary = { state, error };
     this.listeners.forEach((listener) => listener());
   }
-  constructor(private invoke: Transport) {}
+  constructor(
+    private invoke: Transport,
+    private checkpoint?: (
+      command: string,
+      args: Record<string, unknown>,
+    ) => void,
+  ) {}
   entry(workspace: string, path: string) {
     const key = JSON.stringify([workspace, path]);
     let entry = this.entries.get(key);
@@ -103,6 +109,15 @@ export class Notes {
           },
           (state, error) => this.update(entry, { state, error: error ?? '' }),
           600,
+          this.checkpoint
+            ? (content) =>
+                this.checkpoint?.('note_save', {
+                  workspaceId: entry.workspace,
+                  relativePath: entry.path,
+                  expected: entry.expected,
+                  content,
+                })
+            : undefined,
         );
       })
       .catch((error) => {

@@ -1,7 +1,9 @@
 import { isDesktop, windowAction } from '../native';
+import { isEditor } from '../editor';
 
 /** Keep the same native window actions in the sidebar and its floating replacement. */
 export function WindowControls({ onClose }: { onClose: () => void }) {
+  if (isEditor()) return null;
   return (
     <div className="window-lights" role="group" aria-label="Window controls">
       <button

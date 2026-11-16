@@ -1,0 +1,9 @@
+**/*
+!package.json
+!package.nls.json
+!README.md
+!THIRD_PARTY.md
+!dist/**
+!webview/**
+!native/**
+!media/**

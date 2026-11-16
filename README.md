@@ -1,5 +1,7 @@
 # Canvas desktop workspace
 
+An editor extension for **VS Code and Antigravity IDE (Windows x64)** is available in [`extension/`](extension/README.md). Build an installable VSIX with `npm run extension:package`, then run **Extensions: Install from VSIX...** in either editor and **AgentCanvas: Open Canvas**. The extension reuses the React canvas and Rust backend through a local stdio sidecar; browser nodes open the default browser. The desktop app remains available below.
+
 See [the orchestration milestone roadmap](docs/MILESTONES.md) for the implemented M0–M8 baseline and proposed M9–M12 work.
 
 Windows 10 22H2 / Windows 11. No account or telemetry. Product display name is configured in `product.json`.

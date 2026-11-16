@@ -1,5 +1,17 @@
 # Architecture
 
+## Editor extension host
+
+The Windows x64 VS Code / Antigravity extension in `extension/` presents the same React canvas in a retained editor webview. `src/editor.ts` privately acquires the editor API and supplies bounded request/reply messages to the existing frontend host boundary. The Tauri desktop host remains supported. Product names and command titles are generated from `product.json`.
+
+The extension starts the bundled `agentcanvas-editor.exe` directly, with argument vectors and hidden stdio. `src-tauri/src/editor.rs` dispatches an explicit command allowlist into the same `commands.rs` functions used by Tauri; `command_state.rs` adapts state arguments without duplicating PTY, persistence, task or orchestration logic. The existing `pty-host.exe` and `agentcanvas-peer.exe` ship beside it. Frames are limited to 8 MiB, the client permits 64 outstanding requests, and the native host has eight workers plus a 64-request queue. Shutdown cancellation bypasses the worker queue. EOF stops scheduling, declared checks and the PTY manager; Windows job ownership still kills process trees on backend death. A bounded disposal timeout preserves drafts and terminates a stuck backend.
+
+Webview resources are limited to the extension's compiled local assets. The nonce-based CSP denies frames, network connections, objects and arbitrary base URLs. Only known host operations cross the bridge, with the original Rust validation. Trust is required by both the manifest and the request handler. Remote editor windows and virtual workspaces are unsupported. External browser launches validate a bounded HTTP(S) URL without credentials; browser nodes store addresses and never load a page implicitly. Desktop child-webview commands are not exposed.
+
+Hiding the editor tab retains its processes. A normal tab close mirrors and flushes only pending layout/note saves in the extension host before ending the backend. Save acknowledgements advance note baselines without discarding newer drafts. Native saves retain their atomic replacement, backups, validation and conflict checks. A final flush conflict preserves immutable version-1 recovery JSON under extension storage and shows its path. Explicit Save and Close commands run the frontend flush handshake; editor reload invokes the host disposal path. Hard crashes cannot guarantee delivery of the last webview message. Output, tokens and process state are excluded from checkpoints and recovery files.
+
+The extension uses [stable VS Code webview APIs](https://code.visualstudio.com/api/extension-guides/webview), works with the locally tested Antigravity IDE API, and does not depend on an editor's built-in agent. This host adaptation preserves the M11 feature boundary; M12 is unchanged.
+
 ## Decisions and module boundaries
 
 Use the recommended stack unchanged: Tauri 2/WebView2, React/TypeScript/Vite, Zustand, portable-pty (ConPTY on Windows), xterm.js with optional WebGL and DOM fallback, custom CSS-transformed graph and SVG overlays. All dependencies ship locally. `product.json` is the single product-name source; Vite and Tauri build configuration derive their display name from it.

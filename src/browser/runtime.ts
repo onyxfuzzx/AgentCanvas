@@ -1,5 +1,6 @@
 import { createStore } from 'zustand/vanilla';
 import { invoke, isDesktop } from '../native';
+import { isEditor } from '../editor';
 import { useCanvas } from '../canvas/store';
 import {
   BrowserController,
@@ -16,7 +17,7 @@ export const browserState = createStore<{
 
 /** DOM rects are logical client pixels, including the world transform exactly once. */
 export function startBrowserSurfaces() {
-  if (!isDesktop()) return () => {};
+  if (!isDesktop() || isEditor()) return () => {};
   let stopped = false,
     frame = 0,
     lastPoll = 0,

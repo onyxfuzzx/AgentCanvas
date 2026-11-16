@@ -1,11 +1,11 @@
 use crate::collaboration::{Collaboration, Snapshot};
+use crate::command_state::State;
 use crate::workspace::{CatalogReply, Layout, Loaded, WorkspaceStore};
 use crate::{
     pty::{PollReply, PtyManager, SpawnReply},
     shell::{self, ShellInfo},
 };
 use std::sync::{Arc, Mutex};
-use tauri::State;
 
 #[tauri::command]
 pub fn shells() -> Vec<ShellInfo> {

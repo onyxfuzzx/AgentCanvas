@@ -1,0 +1,86 @@
+{
+  "name": "agentcanvas",
+  "displayName": "%productName%",
+  "description": "A local canvas for coding agents, terminals, notes and team execution.",
+  "version": "0.1.0",
+  "publisher": "agentcanvas-local",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "agents",
+    "canvas",
+    "terminal",
+    "antigravity"
+  ],
+  "main": "./dist/extension.cjs",
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onWebviewPanel:agentcanvas.canvas"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "AgentCanvas starts local processes and writes workspace files."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "AgentCanvas requires local filesystem paths."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentcanvas.open",
+        "title": "%openTitle%",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "agentcanvas.save",
+        "title": "%saveTitle%"
+      },
+      {
+        "command": "agentcanvas.close",
+        "title": "%closeTitle%"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentcanvas",
+          "title": "%productName%",
+          "icon": "media/canvas.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentcanvas": [
+        {
+          "id": "agentcanvas.launcher",
+          "name": "%productName%"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "agentcanvas.launcher",
+        "contents": "Your spatial workspace for local coding agents.\n[Open canvas](command:agentcanvas.open)\nRun shells, connect agents, keep notes and review team tasks inside your editor."
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "agentcanvas.save",
+          "when": "activeWebviewPanelId == 'agentcanvas.canvas'",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}

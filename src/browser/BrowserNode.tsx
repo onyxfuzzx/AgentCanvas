@@ -4,6 +4,7 @@ import { useStore } from 'zustand';
 import type { CanvasNode } from '../canvas/model';
 import { useCanvas } from '../canvas/store';
 import { isDesktop } from '../native';
+import { editorInvoke, isEditor } from '../editor';
 import { browsers, browserState } from './runtime';
 import { browserUrl } from './geometry';
 
@@ -29,7 +30,8 @@ export function BrowserNode({ node }: { node: CanvasNode }) {
           e.preventDefault();
           perform(async () => {
             const url = browserUrl(address);
-            await browsers.open(node.id, url);
+            if (isEditor()) await editorInvoke('editor_open_external', { url });
+            else await browsers.open(node.id, url);
             browserState.setState({ error: '' });
             const s = useCanvas.getState();
             s.checkpoint();
@@ -72,7 +74,7 @@ export function BrowserNode({ node }: { node: CanvasNode }) {
           onChange={(e) => setAddress(e.target.value)}
         />
         <button disabled={!isDesktop() || busy} type="submit">
-          Open
+          {isEditor() ? 'Open in browser' : 'Open'}
         </button>
         {session && (
           <button
@@ -94,13 +96,23 @@ export function BrowserNode({ node }: { node: CanvasNode }) {
       <div className="browser-host" data-browser-host={node.id}>
         {!session && (
           <div className="browser-placeholder">
-            <strong>Browse alongside your agents</strong>
+            <strong>
+              {isEditor()
+                ? 'Open this page in your browser'
+                : 'Browse alongside your agents'}
+            </strong>
             <p>
-              {isDesktop()
-                ? 'Enter an HTTP or HTTPS address and select Open. Saved pages stay paused when reopening a workspace.'
-                : 'Open the desktop app to use browser nodes.'}
+              {isEditor()
+                ? 'Editor browser nodes save their address. Select Open in browser to launch your default browser.'
+                : isDesktop()
+                  ? 'Enter an HTTP or HTTPS address and select Open. Saved pages stay paused when reopening a workspace.'
+                  : 'Open the desktop app to use browser nodes.'}
             </p>
-            <small>Up to 8 live pages · Popups and downloads are blocked</small>
+            <small>
+              {isEditor()
+                ? 'Pages open only when you select Open in browser'
+                : 'Up to 8 live pages · Popups and downloads are blocked'}
+            </small>
           </div>
         )}
       </div>

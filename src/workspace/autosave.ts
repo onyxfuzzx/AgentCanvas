@@ -12,10 +12,12 @@ export class Autosave<T> {
     private persist: (snapshot: T) => Promise<void>,
     private status: (state: SaveState, error?: string) => void,
     private delay = 750,
+    private checkpoint?: (snapshot: T) => void,
   ) {}
   dirty() {
     if (this.disposed) return;
     this.version++;
+    this.checkpoint?.(this.capture());
     if (!this.running && !this.failed) this.status('unsaved');
     if (!this.failed) this.schedule();
   }

@@ -2,6 +2,7 @@
 
 - Windows-first desktop app: Tauri 2, Rust, React, TypeScript, Vite, Zustand and xterm.js. Product name lives in `product.json`; configuration and UI consume it.
 - `src/`: UI and pure canvas model. `src-tauri/`: native PTY ownership and IPC. `docs/`: design decisions and milestone verification.
+- `extension/`: Windows x64 VS Code / Antigravity host for the shared frontend and Rust stdio sidecar. `npm run extension:build` builds it; `npm run extension:package` creates the VSIX; `npm run extension:check` tests the bridge and available bundled sidecar. `npm run check` also runs extension checks. Editor browser nodes open the default browser explicitly; they do not create native webview surfaces.
 - Use world coordinates in state, screen coordinates only at the viewport boundary. Terminal processes outlive viewport renderers, but never the application.
 - No telemetry, accounts, remote fonts, runtime CDN dependencies, or unsolicited network access. Treat terminal bytes and future peer messages as untrusted data.
 - Keep undoable layout separate from transient terminal state. Validate all Rust command inputs. Never interpolate shell command strings.
