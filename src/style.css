@@ -1668,3 +1668,13 @@ button:active:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
+
+.directory-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.directory-actions small {
+  flex: 1 1 220px;
+}

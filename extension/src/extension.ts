@@ -13,6 +13,8 @@ import {
   validId,
 } from './protocol';
 import { webviewHtml } from './webview';
+import { EditorProjects } from './projects';
+import { openReviewedFile } from './review-files';
 
 declare const PRODUCT_NAME: string;
 let session: CanvasSession | undefined;
@@ -59,6 +61,7 @@ class CanvasSession {
   constructor(
     private context: vscode.ExtensionContext,
     readonly panel: vscode.WebviewPanel,
+    private projects: EditorProjects,
   ) {
     this.host = new NativeHost(
       join(context.extensionPath, 'native', 'agentcanvas-editor.exe'),
@@ -150,6 +153,15 @@ class CanvasSession {
         if (!(await vscode.env.openExternal(vscode.Uri.parse(url))))
           throw new Error('The browser could not open this address.');
         reply.result = null;
+      } else if (message.command === 'editor_project_context') {
+        reply.result = this.projects.context();
+      } else if (message.command === 'editor_select_project') {
+        reply.result = this.projects.select(message.args.path);
+      } else if (message.command === 'editor_pick_directory') {
+        reply.result = await this.projects.browse(message.args.cwd);
+      } else if (message.command === 'editor_open_review_file') {
+        await this.openFile(message.args);
+        reply.result = null;
       } else {
         if (!nativeCommands.has(message.command))
           throw new Error('Unsupported editor command.');
@@ -201,6 +213,28 @@ class CanvasSession {
   close() {
     return this.panel.webview.postMessage({ type: 'agentcanvas:close' });
   }
+  async openFile(args: unknown) {
+    if (!vscode.workspace.isTrusted || !this.accepting)
+      throw new Error(
+        'Open a trusted canvas workspace before opening reviewed files.',
+      );
+    await openReviewedFile(args, {
+      request: (command, values) => this.host.request(command, values),
+      open: async (path, line) => {
+        const document = await vscode.workspace.openTextDocument(
+          vscode.Uri.file(path),
+        );
+        const selectedLine = Math.min(
+          line - 1,
+          Math.max(0, document.lineCount - 1),
+        );
+        await vscode.window.showTextDocument(document, {
+          preview: true,
+          selection: new vscode.Range(selectedLine, 0, selectedLine, 0),
+        });
+      },
+    });
+  }
   stop(): Promise<void> {
     if (this.shutdown) return this.shutdown;
     this.accepting = false;
@@ -248,6 +282,48 @@ class CanvasSession {
 
 export function activate(context: vscode.ExtensionContext) {
   output = vscode.window.createOutputChannel(PRODUCT_NAME);
+  const projects = new EditorProjects({
+    folders: () =>
+      (vscode.workspace.workspaceFolders ?? [])
+        .filter((folder) => folder.uri.scheme === 'file')
+        .map((folder) => ({ name: folder.name, path: folder.uri.fsPath })),
+    activeFolder: () => {
+      const uri = vscode.window.activeTextEditor?.document.uri;
+      const folder =
+        uri?.scheme === 'file'
+          ? vscode.workspace.getWorkspaceFolder(uri)
+          : undefined;
+      return folder?.uri.scheme === 'file' ? folder.uri.fsPath : undefined;
+    },
+    pickDirectory: async (initial) => {
+      let defaultUri = initial ? vscode.Uri.file(initial) : undefined;
+      if (defaultUri) {
+        try {
+          if (
+            !(
+              (await vscode.workspace.fs.stat(defaultUri)).type &
+              vscode.FileType.Directory
+            )
+          )
+            defaultUri = undefined;
+        } catch {
+          defaultUri = undefined;
+        }
+      }
+      const picked = await vscode.window.showOpenDialog({
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        openLabel: 'Use folder',
+        title: 'Choose terminal working directory',
+        defaultUri,
+      });
+      if (!picked?.length) return null;
+      if (picked[0].scheme !== 'file')
+        throw new Error('Choose a local filesystem folder.');
+      return picked[0].fsPath;
+    },
+  });
   const open = async (panel?: vscode.WebviewPanel) => {
     if (!vscode.workspace.isTrusted)
       throw new Error('Open a trusted workspace to start the canvas.');
@@ -258,6 +334,7 @@ export function activate(context: vscode.ExtensionContext) {
     )
       throw new Error('This build requires a local Windows x64 editor window.');
     await closing.catch(() => {});
+    projects.captureActiveFolder();
     await mkdir(context.globalStorageUri.fsPath, { recursive: true });
     if (session) {
       session.panel.reveal();
@@ -273,6 +350,7 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.ViewColumn.Active,
           { enableScripts: true, retainContextWhenHidden: true },
         ),
+      projects,
     );
   };
   const report = (action: () => Promise<unknown>) => async () => {
@@ -306,6 +384,35 @@ export function activate(context: vscode.ExtensionContext) {
       getTreeItem: (item: vscode.TreeItem) => item,
       getChildren: () => [],
     }),
+    vscode.commands.registerCommand('agentcanvas.projectContext', () =>
+      projects.context(),
+    ),
+    vscode.commands.registerCommand(
+      'agentcanvas.selectProject',
+      (path?: unknown) =>
+        report(async () => {
+          if (!vscode.workspace.isTrusted)
+            throw new Error(
+              'Trust this editor workspace before choosing a project.',
+            );
+          if (path !== undefined) return projects.select(path);
+          const selected = await vscode.window.showWorkspaceFolderPick({
+            placeHolder:
+              'Choose the project folder for new terminals and agents',
+          });
+          if (selected?.uri.scheme === 'file')
+            return projects.select(selected.uri.fsPath);
+          return null;
+        })(),
+    ),
+    vscode.commands.registerCommand(
+      'agentcanvas.openReviewedFile',
+      async (args: unknown) => {
+        if (!session)
+          throw new Error('Open the canvas before opening a reviewed file.');
+        await session.openFile(args);
+      },
+    ),
     vscode.window.registerWebviewPanelSerializer('agentcanvas.canvas', {
       deserializeWebviewPanel: async (panel) => {
         try {

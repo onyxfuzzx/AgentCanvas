@@ -1,6 +1,6 @@
 import { readAppearance } from '../ui/design';
 import { Icon } from '../ui/Icon';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useCanvas } from '../canvas/store';
 import { toWorld, type CanvasNode, type Shell } from '../canvas/model';
 import { invoke, isDesktop } from '../native';
@@ -12,6 +12,8 @@ import {
   type LibraryReply,
 } from '../agents/catalog';
 import type { AgentSettings } from '../canvas/model';
+import { editorInvoke, isEditor } from '../editor';
+import type { EditorProjectContext } from '../editor-projects';
 
 type ShellInfo = { id: Shell; label: string; available: boolean };
 export function NewTerminal({
@@ -34,8 +36,13 @@ export function NewTerminal({
   const [cwd, setCwd] = useState(existing?.cwd ?? defaultCwd);
   const managedArea =
     existing?.areaId ?? areaId ?? useCanvas.getState().areaScope ?? undefined;
+  const [projects, setProjects] = useState<EditorProjectContext>();
+  const [folderBusy, setFolderBusy] = useState(isEditor() && !managedArea);
+  const directoryTouched = useRef(Boolean(existing || defaultCwd));
+  const mounted = useRef(true);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [submitting, setSubmitting] = useState(false);
+  const busy = submitting || folderBusy;
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'shell' | 'agent'>(
     existing?.agent || agentMode ? 'agent' : 'shell',
@@ -46,8 +53,61 @@ export function NewTerminal({
     existing?.agent,
   );
   const dialog = useDialogFocus<HTMLFormElement>(() => {
-    if (!submitting) onClose();
+    if (!busy) onClose();
   });
+  useEffect(() => {
+    mounted.current = true;
+    let active = true;
+    if (isEditor() && !managedArea) {
+      void editorInvoke<EditorProjectContext>('editor_project_context')
+        .then((context) => {
+          if (!active) return;
+          setProjects(context);
+          if (!directoryTouched.current) setCwd(context.defaultCwd);
+        })
+        .catch((error) => {
+          if (active) setError(String(error));
+        })
+        .finally(() => {
+          if (active) setFolderBusy(false);
+        });
+    }
+    return () => {
+      active = false;
+      mounted.current = false;
+    };
+  }, [managedArea]);
+  async function chooseDirectory(path?: string) {
+    if (busy || managedArea) return;
+    setFolderBusy(true);
+    setError('');
+    try {
+      if (path !== undefined) {
+        const context = await editorInvoke<EditorProjectContext>(
+          'editor_select_project',
+          { path },
+        );
+        if (mounted.current) {
+          directoryTouched.current = true;
+          setProjects(context);
+          setCwd(context.defaultCwd);
+        }
+      } else {
+        const picked = await editorInvoke<string | null>(
+          'editor_pick_directory',
+          { cwd },
+        );
+        if (mounted.current && picked !== null) {
+          directoryTouched.current = true;
+          setCwd(picked);
+        }
+      }
+    } catch (error) {
+      if (mounted.current) setError(String(error));
+    } finally {
+      if (mounted.current) setFolderBusy(false);
+    }
+  }
   useEffect(() => {
     if (!isDesktop()) {
       setError('Terminals need the Windows desktop host. Use npm run desktop.');
@@ -86,6 +146,7 @@ export function NewTerminal({
   }, [existing]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     if (
       mode === 'agent' &&
       (!agent || instructionBytes(agent.instructions) > 4096)
@@ -186,7 +247,7 @@ export function NewTerminal({
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => void submit(e)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape' && !submitting) onClose();
+          if (e.key === 'Escape' && !busy) onClose();
         }}
       >
         <button
@@ -194,7 +255,7 @@ export function NewTerminal({
           className="dialog-close"
           aria-label="Cancel new terminal"
           onClick={onClose}
-          disabled={submitting}
+          disabled={busy}
         >
           <Icon name="close" />
         </button>
@@ -215,7 +276,7 @@ export function NewTerminal({
         <select
           id="launch-mode"
           value={mode}
-          disabled={submitting}
+          disabled={busy}
           onChange={(e) => setMode(e.target.value as 'shell' | 'agent')}
         >
           <option value="shell">Shell terminal</option>
@@ -227,7 +288,7 @@ export function NewTerminal({
             <select
               id="launch-profile"
               value={profileId}
-              disabled={submitting}
+              disabled={busy}
               onChange={(e) => {
                 const id = e.target.value;
                 setProfileId(id);
@@ -260,7 +321,7 @@ export function NewTerminal({
                   id="launch-role"
                   required
                   maxLength={80}
-                  disabled={submitting}
+                  disabled={busy}
                   value={agent.roleName}
                   onChange={(e) =>
                     setAgent({ ...agent, roleName: e.target.value })
@@ -272,7 +333,7 @@ export function NewTerminal({
                 <textarea
                   id="launch-instructions"
                   rows={4}
-                  disabled={submitting}
+                  disabled={busy}
                   value={agent.instructions}
                   onChange={(e) =>
                     setAgent({ ...agent, instructions: e.target.value })
@@ -293,7 +354,7 @@ export function NewTerminal({
                 </label>
                 <input
                   id="launch-executable"
-                  disabled={submitting}
+                  disabled={busy}
                   value={agent.executable ?? ''}
                   placeholder={`Auto-detect ${agent.provider}.exe`}
                   onChange={(e) =>
@@ -313,7 +374,7 @@ export function NewTerminal({
               autoFocus
               id="shell"
               value={shell}
-              disabled={submitting}
+              disabled={busy}
               onChange={(e) => setShell(e.target.value as Shell)}
             >
               {shells.length ? (
@@ -336,19 +397,69 @@ export function NewTerminal({
         <input
           id="terminal-name"
           value={title}
-          disabled={submitting}
+          disabled={busy}
           maxLength={80}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. API agent"
         />
+        {isEditor() && !managedArea && Boolean(projects?.folders.length) && (
+          <>
+            <label htmlFor="terminal-project">Project folder</label>
+            <select
+              id="terminal-project"
+              disabled={busy}
+              value={
+                projects?.folders.some((folder) => folder.path === cwd)
+                  ? cwd
+                  : ''
+              }
+              onChange={(event) => void chooseDirectory(event.target.value)}
+            >
+              <option value="" disabled>
+                Choose an open project folder
+              </option>
+              {projects?.folders.map((folder) => (
+                <option key={folder.path} value={folder.path}>
+                  {folder.name} · {folder.path}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <label htmlFor="terminal-cwd">Working directory</label>
         <input
           id="terminal-cwd"
           value={cwd}
-          disabled={submitting}
-          onChange={(e) => setCwd(e.target.value)}
+          disabled={busy || Boolean(managedArea)}
+          onChange={(e) => {
+            directoryTouched.current = true;
+            setCwd(e.target.value);
+          }}
           placeholder="Leave blank for your home folder"
         />
+        {isEditor() && !managedArea && (
+          <div className="directory-actions">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void chooseDirectory()}
+            >
+              Browse folders…
+            </button>
+            <small>
+              {folderBusy
+                ? 'Reading project folders…'
+                : projects?.folders.length
+                  ? 'The selected project is the default for new terminals and agents in this editor window.'
+                  : 'Open a project folder, browse for a directory, or leave blank for your home folder.'}
+            </small>
+          </div>
+        )}
+        {managedArea && (
+          <small>
+            The managed checkout directory stays fixed for this launch.
+          </small>
+        )}
         <p>
           {mode === 'agent'
             ? 'Uses the installed CLI and its existing sign-in and approval settings. The agent starts without an assigned task. Reopened agents stay paused until you start them.'
@@ -362,7 +473,7 @@ export function NewTerminal({
         <button
           className="primary-button"
           disabled={
-            submitting ||
+            busy ||
             !isDesktop() ||
             (mode === 'agent'
               ? !agent || instructionBytes(agent.instructions) > 4096

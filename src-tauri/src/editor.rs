@@ -213,6 +213,9 @@ impl Runtime {
             "area_file" => {
                 call!(a, commands::area_file, [storage()], {workspace_id: String, id: String, relative: String})
             }
+            "area_file_location" => {
+                call!(a, commands::area_file_location, [storage()], {workspace_id: String, id: String, relative: String})
+            }
             "area_preview" => {
                 call!(a, commands::area_preview, [storage()], {workspace_id: String, id: String, target: String})
             }

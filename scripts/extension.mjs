@@ -45,6 +45,17 @@ await build({
   sourcemap: false,
   define: { PRODUCT_NAME: JSON.stringify(product.name) },
 });
+if (process.argv.includes('--smoke-support')) {
+  await mkdir(resolve(root, '.cache/extension-smoke'), { recursive: true });
+  await build({
+    entryPoints: [resolve(extension, 'src/host.ts')],
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20',
+    outfile: resolve(root, '.cache/extension-smoke/host.cjs'),
+  });
+}
 await buildWebview({
   configFile: false,
   root,
@@ -74,6 +85,7 @@ await writeFile(
       openTitle: `${product.name}: Open Canvas`,
       saveTitle: `${product.name}: Save Workspace`,
       closeTitle: `${product.name}: Close Canvas`,
+      selectProjectTitle: `${product.name}: Choose Project Folder`,
     },
     null,
     2,

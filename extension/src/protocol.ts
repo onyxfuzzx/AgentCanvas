@@ -35,6 +35,7 @@ export const nativeCommands = new Set([
   'area_catalog',
   'area_review',
   'area_file',
+  'area_file_location',
   'area_preview',
   'area_action',
 ]);

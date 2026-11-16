@@ -12,6 +12,10 @@ Hiding the editor tab retains its processes. A normal tab close mirrors and flus
 
 The extension uses [stable VS Code webview APIs](https://code.visualstudio.com/api/extension-guides/webview), works with the locally tested Antigravity IDE API, and does not depend on an editor's built-in agent. This host adaptation preserves the M11 feature boundary; M12 is unchanged.
 
+`extension/src/projects.ts` owns editor-window project selection through narrow ports. It reads local `file` workspace folders dynamically and retains the active file's project when canvas focus hides the text editor. An explicit project selection takes precedence for future launches in that window; saved terminal cwd and explicit managed-checkout defaults take precedence inside the launch form. Folder browsing selects a launch directory without adding editor roots or altering a running process. The host implements these ports with the public workspace, folder-pick and file-dialog APIs in the [VS Code API reference](https://code.visualstudio.com/api/references/vscode-api).
+
+Review file opening crosses a separate narrow command: workspace ID, registered area ID, relative path and optional one-based line. Rust resolves a bounded regular file using the same checkout ownership and canonical/reparse validation as file inspection, then returns its canonical display path. The extension constructs a file URI from that reply and opens the document with a clamped selection. It never constructs a reviewed file URI from a frontend-supplied absolute path. The selected file remains a working-tree document; subsequent edits follow the existing commit-bound review rules.
+
 ## Decisions and module boundaries
 
 Use the recommended stack unchanged: Tauri 2/WebView2, React/TypeScript/Vite, Zustand, portable-pty (ConPTY on Windows), xterm.js with optional WebGL and DOM fallback, custom CSS-transformed graph and SVG overlays. All dependencies ship locally. `product.json` is the single product-name source; Vite and Tauri build configuration derive their display name from it.

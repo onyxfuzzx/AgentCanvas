@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '../native';
+import { editorInvoke, isEditor } from '../editor';
 import { useCanvas } from '../canvas/store';
 import { stopSession } from '../terminal/registry';
 import type { TaskSnapshot } from '../tasks/model';
@@ -417,7 +418,21 @@ export function ReviewPage({
                     <pre>{review.status}</pre>
                   </section>
                 )}
-                <DiffViewer key={area.id} diff={review.diff} />
+                <DiffViewer
+                  key={area.id}
+                  diff={review.diff}
+                  onOpenFile={
+                    isEditor()
+                      ? (relative, line) =>
+                          editorInvoke<void>('editor_open_review_file', {
+                            workspaceId,
+                            id: area.id,
+                            relative,
+                            ...(line ? { line } : {}),
+                          })
+                      : undefined
+                  }
+                />
                 <section className="design-card">
                   <header className="review-section-heading">
                     <h2>Declared checks</h2>
@@ -725,6 +740,23 @@ export function ReviewPage({
                         />
                       </label>
                       <button disabled={busy}>Read file</button>
+                      {isEditor() && (
+                        <button
+                          type="button"
+                          disabled={busy || !relative.trim()}
+                          onClick={() =>
+                            void perform(() =>
+                              editorInvoke<void>('editor_open_review_file', {
+                                workspaceId,
+                                id: area.id,
+                                relative,
+                              }),
+                            )
+                          }
+                        >
+                          Open in editor
+                        </button>
+                      )}
                     </form>
                     {file !== undefined && <pre>{file || '(Empty file)'}</pre>}
                   </details>

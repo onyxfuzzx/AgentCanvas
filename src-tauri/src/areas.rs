@@ -606,7 +606,7 @@ pub fn review(folder: &Path, id: &str) -> Result<Review, String> {
         approval,
     })
 }
-pub fn file(folder: &Path, id: &str, relative: &str) -> Result<String, String> {
+fn file_path(folder: &Path, id: &str, relative: &str) -> Result<PathBuf, String> {
     text(relative, 240)?;
     if relative.is_empty()
         || relative.contains(['\\', ':'])
@@ -623,7 +623,20 @@ pub fn file(folder: &Path, id: &str, relative: &str) -> Result<String, String> {
     if !path.starts_with(&dir) {
         return Err("File escapes area".into());
     }
-    let f = fs::File::open(path).map_err(|e| e.to_string())?;
+    let metadata = fs::metadata(&path).map_err(|e| e.to_string())?;
+    if !metadata.is_file() {
+        return Err("Choose a regular file inside the area".into());
+    }
+    if metadata.len() > 256 * 1024 {
+        return Err("File exceeds 256 KiB".into());
+    }
+    Ok(path)
+}
+pub fn file_location(folder: &Path, id: &str, relative: &str) -> Result<String, String> {
+    file_path(folder, id, relative).map(|path| display(&path))
+}
+pub fn file(folder: &Path, id: &str, relative: &str) -> Result<String, String> {
+    let f = fs::File::open(file_path(folder, id, relative)?).map_err(|e| e.to_string())?;
     if f.metadata().map_err(|e| e.to_string())?.len() > 256 * 1024 {
         return Err("File exceeds 256 KiB".into());
     }

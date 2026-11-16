@@ -89,6 +89,35 @@ impl Drop for Fixture {
         }
     }
 }
+
+#[test]
+fn editor_file_locations_are_owned_bounded_regular_files() {
+    let f = Fixture::new();
+    let a = f.create(A);
+    let dir = Path::new(&a.directory);
+    fs::write(dir.join("Unicode space-世界.txt"), "reviewed text\n").unwrap();
+    assert_eq!(
+        file_location(&f.folder, A, "Unicode space-世界.txt").unwrap(),
+        display(&canonical(&dir.join("Unicode space-世界.txt")).unwrap())
+    );
+    for relative in [
+        "../repository/same.txt",
+        "/same.txt",
+        "C:/same.txt",
+        "notes\\file.txt",
+        ".git",
+        ".git/config",
+        "missing.txt",
+    ] {
+        assert!(file_location(&f.folder, A, relative).is_err(), "{relative}");
+    }
+    fs::create_dir(dir.join("directory")).unwrap();
+    assert!(file_location(&f.folder, A, "directory").is_err());
+    fs::write(dir.join("large.txt"), vec![b'x'; 256 * 1024 + 1]).unwrap();
+    assert!(file_location(&f.folder, A, "large.txt").is_err());
+    git(dir, &["checkout", "-b", "ownership-changed"]).unwrap();
+    assert!(file_location(&f.folder, A, "same.txt").is_err());
+}
 #[test]
 fn isolated_unicode_worktrees_review_integrate_and_cleanup() {
     let f = Fixture::new();

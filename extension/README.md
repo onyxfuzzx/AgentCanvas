@@ -7,13 +7,16 @@ This package targets **local Windows x64** VS Code 1.90+ and compatible Antigrav
 ## Install and open
 
 1. Build from the repository root with `npm ci` and `npm run extension:package` (requires the desktop Rust/MSVC build prerequisites).
-2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.0-win32-x64.vsix`.
+2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.1-win32-x64.vsix`.
 3. Open a trusted local folder. Run **AgentCanvas: Open Canvas** in the command palette, or select the canvas activity-bar icon and **Open canvas**.
-4. Add a terminal or agent and choose its working directory. Existing desktop workspace folders can be opened from the canvas workspace picker; close the desktop copy first because workspace locks are preserved.
+4. Add a terminal or agent. Its working directory defaults to the selected project, the active file's project, or the first open folder. With no project open, a blank directory uses your home folder. Existing desktop workspace folders can be opened from the canvas workspace picker; close the desktop copy first because workspace locks are preserved.
 
-CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.0-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
+CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.1-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
 
 ## Editor behavior
+
+- The new-terminal/agent dialog offers the editor's open project folders and **Browse folders...**. Selecting a project changes the default for subsequent launches in that editor window; browsing or typing a custom directory applies to that launch. **AgentCanvas: Choose Project Folder** changes the same default from the command palette. Saved terminal directories are preserved on restart. Managed task areas keep their validated checkout directory.
+- In Review, **Open in editor** opens the current file from its managed checkout at the first changed line. File inspection also offers the action for a typed relative path. Deleted files cannot be opened. Rust validates checkout ownership, path boundaries, reparse/symlink exclusions, regular-file type and the existing 256 KiB file limit before returning a canonical local path. The editor opens the working file; edits are subject to the existing stale-review/commit checks.
 
 - Hiding or moving the canvas tab retains terminal processes and the renderer. Closing the canvas tab stops its backend and processes. Reopening restores layout and starts fresh shells; saved agent launches remain paused. Closing/reloading the editor also stops the backend through stdio closure. Terminal output, command history, handles and tokens are never persisted.
 - Layout and notes autosave with the desktop conflict, backup and atomic-write rules. Pending durable edits are mirrored to the extension host and flushed on ordinary tab disposal. Use **AgentCanvas: Save Workspace** to flush explicitly and see save errors before closing, or **AgentCanvas: Close Canvas** for the full frontend close handshake. If a conflict blocks a disposal flush, pending drafts are preserved in a versioned recovery JSON file under the editor's extension storage and the path is shown in an error. Forced process termination cannot guarantee delivery of the last webview message.

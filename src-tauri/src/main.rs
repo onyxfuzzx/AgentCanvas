@@ -84,6 +84,7 @@ fn main() {
                 commands::area_catalog,
                 commands::area_review,
                 commands::area_file,
+                commands::area_file_location,
                 commands::area_preview,
                 commands::area_action,
                 commands::agent_catalog,

@@ -322,6 +322,18 @@ pub async fn area_preview(
     .await
 }
 #[tauri::command]
+pub async fn area_file_location(
+    storage: State<'_, Storage>,
+    workspace_id: String,
+    id: String,
+    relative: String,
+) -> Result<String, String> {
+    with_storage(storage, move |s| {
+        crate::areas::file_location(s.folder(&workspace_id)?, &id, &relative)
+    })
+    .await
+}
+#[tauri::command]
 pub async fn area_action(
     storage: State<'_, Storage>,
     manager: State<'_, Arc<PtyManager>>,

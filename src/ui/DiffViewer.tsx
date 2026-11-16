@@ -3,10 +3,21 @@ import { parseDiff } from '../areas/diff';
 import { Icon } from './Icon';
 const PAGE_SIZE = 500;
 /** Text-only Git rendering; paginate large patches so terminal-sized output cannot flood the DOM. */
-export function DiffViewer({ diff }: { diff: string }) {
+export function DiffViewer({
+  diff,
+  onOpenFile,
+}: {
+  diff: string;
+  onOpenFile?: (path: string, line?: number) => Promise<void>;
+}) {
   const files = useMemo(() => parseDiff(diff), [diff]);
   const [selected, setSelected] = useState('');
   const [page, setPage] = useState(0);
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState<{
+    path: string;
+    message: string;
+  }>();
   const current = files.find((f) => f.path === selected) ?? files[0];
   if (!current)
     return (
@@ -55,7 +66,44 @@ export function DiffViewer({ diff }: { diff: string }) {
             <span className="diff-added">+{current.additions}</span>
             <span className="diff-deleted">-{current.deletions}</span>
             {current.binary && <span className="task-state">Binary</span>}
+            {onOpenFile && (
+              <button
+                type="button"
+                disabled={opening || current.status === 'D'}
+                title={
+                  current.status === 'D'
+                    ? 'This file has been deleted from the checkout'
+                    : 'Open the current working file in the editor'
+                }
+                onClick={() => {
+                  setOpening(true);
+                  setOpenError(undefined);
+                  const path = current.path;
+                  const changed = current.lines.find(
+                    (line) => line.kind === 'add' || line.kind === 'del',
+                  );
+                  void onOpenFile(
+                    path,
+                    changed?.after ??
+                      changed?.before ??
+                      current.lines.find((line) => line.after !== undefined)
+                        ?.after,
+                  )
+                    .catch((error) =>
+                      setOpenError({ path, message: String(error) }),
+                    )
+                    .finally(() => setOpening(false));
+                }}
+              >
+                {opening ? 'Opening…' : 'Open in editor'}
+              </button>
+            )}
           </div>
+          {openError?.path === current.path && (
+            <p className="error-text" role="alert">
+              {openError.message}
+            </p>
+          )}
           {current.oldPath && current.oldPath !== current.path && (
             <p className="page-caption">Previously: {current.oldPath}</p>
           )}
