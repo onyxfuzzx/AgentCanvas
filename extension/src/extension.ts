@@ -15,6 +15,7 @@ import {
 import { webviewHtml } from './webview';
 import { EditorProjects } from './projects';
 import { openReviewedFile } from './review-files';
+import { SetupPreferences } from './setup';
 
 declare const PRODUCT_NAME: string;
 let session: CanvasSession | undefined;
@@ -62,6 +63,7 @@ class CanvasSession {
     private context: vscode.ExtensionContext,
     readonly panel: vscode.WebviewPanel,
     private projects: EditorProjects,
+    private setup: SetupPreferences,
   ) {
     this.host = new NativeHost(
       join(context.extensionPath, 'native', 'agentcanvas-editor.exe'),
@@ -162,6 +164,25 @@ class CanvasSession {
       } else if (message.command === 'editor_open_review_file') {
         await this.openFile(message.args);
         reply.result = null;
+      } else if (message.command === 'editor_setup_get') {
+        reply.result = this.setup.get();
+      } else if (message.command === 'editor_setup_complete') {
+        reply.result = await this.setup.complete();
+      } else if (message.command === 'editor_pick_executable') {
+        const provider = message.args.provider;
+        if (provider !== 'codex' && provider !== 'claude')
+          throw new Error('Choose Codex or Claude Code.');
+        const selected = await vscode.window.showOpenDialog({
+          canSelectFiles: true,
+          canSelectFolders: false,
+          canSelectMany: false,
+          filters: { 'Native executable': ['exe'] },
+          title: `Choose ${provider}.exe`,
+          openLabel: 'Use executable',
+        });
+        if (selected?.[0] && selected[0].scheme !== 'file')
+          throw new Error('Choose a local Windows executable.');
+        reply.result = selected?.[0]?.fsPath ?? null;
       } else {
         if (!nativeCommands.has(message.command))
           throw new Error('Unsupported editor command.');
@@ -212,6 +233,10 @@ class CanvasSession {
   }
   close() {
     return this.panel.webview.postMessage({ type: 'agentcanvas:close' });
+  }
+  async showSetup() {
+    await bounded(this.ready, 'Wait for the canvas to finish loading.', 30000);
+    await this.panel.webview.postMessage({ type: 'agentcanvas:setup' });
   }
   async openFile(args: unknown) {
     if (!vscode.workspace.isTrusted || !this.accepting)
@@ -282,6 +307,7 @@ class CanvasSession {
 
 export function activate(context: vscode.ExtensionContext) {
   output = vscode.window.createOutputChannel(PRODUCT_NAME);
+  const setup = new SetupPreferences(context.globalState);
   const projects = new EditorProjects({
     folders: () =>
       (vscode.workspace.workspaceFolders ?? [])
@@ -351,6 +377,7 @@ export function activate(context: vscode.ExtensionContext) {
           { enableScripts: true, retainContextWhenHidden: true },
         ),
       projects,
+      setup,
     );
   };
   const report = (action: () => Promise<unknown>) => async () => {
@@ -386,6 +413,16 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('agentcanvas.projectContext', () =>
       projects.context(),
+    ),
+    vscode.commands.registerCommand('agentcanvas.setupStatus', () =>
+      setup.get(),
+    ),
+    vscode.commands.registerCommand(
+      'agentcanvas.setup',
+      report(async () => {
+        await open();
+        await session?.showSetup();
+      }),
     ),
     vscode.commands.registerCommand(
       'agentcanvas.selectProject',

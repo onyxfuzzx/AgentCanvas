@@ -51,6 +51,10 @@ import { AreasPanel } from './areas/AreasPanel';
 import { ReviewPage } from './areas/ReviewPage';
 import type { Area } from './areas/model';
 import { TeamPanel } from './team/TeamPanel';
+import { isEditor, onEditorSetup } from './editor';
+import { SetupWizard } from './setup/SetupWizard';
+import { readSetupStatus } from './setup/runtime';
+import { launchDirectory } from './terminal/directory';
 import type { TeamSnapshot } from './team/model';
 
 export function App() {
@@ -94,12 +98,33 @@ export function App() {
   const areaDirectory = useCanvas((s) => s.areaDirectory);
   const [notice, setNotice] = useState('');
   const [workspacesOpen, setWorkspacesOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const setupChecked = useRef(false);
   const [restartId, setRestartId] = useState<string | null>(null);
   const [closeError, setCloseError] = useState('');
   const closing = useRef(false);
   const [creatingNote, setCreatingNote] = useState(false);
   const creation = useRef<Promise<void> | null>(null);
   const work = useWorkspace();
+  useEffect(() => onEditorSetup(() => setSetupOpen(true)), []);
+  useEffect(() => {
+    if (!isDesktop() || work.phase !== 'ready' || setupChecked.current) return;
+    setupChecked.current = true;
+    let alive = true;
+    void readSetupStatus()
+      .then((status) => {
+        if (alive && !status.completed) setSetupOpen(true);
+      })
+      .catch((error) => {
+        if (alive) {
+          setNotice(`Setup preference: ${String(error)}`);
+          setSetupOpen(true);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [work.phase]);
   useEffect(() => {
     const workspaceId = work.active?.document.id;
     setTeamData(undefined);
@@ -360,6 +385,12 @@ export function App() {
       run: () => setNewAgent(true),
     },
     {
+      label: 'Setup and CLI troubleshooting',
+      icon: 'settings',
+      detail: 'Action',
+      run: () => setSetupOpen(true),
+    },
+    {
       label: 'New terminal',
       icon: 'terminal',
       detail: 'Action',
@@ -419,7 +450,7 @@ export function App() {
       />
       <div
         className={`workspace-body ${sidebarOpen ? '' : 'sidebar-hidden'} ${inspectorOpen ? 'inspector-visible' : ''}`}
-        inert={busy}
+        inert={busy || setupOpen}
       >
         <aside
           className="sidebar"
@@ -876,6 +907,7 @@ export function App() {
               onWorkspaces={() => setWorkspacesOpen(true)}
               onShortcuts={() => setHelp(true)}
               onPresets={() => setAgentPresets(true)}
+              onSetup={() => setSetupOpen(true)}
             />
           )}
           {['tasks', 'team', 'areas', 'review'].includes(view) &&
@@ -947,7 +979,11 @@ export function App() {
       )}
       {newTerminal && (
         <NewTerminal
-          defaultCwd={areaDirectory || work.active?.folder}
+          defaultCwd={launchDirectory(
+            isEditor(),
+            areaDirectory || undefined,
+            work.active?.folder,
+          )}
           onClose={() => {
             setNewTerminal(false);
             setView('canvas');
@@ -957,7 +993,11 @@ export function App() {
       {newAgent && (
         <NewTerminal
           agentMode
-          defaultCwd={areaDirectory || work.active?.folder}
+          defaultCwd={launchDirectory(
+            isEditor(),
+            areaDirectory || undefined,
+            work.active?.folder,
+          )}
           onClose={() => {
             setNewAgent(false);
             setView('canvas');
@@ -1081,7 +1121,18 @@ export function App() {
       {workspacesOpen && (
         <WorkspacePanel onClose={() => setWorkspacesOpen(false)} />
       )}
-      {busy && !workspacesOpen && (
+      {setupOpen && (
+        <SetupWizard
+          onClose={() => setSetupOpen(false)}
+          onDone={(action) => {
+            setSetupOpen(false);
+            setView('canvas');
+            if (action === 'terminal') setNewTerminal(true);
+            if (action === 'agent') setNewAgent(true);
+          }}
+        />
+      )}
+      {busy && !workspacesOpen && !setupOpen && (
         <div className="workspace-loading" role="status">
           <h2>
             {creatingNote

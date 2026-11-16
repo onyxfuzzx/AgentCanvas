@@ -194,23 +194,27 @@ impl Default for TaskCapabilities {
 pub fn providers() -> Vec<Availability> {
     [Provider::Codex, Provider::Claude]
         .into_iter()
-        .map(|provider| match resolve(&provider, None) {
-            Ok(path) => Availability {
-                provider,
-                available: true,
-                path: Some(crate::workspace::display(&path)),
-                error: None,
-                capabilities: TaskCapabilities::default(),
-            },
-            Err(error) => Availability {
-                provider,
-                available: false,
-                path: None,
-                error: Some(error),
-                capabilities: TaskCapabilities::default(),
-            },
-        })
+        .map(|provider| inspect(provider, None))
         .collect()
+}
+/// Filesystem detection only: never run a CLI, contact a provider, or read credentials.
+pub fn inspect(provider: Provider, executable: Option<String>) -> Availability {
+    match resolve(&provider, executable.as_deref()) {
+        Ok(path) => Availability {
+            provider,
+            available: true,
+            path: Some(crate::workspace::display(&path)),
+            error: None,
+            capabilities: TaskCapabilities::default(),
+        },
+        Err(error) => Availability {
+            provider,
+            available: false,
+            path: None,
+            error: Some(error),
+            capabilities: TaskCapabilities::default(),
+        },
+    }
 }
 
 pub fn host(launch: AgentLaunch, cwd: &Path) -> Result<i32, String> {

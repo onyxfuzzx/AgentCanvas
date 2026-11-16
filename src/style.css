@@ -1678,3 +1678,78 @@ button:active:not(:disabled) {
 .directory-actions small {
   flex: 1 1 220px;
 }
+
+.dialog.setup-dialog {
+  width: min(760px, calc(100vw - 32px));
+}
+.setup-dialog section {
+  min-width: 0;
+}
+.setup-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.setup-steps {
+  display: flex;
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+  flex-wrap: wrap;
+}
+.setup-steps li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 0.55;
+}
+.setup-steps li[aria-current='step'] {
+  opacity: 1;
+  font-weight: 600;
+}
+.setup-steps span {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+.setup-provider {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.setup-dialog label.setup-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.setup-choice input {
+  width: auto;
+}
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.setup-path {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.setup-detection {
+  overflow-wrap: anywhere;
+}
+.setup-summary dd {
+  margin: 4px 0 16px;
+  overflow-wrap: anywhere;
+}
+.setup-error {
+  border-left: 3px solid #cf6b5e;
+  padding-left: 12px;
+}

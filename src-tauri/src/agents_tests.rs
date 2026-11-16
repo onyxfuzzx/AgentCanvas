@@ -1,4 +1,27 @@
 use super::*;
+#[test]
+fn setup_inspection_is_filesystem_only_and_rejects_wrappers_and_missing_paths() {
+    let f = Fixture::new();
+    let valid = f.0.join("codex.exe");
+    fs::write(&valid, b"fixture file, not an executable program").unwrap();
+    let result = inspect(Provider::Codex, Some(crate::workspace::display(&valid)));
+    assert!(result.available);
+    assert_eq!(
+        result.capabilities.version,
+        "unknown; executable detection only"
+    );
+    for path in [
+        "codex.exe".to_owned(),
+        crate::workspace::display(&f.0.join("codex.cmd")),
+        crate::workspace::display(&f.0.join("missing/codex.exe")),
+        crate::workspace::display(&f.0),
+    ] {
+        let result = inspect(Provider::Codex, Some(path));
+        assert!(!result.available);
+        assert!(result.path.is_none());
+        assert!(result.error.is_some());
+    }
+}
 use std::sync::atomic::{AtomicU64, Ordering};
 static NEXT: AtomicU64 = AtomicU64::new(0);
 struct Fixture(PathBuf);

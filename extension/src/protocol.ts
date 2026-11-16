@@ -4,6 +4,7 @@ export const nativeCommands = new Set([
   'editor_quiesce',
   'shells',
   'agent_providers',
+  'agent_inspect',
   'agent_catalog',
   'agent_catalog_save',
   'terminal_spawn',

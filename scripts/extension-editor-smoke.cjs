@@ -50,7 +50,7 @@ async function projectFixture(extension, storage) {
   try {
     const workspaceId = randomUUID(),
       id = randomUUID();
-    await host.request('workspace_create', {
+    const loaded = await host.request('workspace_create', {
       id: workspaceId,
       name: 'Project integration smoke',
       folder: path.join(
@@ -60,6 +60,81 @@ async function projectFixture(extension, storage) {
       ),
     });
     await host.request('workspace_activate', { id: workspaceId });
+    const cliFolder = path.join(folder, 'native CLI fixture');
+    await fs.mkdir(cliFolder);
+    const executable = path.join(cliFolder, 'codex.exe');
+    await fs.writeFile(
+      executable,
+      'Detection-only fixture. Never execute this file.',
+    );
+    const inspection = await host.request('agent_inspect', {
+      provider: 'codex',
+      executable,
+    });
+    assert(inspection.available, 'Native setup detects an existing file');
+    assert.equal(
+      inspection.capabilities.version,
+      'unknown; executable detection only',
+    );
+    assert.equal(
+      (
+        await host.request('agent_inspect', {
+          provider: 'codex',
+          executable: path.join(cliFolder, 'codex.cmd'),
+        })
+      ).available,
+      false,
+    );
+    assert.equal(
+      (
+        await host.request('agent_inspect', {
+          provider: 'codex',
+          executable: path.join(cliFolder, 'missing/codex.exe'),
+        })
+      ).available,
+      false,
+    );
+    const { AgentSetup, initialProviders } = require(
+      path.join(
+        path.dirname(process.env.AGENTCANVAS_SMOKE_SUPPORT),
+        'setup.cjs',
+      ),
+    );
+    let completed = false;
+    const setup = new AgentSetup(
+      (command, args) => host.request(command, args),
+      randomUUID,
+      async () => {
+        const { nodes, viewport, settings, edges } = loaded.document;
+        await host.request('workspace_save', {
+          id: workspaceId,
+          layout: { nodes, viewport, settings, edges },
+        });
+      },
+      async () => {
+        completed = true;
+      },
+    );
+    const data = await setup.load();
+    const configs = initialProviders(data.reply, randomUUID);
+    configs[0] = {
+      ...configs[0],
+      enabled: true,
+      executable,
+      name: 'Setup fixture preset',
+    };
+    await setup.finish(configs);
+    assert(
+      completed,
+      'Setup completes only after native preset save and workspace flush',
+    );
+    const saved = await host.request('agent_catalog');
+    assert.equal(
+      saved.library.profiles.find(
+        (profile) => profile.id === configs[0].profileId,
+      ).executable,
+      executable,
+    );
     const catalog = await host.request('area_action', {
       workspaceId,
       action: {
@@ -156,6 +231,26 @@ exports.run = async function () {
       }
     }
     assert(saved, `Webview save handshake failed: ${lastError}`);
+    const beforeSetup = await vscode.commands.executeCommand(
+      'agentcanvas.setupStatus',
+    );
+    assert.deepEqual(beforeSetup, { version: 1, completed: false });
+    await vscode.commands.executeCommand('agentcanvas.setup');
+    assert.deepEqual(
+      await vscode.commands.executeCommand('agentcanvas.setupStatus'),
+      beforeSetup,
+      'Opening setup cannot silently mark it complete',
+    );
+    projectChecks.push(
+      'first-run preference starts incomplete',
+      'setup command opens renderer',
+      'opening setup leaves completion explicit',
+    );
+    if (fixture)
+      projectChecks.push(
+        'native CLI inspection rejects missing paths and wrappers',
+        'setup controller saves a selected preset and flushes the workspace without executing it',
+      );
     const catalog = JSON.parse(
       await fs.readFile(path.join(storage, 'workspaces.json'), 'utf8'),
     );

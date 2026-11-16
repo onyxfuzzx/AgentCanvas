@@ -174,6 +174,7 @@ export function SettingsPage({
   onWorkspaces,
   onShortcuts,
   onPresets,
+  onSetup,
   workspaceName,
 }: {
   appearance: Appearance;
@@ -181,6 +182,7 @@ export function SettingsPage({
   onWorkspaces: () => void;
   onShortcuts: () => void;
   onPresets: () => void;
+  onSetup: () => void;
   workspaceName: string;
 }) {
   const [tab, setTab] = useState('general');
@@ -292,6 +294,16 @@ export function SettingsPage({
                   </small>
                 </span>
                 <button onClick={onPresets}>Manage presets</button>
+              </div>
+              <div className="settings-row">
+                <span>
+                  <b>Setup and CLI troubleshooting</b>
+                  <small>
+                    Choose your workspace, configure installed agents, and check
+                    executable paths.
+                  </small>
+                </span>
+                <button onClick={onSetup}>Open setup</button>
               </div>
             </>
           ) : tab === 'workspace' ? (

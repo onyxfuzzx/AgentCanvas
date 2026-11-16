@@ -48,12 +48,16 @@ await build({
 if (process.argv.includes('--smoke-support')) {
   await mkdir(resolve(root, '.cache/extension-smoke'), { recursive: true });
   await build({
-    entryPoints: [resolve(extension, 'src/host.ts')],
+    entryPoints: {
+      host: resolve(extension, 'src/host.ts'),
+      setup: resolve(root, 'src/setup/model.ts'),
+    },
     bundle: true,
     platform: 'node',
     format: 'cjs',
     target: 'node20',
-    outfile: resolve(root, '.cache/extension-smoke/host.cjs'),
+    outdir: resolve(root, '.cache/extension-smoke'),
+    outExtension: { '.js': '.cjs' },
   });
 }
 await buildWebview({
@@ -86,6 +90,7 @@ await writeFile(
       saveTitle: `${product.name}: Save Workspace`,
       closeTitle: `${product.name}: Close Canvas`,
       selectProjectTitle: `${product.name}: Choose Project Folder`,
+      setupTitle: `${product.name}: Setup and CLI Troubleshooting`,
     },
     null,
     2,

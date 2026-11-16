@@ -131,6 +131,9 @@ impl Runtime {
                 .map_err(|e| e.to_string())
             }
             "agent_catalog" => call!(a, commands::agent_catalog, [storage()], {}),
+            "agent_inspect" => {
+                call!(a, commands::agent_inspect, [], {provider: crate::agents::Provider, executable: Option<String>})
+            }
             "agent_catalog_save" => {
                 call!(a, commands::agent_catalog_save, [storage()], {expected: Option<String>, library: crate::agents::Library})
             }

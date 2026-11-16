@@ -73,6 +73,7 @@ fn main() {
                 agent_canvas_desktop::browser::browser_close_all,
                 commands::shells,
                 commands::agent_providers,
+                commands::agent_inspect,
                 commands::task_snapshot,
                 commands::task_action,
                 commands::team_snapshot,

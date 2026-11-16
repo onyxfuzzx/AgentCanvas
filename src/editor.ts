@@ -14,6 +14,8 @@ const pending = new Map<
   { resolve: (value: unknown) => void; reject: (error: Error) => void }
 >();
 const closeListeners = new Set<() => void>();
+const setupListeners = new Set<() => void>();
+let setupRequested = false;
 let save: (() => Promise<void>) | undefined;
 
 if (api) {
@@ -33,6 +35,9 @@ if (api) {
       else request.resolve(message.result);
     } else if (message.type === 'agentcanvas:close') {
       closeListeners.forEach((listener) => listener());
+    } else if (message.type === 'agentcanvas:setup') {
+      if (setupListeners.size) setupListeners.forEach((listener) => listener());
+      else setupRequested = true;
     } else if (
       message.type === 'agentcanvas:save' &&
       Number.isSafeInteger(message.id)
@@ -84,4 +89,14 @@ export function onEditorClose(handler: () => void) {
 }
 export function registerEditorSave(handler: () => Promise<void>) {
   save = handler;
+}
+export function onEditorSetup(handler: () => void) {
+  setupListeners.add(handler);
+  if (setupRequested) {
+    setupRequested = false;
+    handler();
+  }
+  return () => {
+    setupListeners.delete(handler);
+  };
 }

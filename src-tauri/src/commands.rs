@@ -17,6 +17,15 @@ pub fn agent_providers() -> Vec<crate::agents::Availability> {
     crate::agents::providers()
 }
 #[tauri::command]
+pub async fn agent_inspect(
+    provider: crate::agents::Provider,
+    executable: Option<String>,
+) -> Result<crate::agents::Availability, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::agents::inspect(provider, executable))
+        .await
+        .map_err(|error| error.to_string())
+}
+#[tauri::command]
 pub async fn agent_catalog(
     storage: State<'_, Storage>,
 ) -> Result<crate::agents::LibraryReply, String> {

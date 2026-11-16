@@ -7,11 +7,19 @@ This package targets **local Windows x64** VS Code 1.90+ and compatible Antigrav
 ## Install and open
 
 1. Build from the repository root with `npm ci` and `npm run extension:package` (requires the desktop Rust/MSVC build prerequisites).
-2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.1-win32-x64.vsix`.
+2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.2-win32-x64.vsix`.
 3. Open a trusted local folder. Run **AgentCanvas: Open Canvas** in the command palette, or select the canvas activity-bar icon and **Open canvas**.
 4. Add a terminal or agent. Its working directory defaults to the selected project, the active file's project, or the first open folder. With no project open, a blank directory uses your home folder. Existing desktop workspace folders can be opened from the canvas workspace picker; close the desktop copy first because workspace locks are preserved.
 
-CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.1-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
+CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.2-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
+
+## First-run setup
+
+The first canvas opening presents a three-step guide: choose a canvas workspace, optionally configure installed Codex/Claude Code presets, then review and save. You can keep the current workspace, create a named workspace or open a saved one. Project selection controls the working-directory default for new terminals/agents. Changing a canvas workspace saves the current layout and stops its shells.
+
+Agent setup offers automatic executable detection, an explicit native `.exe` path, file browsing and **Check executable**. These checks inspect local files; CLI version and authentication stay **not checked**. Help buttons open the providers' [Codex CLI](https://developers.openai.com/codex/cli) / [authentication](https://developers.openai.com/codex/auth) and [Claude Code setup](https://code.claude.com/docs/en/setup) / [authentication](https://code.claude.com/docs/en/authentication) guides only after a click. Setup never downloads installers, runs sign-in commands, reads credentials or starts agents.
+
+Leave both providers unchecked to finish with terminals, notes and the whiteboard. Selected presets use the existing validated atomic library save; other presets, roles and existing agent nodes keep their settings. Setup is marked complete only after preset saves and workspace flushing succeed. Retrying a partial save keeps preset IDs. **Set up later** leaves completion unset. Reopen the guide from **AgentCanvas: Setup and CLI Troubleshooting**, the canvas command palette, or Settings. Completion is a versioned editor preference; each editor has its own setting.
 
 ## Editor behavior
 
