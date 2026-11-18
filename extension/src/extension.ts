@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
 import { NativeHost } from './host';
 import { Checkpoints } from './checkpoints';
 import {
@@ -16,11 +15,14 @@ import { webviewHtml } from './webview';
 import { EditorProjects } from './projects';
 import { openReviewedFile } from './review-files';
 import { SetupPreferences } from './setup';
+import { RecoveryStore } from './recovery';
+import { showRecovery } from './recovery-ui';
 
 declare const PRODUCT_NAME: string;
 let session: CanvasSession | undefined;
 let closing: Promise<void> = Promise.resolve();
 let output: vscode.OutputChannel;
+const recoveryHosts = new Set<NativeHost>();
 
 async function bounded<T>(
   operation: Promise<T>,
@@ -60,10 +62,11 @@ class CanvasSession {
   });
   private shutdown?: Promise<void>;
   constructor(
-    private context: vscode.ExtensionContext,
+    context: vscode.ExtensionContext,
     readonly panel: vscode.WebviewPanel,
     private projects: EditorProjects,
     private setup: SetupPreferences,
+    private recovery: RecoveryStore,
   ) {
     this.host = new NativeHost(
       join(context.extensionPath, 'native', 'agentcanvas-editor.exe'),
@@ -284,18 +287,9 @@ class CanvasSession {
         );
       } catch (error) {
         // Preserve immutable durable drafts if a conflict prevents the final flush.
-        const folder = join(this.context.globalStorageUri.fsPath, 'recovery');
-        await mkdir(folder, { recursive: true });
-        const path = join(folder, `drafts-${randomUUID()}.json`);
-        const temporary = `${path}.tmp`;
-        await writeFile(
-          temporary,
-          JSON.stringify({ version: 1, saves: this.checkpoints.snapshot() }),
-          { encoding: 'utf8', flag: 'wx', mode: 0o600 },
-        );
-        await rename(temporary, path);
+        const path = await this.recovery.preserve(this.checkpoints.snapshot());
         throw new Error(
-          `Save failed: ${String(error)}. Pending layout and note drafts were preserved at ${path}`,
+          `Save failed: ${String(error)}. Pending layout and note drafts were preserved at ${path}. Run ${PRODUCT_NAME}: Recover Canvas Drafts to inspect and restore a copy.`,
         );
       } finally {
         await this.host.stop();
@@ -308,6 +302,7 @@ class CanvasSession {
 export function activate(context: vscode.ExtensionContext) {
   output = vscode.window.createOutputChannel(PRODUCT_NAME);
   const setup = new SetupPreferences(context.globalState);
+  const recovery = new RecoveryStore(context.globalStorageUri.fsPath);
   const projects = new EditorProjects({
     folders: () =>
       (vscode.workspace.workspaceFolders ?? [])
@@ -378,6 +373,7 @@ export function activate(context: vscode.ExtensionContext) {
         ),
       projects,
       setup,
+      recovery,
     );
   };
   const report = (action: () => Promise<unknown>) => async () => {
@@ -393,6 +389,35 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       'agentcanvas.open',
       report(() => open()),
+    ),
+    vscode.commands.registerCommand(
+      'agentcanvas.recover',
+      (selection?: unknown) =>
+        report(() =>
+          showRecovery(
+            recovery,
+            () => {
+              const host = new NativeHost(
+                join(context.extensionPath, 'native', 'agentcanvas-editor.exe'),
+                context.globalStorageUri.fsPath,
+                homedir(),
+                (message) => output.appendLine(message),
+              );
+              recoveryHosts.add(host);
+              return {
+                request: (command, args) => host.request(command, args),
+                stop: async () => {
+                  try {
+                    await host.stop();
+                  } finally {
+                    recoveryHosts.delete(host);
+                  }
+                },
+              };
+            },
+            selection,
+          ),
+        )(),
     ),
     vscode.commands.registerCommand(
       'agentcanvas.save',
@@ -463,6 +488,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 }
 export async function deactivate() {
+  await Promise.all([...recoveryHosts].map((host) => host.stop()));
   if (session) await session.stop();
   await closing.catch(() => {});
 }

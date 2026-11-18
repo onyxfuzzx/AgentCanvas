@@ -51,6 +51,7 @@ if (process.argv.includes('--smoke-support')) {
     entryPoints: {
       host: resolve(extension, 'src/host.ts'),
       setup: resolve(root, 'src/setup/model.ts'),
+      recovery: resolve(extension, 'src/recovery.ts'),
     },
     bundle: true,
     platform: 'node',
@@ -91,6 +92,7 @@ await writeFile(
       closeTitle: `${product.name}: Close Canvas`,
       selectProjectTitle: `${product.name}: Choose Project Folder`,
       setupTitle: `${product.name}: Setup and CLI Troubleshooting`,
+      recoverTitle: `${product.name}: Recover Canvas Drafts`,
     },
     null,
     2,

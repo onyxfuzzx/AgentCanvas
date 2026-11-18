@@ -152,6 +152,20 @@ impl Runtime {
             "terminal_close" => {
                 call!(a, commands::terminal_close, [manager(), collaboration()], {id: String})
             }
+            "editor_validate_layout" => {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct Args {
+                    layout: crate::workspace::Layout,
+                }
+                let args: Args = serde_json::from_value(a).map_err(|e| e.to_string())?;
+                let layout = self
+                    .storage
+                    .lock()
+                    .map_err(|_| "Storage unavailable")?
+                    .validated_layout(args.layout)?;
+                serde_json::to_value(layout).map_err(|e| e.to_string())
+            }
             "workspace_list" => call!(a, commands::workspace_list, [storage()], {}),
             "workspace_create" => {
                 call!(a, commands::workspace_create, [storage()], {id: String, name: String, folder: Option<String>})

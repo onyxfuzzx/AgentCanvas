@@ -2,6 +2,7 @@ export const MAX_FRAME = 8 * 1024 * 1024;
 export const MAX_PENDING = 64;
 export const nativeCommands = new Set([
   'editor_quiesce',
+  'editor_validate_layout',
   'shells',
   'agent_providers',
   'agent_inspect',

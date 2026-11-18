@@ -649,13 +649,20 @@ impl WorkspaceStore {
             recovered: open.recovered,
         }
     }
-    pub fn save(&mut self, id: &str, mut layout: Layout) -> Result<Loaded, String> {
+    pub(crate) fn validated_layout(&self, mut layout: Layout) -> Result<Layout, String> {
         for node in &mut layout.nodes {
             if node.kind == "terminal" && node.cwd.as_deref().is_none_or(|s| s.trim().is_empty()) {
                 node.cwd = Some(display(&self.home));
             }
         }
         layout.validate()?;
+        if encode(&layout)?.len() as u64 > MAX_BYTES {
+            return Err("Workspace layout exceeds 4 MiB".into());
+        }
+        Ok(layout)
+    }
+    pub fn save(&mut self, id: &str, layout: Layout) -> Result<Loaded, String> {
+        let layout = self.validated_layout(layout)?;
         let open = self.open.get_mut(id).ok_or("Workspace is not open")?;
         if read(&open.folder.join(LAYOUT))? != open.baseline {
             return Err("Workspace changed on disk. Autosave stopped to protect those changes. Close without saving and reopen to load the disk version.".into());

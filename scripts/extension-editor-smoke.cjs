@@ -154,7 +154,81 @@ async function projectFixture(extension, storage) {
       review.diff.includes('changed in managed checkout'),
       'File is part of the review diff',
     );
-    return { workspaceId, id, relative, file };
+    const { RecoveryStore } = require(
+      path.join(
+        path.dirname(process.env.AGENTCANVAS_SMOKE_SUPPORT),
+        'recovery.cjs',
+      ),
+    );
+    const recovery = new RecoveryStore(storage);
+    const noteId = randomUUID();
+    const relativePath = await host.request('note_create', {
+      workspaceId,
+      id: noteId,
+    });
+    const baseline = await host.request('note_read', {
+      workspaceId,
+      relativePath,
+    });
+    await host.request('note_save', {
+      workspaceId,
+      relativePath,
+      expected: baseline,
+      content: 'External change preserved by recovery',
+    });
+    const recoveryPath = await recovery.preserve([
+      {
+        command: 'workspace_save',
+        args: {
+          id: workspaceId,
+          layout: {
+            nodes: [
+              {
+                id: noteId,
+                kind: 'note',
+                title: 'Recovery fixture',
+                color: '#8b5cf6',
+                x: 0,
+                y: 0,
+                width: 420,
+                height: 300,
+                z: 1,
+                relativePath,
+              },
+            ],
+            edges: [],
+            viewport: { x: 72, y: 72, zoom: 1 },
+            settings: { snapGrid: false },
+          },
+        },
+      },
+      {
+        command: 'note_save',
+        args: {
+          workspaceId,
+          relativePath,
+          expected: baseline,
+          content: 'Preserved pending draft 世界 <script>no execution</script>',
+        },
+      },
+    ]);
+    const recoveryId = path.basename(recoveryPath);
+    const drafts = await recovery.inspect(recoveryId);
+    const copy = await recovery.restore(drafts, workspaceId, host);
+    assert.equal(
+      await fs.readFile(path.join(copy.folder, relativePath), 'utf8'),
+      'Preserved pending draft 世界 <script>no execution</script>',
+    );
+    assert.equal(
+      await host.request('note_read', { workspaceId, relativePath }),
+      'External change preserved by recovery',
+    );
+    assert.deepEqual(
+      await recovery.restore(drafts, workspaceId, host),
+      copy,
+      'Repeated restore returns the existing copy',
+    );
+    return { workspaceId, id, relative, file, recoveryId };
   } finally {
     await host.stop();
   }
@@ -273,6 +347,37 @@ exports.run = async function () {
       'Canvas editor tab is visible',
     );
     if (fixture) {
+      await vscode.commands.executeCommand('agentcanvas.recover', {
+        id: fixture.recoveryId,
+        workspaceId: fixture.workspaceId,
+      });
+      const recoveryTabReady = () =>
+        vscode.window.tabGroups.all.some((group) =>
+          group.tabs.some((tab) => tab.label === 'Recover Canvas Drafts'),
+        );
+      const recoveryTabDeadline = Date.now() + 10000;
+      while (!recoveryTabReady() && Date.now() < recoveryTabDeadline)
+        await delay(50);
+      assert(
+        recoveryTabReady(),
+        'Recovery preview opens in its own editor tab',
+      );
+      await vscode.commands.executeCommand(
+        'workbench.action.closeActiveEditor',
+      );
+      await assert.rejects(
+        vscode.commands.executeCommand('agentcanvas.recover', {
+          id: '../outside.json',
+          workspaceId: fixture.workspaceId,
+        }),
+      );
+      await vscode.commands.executeCommand('agentcanvas.open');
+      projectChecks.push(
+        'recovery preview tab',
+        'recovery identifier refusal',
+        'native draft copy and original conflict preservation',
+        'repeat recovery uses saved receipt',
+      );
       assert.equal(
         workspace.id,
         fixture.workspaceId,

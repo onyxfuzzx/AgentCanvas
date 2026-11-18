@@ -7,11 +7,11 @@ This package targets **local Windows x64** VS Code 1.90+ and compatible Antigrav
 ## Install and open
 
 1. Build from the repository root with `npm ci` and `npm run extension:package` (requires the desktop Rust/MSVC build prerequisites).
-2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.2-win32-x64.vsix`.
+2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.3-win32-x64.vsix`.
 3. Open a trusted local folder. Run **AgentCanvas: Open Canvas** in the command palette, or select the canvas activity-bar icon and **Open canvas**.
 4. Add a terminal or agent. Its working directory defaults to the selected project, the active file's project, or the first open folder. With no project open, a blank directory uses your home folder. Existing desktop workspace folders can be opened from the canvas workspace picker; close the desktop copy first because workspace locks are preserved.
 
-CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.2-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
+CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.3-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
 
 ## First-run setup
 
@@ -22,6 +22,12 @@ Agent setup offers automatic executable detection, an explicit native `.exe` pat
 Leave both providers unchecked to finish with terminals, notes and the whiteboard. Selected presets use the existing validated atomic library save; other presets, roles and existing agent nodes keep their settings. Setup is marked complete only after preset saves and workspace flushing succeed. Retrying a partial save keeps preset IDs. **Set up later** leaves completion unset. Reopen the guide from **AgentCanvas: Setup and CLI Troubleshooting**, the canvas command palette, or Settings. Completion is a versioned editor preference; each editor has its own setting.
 
 ## Editor behavior
+
+Run **AgentCanvas: Recover Canvas Drafts** (also in the activity-bar welcome view) to inspect drafts preserved after a failed close-time save. Choose a dated file and workspace to see its layout nodes, complete pending note text and the note's original editing baseline. The preview displays text locally and starts no backend or provider.
+
+**Restore a copy** saves a separate workspace in the recent-workspace catalog, keeping the source workspace and recovery file. Pending note drafts take precedence in the copy; other notes are copied from their current saved files. Close the source canvas tab first if those files are locked. **Restore pending notes only** creates a copy containing just the preserved note drafts when the source is locked, missing or corrupt. Completed restores have a durable receipt so repeating the action returns the existing copy. A failed restore retains any partial copy and reports its location; retrying that incomplete operation can create another copy.
+
+Restoration leaves the current canvas open and starts no shells, agents or browser pages. Choose the saved copy from the canvas workspace picker when ready; opening it follows normal shell startup behavior. Saved agent nodes remain paused. Task areas, task history and team runs are excluded, area associations are removed, and peer links require approval. Terminal directories and agent launch settings are preserved. Recovery cannot recover terminal output or edits that never reached a checkpoint. Malformed/unsupported drafts are retained; their restore is refused.
 
 - The new-terminal/agent dialog offers the editor's open project folders and **Browse folders...**. Selecting a project changes the default for subsequent launches in that editor window; browsing or typing a custom directory applies to that launch. **AgentCanvas: Choose Project Folder** changes the same default from the command palette. Saved terminal directories are preserved on restart. Managed task areas keep their validated checkout directory.
 - In Review, **Open in editor** opens the current file from its managed checkout at the first changed line. File inspection also offers the action for a typed relative path. Deleted files cannot be opened. Rust validates checkout ownership, path boundaries, reparse/symlink exclusions, regular-file type and the existing 256 KiB file limit before returning a canonical local path. The editor opens the working file; edits are subject to the existing stale-review/commit checks.

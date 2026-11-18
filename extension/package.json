@@ -2,7 +2,7 @@
   "name": "agentcanvas",
   "displayName": "%productName%",
   "description": "A local canvas for coding agents, terminals, notes and team execution.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "agentcanvas-local",
   "license": "UNLICENSED",
   "engines": {
@@ -54,6 +54,10 @@
         "title": "%selectProjectTitle%"
       },
       {
+        "command": "agentcanvas.recover",
+        "title": "%recoverTitle%"
+      },
+      {
         "command": "agentcanvas.setup",
         "title": "%setupTitle%"
       }
@@ -78,7 +82,7 @@
     "viewsWelcome": [
       {
         "view": "agentcanvas.launcher",
-        "contents": "Your spatial workspace for local coding agents.\n[Open canvas](command:agentcanvas.open)\nRun shells, connect agents, keep notes and review team tasks inside your editor."
+        "contents": "Your spatial workspace for local coding agents.\n[Open canvas](command:agentcanvas.open)\n[Recover preserved drafts](command:agentcanvas.recover)\nRun shells, connect agents, keep notes and review team tasks inside your editor."
       }
     ],
     "menus": {
