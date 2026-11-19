@@ -2,7 +2,7 @@
 
 Run the existing spatial agent workspace in an editor tab: local ConPTY terminals, Codex/Claude CLI presets, linked agents, Markdown notes, whiteboard, durable tasks, isolated Git areas and the bounded M11 team coordinator. No account, telemetry, service, network listener or runtime downloads are added. Installed agent CLIs retain their own authentication and approval settings.
 
-This package targets **local Windows x64** VS Code 1.90+ and compatible Antigravity IDE builds. It bundles the Rust backend and both helper executables; Rust, Node and the standalone desktop app are not needed to use the installed extension. Remote editor windows, virtual workspaces, macOS and Linux are not supported by this build.
+This package targets **local Windows x64** VS Code 1.90+ and compatible Antigravity IDE builds. It bundles the Rust backend and both helper executables; Rust, Node and the standalone desktop app are not needed to use the installed extension. Remote editor windows, virtual workspaces, macOS and Linux are not supported by this build. The [roadmap through M28](../docs/MILESTONES.md) plans the portable runtime and Linux/macOS desktop work in M13–M15, local editor packages in M16, three-platform beta qualification in M17 and separately qualified remote hosting in M25.
 
 ## Install and open
 
@@ -41,4 +41,4 @@ Restoration leaves the current canvas open and starts no shells, agents or brows
 
 ## Development
 
-Run `npm run extension:build -- --debug`, then launch the **AgentCanvas Extension** debug configuration in VS Code or start either editor with `--extensionDevelopmentPath=<absolute repository>/extension`. Run `npm run check`, `npm run extension:check` and `npm run native:check`. See the repository's `docs/VERIFICATION.md` for executed checks and remaining limitations. M12 remains future work.
+Run `npm run extension:build -- --debug`, then launch the **AgentCanvas Extension** debug configuration in VS Code or start either editor with `--extensionDevelopmentPath=<absolute repository>/extension`. Run `npm run check`, `npm run extension:check` and `npm run native:check`. See the repository's `docs/VERIFICATION.md` for executed checks and remaining limitations, and [project status](../docs/PROJECT-STATUS.md) for the M12–M28 plan. Future platform entries are not evidence of a supported build.
