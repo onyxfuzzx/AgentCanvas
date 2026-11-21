@@ -1,10 +1,19 @@
 name: Check
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   windows:
+    name: Windows checks
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -13,17 +22,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - run: npm ci
-      - run: npm run check
+      - run: npm run repo:audit -- --public
       - run: npm run native:check
+      - run: npm run extension:build -- --debug
+      - run: npm run check
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --test conpty -- --ignored
-      - run: cargo install tauri-cli --version '^2' --locked
-      - run: npm run desktop:release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-release
-          if-no-files-found: error
-          path: |
-            artifacts/windows-portable/
-            artifacts/windows-portable.zip
-            artifacts/windows-portable.zip.sha256
-            artifacts/windows-installers/

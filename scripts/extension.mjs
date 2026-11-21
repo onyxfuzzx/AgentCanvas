@@ -104,6 +104,7 @@ await copyFile(
   resolve(root, 'THIRD_PARTY.md'),
   resolve(extension, 'THIRD_PARTY.md'),
 );
+await copyFile(resolve(root, 'LICENSE'), resolve(extension, 'LICENSE'));
 if (process.platform !== 'win32' || process.arch !== 'x64')
   throw new Error('The bundled native backend currently targets Windows x64.');
 if (!uiOnly) {
@@ -162,7 +163,6 @@ if (process.argv.includes('--package')) {
       'package',
       '--no-dependencies',
       '--allow-missing-repository',
-      '--skip-license',
       '--target',
       'win32-x64',
       '--out',

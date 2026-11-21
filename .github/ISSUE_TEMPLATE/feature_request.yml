@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a concrete improvement and how we would verify it.
+title: '[Feature]: '
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the user workflow and what currently gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How would we verify it?
+      description: Include platform/host requirements, failure behavior and relevant roadmap milestones.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and scope
+      description: Explain existing workarounds and which parts can be delivered independently.

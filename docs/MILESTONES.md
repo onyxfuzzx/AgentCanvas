@@ -8,6 +8,19 @@ The user authorized planning through M28, including Linux and macOS, on 2026-11-
 
 Turn the existing spatial terminal workspace into a dependable control plane for coding agents on Windows, Linux and macOS: give it a goal, inspect its proposed work, run independent tasks in isolated checkouts, review evidence, and integrate the accepted result. Preserve direct terminal access, offline local workspace use and manual control throughout. Remote execution, shared workspaces and schedules arrive later as opt-in capabilities. The core requires no AgentCanvas account, telemetry or cloud service.
 
+The owner approved MIT open-source preparation on 2026-11-21. The public roadmap is [ROADMAP.md](../ROADMAP.md); [OPEN-SOURCE-LAUNCH.md](OPEN-SOURCE-LAUNCH.md) defines the public-source and release gates. Build quality, recoverability, accessible interaction, clear contribution paths and published evidence guide the project. Public preparation is authorized; future application milestones still require their own implementation request.
+
+## Open-source checkpoints before the next feature milestone
+
+| Checkpoint | Outcome                                                                                                                              | Gate                                                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OS0        | Public source preview: MIT, clear documentation/structure, contribution policies/templates, source/history audit and reproducible CI | Local preparation and checks plus fresh online install/hosted CI, owner privacy/history review, verified reporting/security settings and an explicit visibility decision. |
+| OS1        | Windows public prerelease: real demo, qualified packages, support matrix, notices, release notes and checksums                       | Relevant WS2–WS6 acceptance, exact-source artifact validation and explicit prerelease publication.                                                                        |
+
+OS0 is source/public-project work; OS1 reuses Windows qualification rather than inventing a second feature backlog. Source can be published as a development preview before stable binary qualification. A built artifact, an illustrated workflow and an authenticated provider success are separate evidence. No source visibility change, remote push or public release is implied by updating this document.
+
+Keep `src/`, `src-tauri/` and `extension/` stable; organize user/contributor information through `docs/README.md`, `docs/guides/`, root community files and sanitized `examples/`. Every significant milestone should have scoped contributor tasks, documented failure behavior, appropriate checks and release-note evidence. Give M13–M17 portable lifecycle/accessibility and real-machine qualification priority before optional hosted services.
+
 Maestri is a useful interaction reference. Its documentation describes a spatial workspace, manager agents that recruit and connect teammates, isolated floors, and saved team arrangements. Matching those workflows is the baseline. Our proposed differentiation is explicit task state, recoverable execution, traceable evidence, bounded resource use and controlled integration. These are design goals, not claims that Maestri lacks these capabilities or that AgentCanvas already outperforms it.
 
 Reference material checked on 2026-11-13:
@@ -42,28 +55,30 @@ M5 peer sends still type into another terminal. Delivery does not prove that an 
 
 ## Milestone sequence
 
-| Milestone | Outcome                                                     | Depends on                                | Status                                 |
-| --------- | ----------------------------------------------------------- | ----------------------------------------- | -------------------------------------- |
-| M9        | Durable tasks and reliable agent communication              | M8; relevant acceptance checks            | Implemented; deeper acceptance pending |
-| M10       | Isolated execution and reviewable Git integration           | M9                                        | Implemented; see verification          |
-| M11       | Bounded coordinator and team operations                     | M9 + M10                                  | Implemented; release blockers remain   |
-| M12       | Reusable workflows, project tools and Windows qualification | WS1–WS7; M9–M11                           | Planned; 19 feature items              |
-| M13       | Portable native foundation                                  | WS1 + WS7; M12 data contracts             | Planned                                |
-| M14       | Linux desktop                                               | M13                                       | Planned                                |
-| M15       | macOS desktop                                               | M13                                       | Planned                                |
-| M16       | Linux and macOS editor extensions                           | M13–M15                                   | Planned                                |
-| M17       | Three-platform beta release                                 | M12–M16; current release gates            | Planned                                |
-| M18       | Structured agent conversations and routing                  | M17; documented provider interfaces       | Planned                                |
-| M19       | Project context and durable knowledge                       | M12.2 + M17                               | Planned                                |
-| M20       | Visual workflows and controlled automation                  | M12.1 + M12.4 + M18 + M19                 | Planned                                |
-| M21       | Git delivery and external checks                            | M17 + M20                                 | Planned                                |
-| M22       | Archival, portability and local recovery                    | M19 + M20; existing atomic stores         | Planned                                |
-| M23       | Extensible tools and device automation                      | M12.3 + M13 + M18 + M20                   | Planned; device support gated          |
-| M24       | Local packages and optional catalogs                        | M20 + M22 + M23                           | Planned; catalog publication gated     |
-| M25       | Remote and container execution                              | M17 + M20–M23                             | Planned; opt-in                        |
-| M26       | Shared workspaces and selective synchronization             | M22 + M24 + M25                           | Planned; identity/storage design gate  |
-| M27       | Scheduled workflows                                         | M20 + M22; M25/M26 for remote/shared runs | Planned; opt-in                        |
-| M28       | Stable cross-platform release                               | M17–M27 for included release scope        | Planned; evidence-based release gate   |
+| Milestone | Outcome                                                     | Depends on                                | Status                                    |
+| --------- | ----------------------------------------------------------- | ----------------------------------------- | ----------------------------------------- |
+| M9        | Durable tasks and reliable agent communication              | M8; relevant acceptance checks            | Implemented; deeper acceptance pending    |
+| M10       | Isolated execution and reviewable Git integration           | M9                                        | Implemented; see verification             |
+| M11       | Bounded coordinator and team operations                     | M9 + M10                                  | Implemented; release blockers remain      |
+| OS0       | MIT public-source preparation and contributor readiness     | Current source; owner publication gates   | Local preparation; external gates open    |
+| OS1       | Qualified Windows public prerelease                         | OS0 + relevant WS2–WS6                    | Planned; acceptance and publication gates |
+| M12       | Reusable workflows, project tools and Windows qualification | WS1–WS7; M9–M11                           | Planned; 19 feature items                 |
+| M13       | Portable native foundation                                  | WS1 + WS7; M12 data contracts             | Planned                                   |
+| M14       | Linux desktop                                               | M13                                       | Planned                                   |
+| M15       | macOS desktop                                               | M13                                       | Planned                                   |
+| M16       | Linux and macOS editor extensions                           | M13–M15                                   | Planned                                   |
+| M17       | Three-platform beta release                                 | M12–M16; current release gates            | Planned                                   |
+| M18       | Structured agent conversations and routing                  | M17; documented provider interfaces       | Planned                                   |
+| M19       | Project context and durable knowledge                       | M12.2 + M17                               | Planned                                   |
+| M20       | Visual workflows and controlled automation                  | M12.1 + M12.4 + M18 + M19                 | Planned                                   |
+| M21       | Git delivery and external checks                            | M17 + M20                                 | Planned                                   |
+| M22       | Archival, portability and local recovery                    | M19 + M20; existing atomic stores         | Planned                                   |
+| M23       | Extensible tools and device automation                      | M12.3 + M13 + M18 + M20                   | Planned; device support gated             |
+| M24       | Local packages and optional catalogs                        | M20 + M22 + M23                           | Planned; catalog publication gated        |
+| M25       | Remote and container execution                              | M17 + M20–M23                             | Planned; opt-in                           |
+| M26       | Shared workspaces and selective synchronization             | M22 + M24 + M25                           | Planned; identity/storage design gate     |
+| M27       | Scheduled workflows                                         | M20 + M22; M25/M26 for remote/shared runs | Planned; opt-in                           |
+| M28       | Stable cross-platform release                               | M17–M27 for included release scope        | Planned; evidence-based release gate      |
 
 Complete and commit each milestone independently. Split each into the stages below so a large milestone does not hide incomplete behavior. Record executed checks and remaining limits in VERIFICATION.md. Finish M8's relevant launch, persistence and restart acceptance before depending on it for unattended execution.
 
@@ -479,6 +494,8 @@ These references informed the plan; they are not evidence of a Linux/macOS build
 
 ## Completion checklist
 
+- [ ] OS0: public source preview with verified hosted CI, privacy/history review and owner-enabled reporting/security settings.
+- [ ] OS1: exact-source, qualified Windows public prerelease with real demo, license notices and checksums.
 - [x] Record M0–M8 implementation baseline and its acceptance limitations.
 - [ ] Close M8 launch/persistence/restart checks needed for orchestration.
 - [x] M9: durable task protocol, adapter capabilities and restart reconciliation (deeper acceptance remains).

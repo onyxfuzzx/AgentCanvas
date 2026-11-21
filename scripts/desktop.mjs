@@ -99,6 +99,14 @@ if (result.status === 0 && process.argv[2] === 'build') {
   mkdirSync(output, { recursive: true });
   for (const file of ['agent-canvas-desktop.exe', ...helpers])
     copyFileSync(new URL(file, target), new URL(file, output));
+  copyFileSync(
+    new URL('../LICENSE', import.meta.url),
+    new URL('LICENSE.txt', output),
+  );
+  copyFileSync(
+    new URL('../THIRD_PARTY.md', import.meta.url),
+    new URL('THIRD_PARTY.md', output),
+  );
   writeFileSync(
     new URL('README.txt', output),
     `${product.name}\n\nRun agent-canvas-desktop.exe. Keep both helper executables alongside it.\nRequires Windows 10 22H2 / Windows 11 x64 and the Microsoft Edge WebView2 Evergreen Runtime.\nWorkspaces autosave layout and notes; terminal output, commands, activity summaries, tokens and message logs stay in memory.\nBrowser nodes restore paused. Use Open to load a page; Stop releases it. Up to eight pages can be live.\nActivity summaries use local output heuristics. Quiet output does not prove a task is idle; labels can be overridden.\nTheme and keyboard controls are in the sidebar and shortcuts dialog.\n`,

@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 default-run = "agent-canvas-desktop"
+description = "Local spatial workspace for coding agents, terminals, tasks and review"
+repository = "https://github.com/onyxfuzzx/AgentCanvas"
+publish = false
+license = "MIT"
 
 [[test]]
 name = "agent_launch"

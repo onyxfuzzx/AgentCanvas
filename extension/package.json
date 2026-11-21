@@ -2,9 +2,18 @@
   "name": "agentcanvas",
   "displayName": "%productName%",
   "description": "A local canvas for coding agents, terminals, notes and team execution.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "agentcanvas-local",
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/onyxfuzzx/AgentCanvas.git",
+    "directory": "extension"
+  },
+  "homepage": "https://github.com/onyxfuzzx/AgentCanvas#readme",
+  "bugs": {
+    "url": "https://github.com/onyxfuzzx/AgentCanvas/issues"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },

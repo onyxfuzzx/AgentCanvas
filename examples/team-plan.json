@@ -1,0 +1,43 @@
+{
+  "goal": "Demonstrate independent work followed by a dependent task",
+  "jobs": [
+    {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "title": "Document behavior",
+      "brief": "Describe the selected behavior in the assigned disposable checkout.",
+      "criteria": "The document matches observed behavior and names limitations.",
+      "dependencies": [],
+      "agent": "20000000-0000-4000-8000-000000000001",
+      "area": null,
+      "reviewer": null,
+      "reviewTask": null
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "title": "Check the example",
+      "brief": "Inspect the example independently in its assigned disposable checkout.",
+      "criteria": "Report reproducible findings without accepting or integrating work.",
+      "dependencies": [],
+      "agent": "20000000-0000-4000-8000-000000000002",
+      "area": null,
+      "reviewer": null,
+      "reviewTask": null
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000003",
+      "title": "Prepare review summary",
+      "brief": "Summarize the two user-accepted outputs for final review.",
+      "criteria": "Reference both accepted results and identify any unresolved issue.",
+      "dependencies": [
+        "10000000-0000-4000-8000-000000000001",
+        "10000000-0000-4000-8000-000000000002"
+      ],
+      "agent": "20000000-0000-4000-8000-000000000003",
+      "area": null,
+      "reviewer": null,
+      "reviewTask": null
+    }
+  ],
+  "checks": [],
+  "repositories": []
+}

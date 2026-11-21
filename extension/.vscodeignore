@@ -3,6 +3,7 @@
 !package.nls.json
 !README.md
 !THIRD_PARTY.md
+!LICENSE
 !dist/**
 !webview/**
 !native/**

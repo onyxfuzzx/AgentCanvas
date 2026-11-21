@@ -1,258 +1,144 @@
 <p align="center">
-  <img src="src-tauri/icons/mark.svg" width="76" height="76" alt="AgentCanvas mark" />
+  <img src="src-tauri/icons/mark.svg" width="76" height="76" alt="AgentCanvas logo" />
 </p>
 
 <h1 align="center">AgentCanvas</h1>
 
 <p align="center">
-  <strong>A spatial workspace for your coding agents.</strong><br />
-  Bring terminals, tasks, notes and review together. Keep the next decision in your hands.
+  <strong>Plan, run, and review coding-agent work on one canvas.</strong><br />
+  Local terminals, isolated Git worktrees, durable tasks, shared notes, and decisions you control.
 </p>
 
 <p align="center">
-  <code>WINDOWS x64</code> &nbsp; <code>CODEX + CLAUDE CODE</code> &nbsp; <code>LOCAL WORKSPACES</code> &nbsp; <code>NO TELEMETRY</code>
+  <a href="https://github.com/onyxfuzzx/AgentCanvas/actions/workflows/check.yml"><img src="https://github.com/onyxfuzzx/AgentCanvas/actions/workflows/check.yml/badge.svg" alt="Windows CI status" /></a>
+  &nbsp; <a href="LICENSE">MIT license</a> &nbsp;·&nbsp; Windows x64 preview &nbsp;·&nbsp; Desktop + editor
 </p>
 
 <p align="center">
-  <a href="#quickstart">Quickstart</a> &nbsp;·&nbsp;
-  <a href="#features">Features</a> &nbsp;·&nbsp;
-  <a href="#roadmap">Roadmap to M28</a> &nbsp;·&nbsp;
-  <a href="#development">Development</a> &nbsp;·&nbsp;
-  <a href="#guides">Guides</a>
+  <a href="#get-started">Get started</a> &nbsp;·&nbsp;
+  <a href="#what-you-can-do">Features</a> &nbsp;·&nbsp;
+  <a href="ROADMAP.md">Roadmap</a> &nbsp;·&nbsp;
+  <a href="CONTRIBUTING.md">Contribute</a> &nbsp;·&nbsp;
+  <a href="docs/README.md">Documentation</a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/readme/workflow.gif" width="1200" alt="Animated illustration: define a task, build in an isolated worktree, review independent evidence, then wait for human acceptance." />
+  <img src="docs/assets/readme/workflow.gif" width="1200" alt="Illustrated workflow: define a task, build in isolated worktrees, review evidence, then accept the change." />
+  <br /><sub>A workflow illustration, not a recording of a provider run. <a href="docs/assets/readme/workflow.png">Still image</a>.</sub>
 </p>
 
-<p align="center">
-  <sub>An illustrated workflow, from a clear brief to your next decision. <a href="docs/assets/readme/workflow.png">View the still image</a>.</sub>
-</p>
+## Why AgentCanvas
 
-> **Development status:** M0–M11 are implemented. Current desktop and editor packages target **Windows x64**; Linux and macOS are planned. The mixed-team native fixture is fixed and native checks pass; VSIX v0.1.4 adds backend restart recovery. Deeper UI, provider and release qualification remain open. See [project status](docs/PROJECT-STATUS.md) and [executed verification](docs/VERIFICATION.md).
+Coding-agent work spans terminals, instructions, task state, branches and review. AgentCanvas puts those pieces in one spatial workspace, while native code enforces the boundaries around execution, persistence and acceptance.
 
-## Features
+Use it as a terminal canvas, organize a manually planned task flow, or run a small bounded team through a structured cooperative protocol. Your installed Codex and Claude Code CLIs keep their own authentication and approval settings.
 
-| Your workspace               | What it gives you                                                                                                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A spatial canvas**         | Arrange, connect, resize and navigate terminals, agents, notes and whiteboards. Use zoom, the minimap and layout undo/redo to keep work in view.                    |
-| **Real agent terminals**     | Launch your installed Codex and Claude Code CLIs with reusable roles and per-node launch snapshots. Preserve their own authentication and approval settings.        |
-| **Durable tasks**            | Capture briefs, acceptance criteria, dependencies and attempts. Track acknowledgement, progress, review and blocked work through a structured cooperative protocol. |
-| **Isolated Git areas**       | Give changes their own managed worktrees. Inspect diffs and commit-bound evidence before explicit approval and integration.                                         |
-| **Bounded team runs**        | Adopt a plan, assign agents and choose manual or scoped automatic dispatch. Control concurrency, retries, elapsed time, pause and emergency stop.                   |
-| **Shared project context**   | Connect file-backed Markdown notes to agents and use the whiteboard for diagrams, annotations and visual connections.                                               |
-| **Two Windows hosts**        | Work in the standalone Tauri desktop app or a local VS Code / Antigravity editor tab backed by the same React canvas and Rust core.                                 |
-| **Explicit browser actions** | Use restricted embedded browser nodes on desktop. Editor browser nodes open your default browser after a click. Agent browser automation is planned work.           |
+## What you can do
 
-## Quickstart
+| Capability               | Current behavior                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spatial workspace        | Arrange terminals, agents, Markdown notes and whiteboards; pan, zoom, use the minimap and undo layout changes.                              |
+| Installed agent CLIs     | Launch Codex or Claude Code with saved roles and per-node launch settings. CLI detection does not verify authentication.                    |
+| Durable task board       | Track briefs, acceptance criteria, dependencies, acknowledgments, attempts and review. Dispatch uses a cooperative inbox.                   |
+| Git isolation and review | Work in managed worktrees, inspect bounded diffs and commit-bound evidence, then explicitly approve and integrate.                          |
+| Bounded teams            | Adopt a plan and control concurrency, retries, time, permissions, pause and emergency stop. Automatic dispatch reuses existing live agents. |
+| Editor recovery          | Run the shared canvas in VS Code or Antigravity; preserve drafts and explicitly restart a failed native backend.                            |
+| Browser nodes            | Desktop embeds restricted pages; editor nodes open the default browser after a click. Agent browser automation is future work.              |
 
-Build from source on **Windows x64**. You need Node 22 LTS, Rust stable MSVC, Visual Studio C++ build tools with the Windows SDK, and the WebView2 Evergreen Runtime.
+## Status and boundaries
 
-Install the project dependencies and Tauri CLI from a Git checkout:
+**Development preview for local Windows x64.** Desktop and editor hosts through M11 are implemented; WS1 team execution and WS7 backend recovery have passing recorded checks. UI/accessibility, authenticated provider workflows, failure scenarios, performance and final distributions still need qualification. Packages remain unsigned.
+
+Linux/macOS and remote execution are planned. There is no published stable compatibility promise, security audit, provider-success benchmark or fixed delivery date. See [current status](docs/PROJECT-STATUS.md) and [executed verification](docs/VERIFICATION.md).
+
+- Local workspace use requires no AgentCanvas account or telemetry.
+- Terminal output, command history, tokens and process handles are excluded from workspace saves.
+- Model output, peer text and terminal bytes cannot grant authority or accept their own work.
+- Git worktrees isolate checkouts; they do not sandbox processes.
+- Provider CLIs have their own network, account and data policies.
+
+## Get started
+
+Build from source on Windows x64 with **Node.js 22** (the CI version), Rust stable MSVC, Visual Studio C++ build tools/Windows SDK and WebView2 Evergreen. Follow [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/) and our [development guide](docs/DEVELOPMENT.md).
 
 ```powershell
+git clone https://github.com/onyxfuzzx/AgentCanvas.git
+cd AgentCanvas
 npm ci
 cargo install tauri-cli --version '^2' --locked
-```
-
-### Desktop app
-
-```powershell
 npm run desktop
 ```
 
-Choose a workspace, add a terminal or agent, and start arranging your canvas. Install and sign in to provider CLIs separately; executable detection does not verify authentication.
-
-### VS Code or Antigravity
+For VS Code or Antigravity:
 
 ```powershell
 npm run extension:package
 ```
 
-1. Run **Extensions: Install from VSIX...** in your editor.
-2. Select `artifacts/agentcanvas-0.1.4-win32-x64.vsix`.
-3. Open a trusted local project and run **AgentCanvas: Open Canvas**.
-4. Follow the setup guide, or finish with terminals, notes and the whiteboard.
+Run **Extensions: Install from VSIX...**, select the generated Windows VSIX under `artifacts/`, then run **AgentCanvas: Open Canvas** in a trusted local project. The installed extension bundles its native helpers. [Editor setup and recovery guide](extension/README.md).
 
-The installed extension bundles its native backend and helpers; it does not need Rust, Node or the standalone desktop app on the destination machine. See the [editor guide](extension/README.md) for project selection, setup and draft recovery.
+`npm run dev` serves the browser UI only; native terminals require a desktop/editor host. Provider CLIs are installed and signed in separately. Fresh-machine installation and stable xterm dependency qualification remain launch gates.
 
-## From a brief to an accepted change
+## A deliberate workflow
 
-1. **Set the scope.** Pick the project and create a task with a brief, criteria and dependencies.
-2. **Give it a workspace.** Create a managed Git area, assign the task and start the selected agent.
-3. **Dispatch deliberately.** Use the cooperative inbox and explicitly brief the agent to query it. Team runs can dispatch to existing live agents within adopted permissions and limits.
-4. **Review the evidence.** Inspect the exact commit, independent review and declared checks. A provider response alone does not establish completion.
-5. **Make the call.** Accept the result and explicitly approve/integrate the reviewed changes. Pause, cancel or reconcile uncertain work when needed.
+1. Define a task, its acceptance criteria and dependencies.
+2. Create a managed Git area and start an agent in that checkout.
+3. Dispatch the task and instruct the agent to use the cooperative inbox.
+4. Review the exact commit, independent findings and declared checks.
+5. Accept the result and explicitly approve/integrate the reviewed change.
 
-The [task protocol](docs/M9-PROTOCOL.md), [Git area guide](src/areas/README.md) and [team protocol](docs/M11-TEAM-PROTOCOL.md) describe the current boundaries.
-
-## Local state, explicit control
-
-- **Local workspace files:** versioned atomic saves, conflict checks, preserved corrupt originals and last-good backups.
-- **Session-only terminal data:** terminal output, command history, credentials, tokens and process handles are excluded from workspace saves. Reopened agent nodes stay paused.
-- **Scoped authority:** peer connections and model output cannot grant permissions or accept their own work. Git worktrees isolate code; they are not an OS sandbox.
-- **Separate provider policies:** AgentCanvas adds no account or telemetry. Installed provider CLIs retain their own authentication, network and data-retention behavior.
+See the [task protocol](docs/M9-PROTOCOL.md), [team protocol](docs/M11-TEAM-PROTOCOL.md), [Git area guide](docs/guides/git-areas.md) and [example plan](examples/README.md). A delivered message or quiet terminal is not verified completion.
 
 ## Roadmap
 
-Windows is the current implementation target. Linux and macOS are part of the planned product, with their own native lifecycle, packaging and acceptance work.
+Our goal is a dependable, local-first workspace for agent work on Windows, Linux and macOS. The next checkpoints make the public project reproducible and its Windows preview trustworthy.
 
-| Milestone   | Direction                                                                                                          | Status                             |
-| ----------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
-| **M0–M11**  | Canvas, terminals, persistence, notes, links, agents, tasks, Git isolation and bounded teams                       | Implemented; qualification remains |
-| **M12**     | Reusable templates, project context, scoped browser tools and guided workflows                                     | Planned                            |
-| **M13**     | Portable native runtime, Unix IPC and process ownership                                                            | Planned                            |
-| **M14**     | Linux desktop and installable packages                                                                             | Planned                            |
-| **M15**     | macOS desktop and signed/notarized distribution                                                                    | Planned                            |
-| **M16–M17** | Linux/macOS editor extensions and a qualified three-platform beta                                                  | Planned                            |
-| **M18–M24** | Structured conversations, project knowledge, visual workflows, Git delivery, archives, tools and reusable packages | Planned                            |
-| **M25–M27** | Optional remote/container execution, shared workspaces, selective sync and schedules                               | Planned                            |
-| **M28**     | Stable cross-platform release qualification                                                                        | Planned                            |
+| Stage   | Outcome                                                                                                    | Status                                      |
+| ------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| OS0     | MIT licensing, clear documentation, contributor workflows, repository/history review and fresh-checkout CI | Preparation in progress                     |
+| OS1     | Verified Windows public prerelease, real demo, supported-version matrix, release notes and checksums       | Planned; existing qualification gates apply |
+| M12     | Reusable team templates, project context, guided workflows and scoped browser tooling                      | Planned                                     |
+| M13–M17 | Portable core, Linux/macOS desktop and editor ports, three-platform beta                                   | Planned                                     |
+| M18–M24 | Conversations, project knowledge, visual workflows, Git delivery, recovery and extensibility               | Planned                                     |
+| M25–M28 | Opt-in remote work, collaboration, schedules and stable cross-platform qualification                       | Planned                                     |
 
-Read the [full M12–M28 roadmap](docs/MILESTONES.md) for dependencies, deliverables and acceptance gates, and the [status tracker](docs/PROJECT-STATUS.md) for current blockers. Roadmap entries describe future work; they do not imply shipped compatibility or committed dates.
+The [public roadmap](ROADMAP.md) explains priorities. [Milestone specifications](docs/MILESTONES.md) define dependencies and acceptance gates. Public-source preparation does not authorize or claim implementation of future milestones.
 
-## Development
-
-Tauri 2 · Rust · React · TypeScript · Vite · Zustand · xterm.js
-
-| Command                     | Purpose                                                                |
-| --------------------------- | ---------------------------------------------------------------------- |
-| `npm run dev`               | Browser UI development; native terminals require a desktop/editor host |
-| `npm run desktop`           | Start the native desktop development app                               |
-| `npm run check`             | Formatting, lint, frontend types/tests/build and extension checks      |
-| `npm run native:check`      | Rust formatting, Clippy and native tests                               |
-| `npm run desktop:build`     | Build the optimized portable Windows app, ZIP, manifest and checksums  |
-| `npm run desktop:release`   | Build portable artifacts plus NSIS and MSI installers                  |
-| `npm run extension:build`   | Build the editor extension and bundled native backend                  |
-| `npm run extension:package` | Create the Windows VSIX                                                |
-| `npm run extension:check`   | Check extension types, bridge tests and the available bundled sidecar  |
-
-<details>
-<summary><strong>Portable builds, installers and development-host notes</strong></summary>
-
-For a debug portable build:
-
-```powershell
-npm run desktop:build -- --debug
-.\artifacts\windows-debug\agent-canvas-desktop.exe
-```
-
-Debug builds may show a console alongside the canvas window. `npm run desktop:build` creates the optimized build in `artifacts/windows-portable/`, plus a ZIP, manifest and SHA-256 checksums. Keep `agent-canvas-desktop.exe`, `pty-host.exe` and `agentcanvas-peer.exe` together. The scripts build all three binaries in the same profile and derive the display name from `product.json`. Source build outputs remain under `src-tauri/target/`. The build script also supports the official Tauri CLI installed under `.tools/tauri/` on this development host.
-
-Run `npm run desktop:release` to build the portable release and NSIS/MSI installers in `artifacts/windows-installers/`. NSIS installs for the current user; MSI uses Windows Installer. Both include the two helper executables. Packages require the WebView2 Evergreen Runtime to be installed already and do not download it during installation. Builds are unsigned unless signing is configured separately. Set `AGENTCANVAS_BUILD_TAG=m7` to stage a separate set of milestone artifacts.
-
-The optional Git Bash roundtrip test needs an unrestricted Windows host with Git Bash installed. Run it explicitly with `cargo test --manifest-path src-tauri/Cargo.toml --locked --test conpty -- --ignored`; Windows CI also runs it separately. The restricted agent host cannot create MSYS2 signal pipes, although the user-launched application's Git Bash prompt has been visually verified.
-
-On this restricted development host, use `$env:CANVAS_NO_SUBPROCESS='1'` in PowerShell before `npm run check` to enable the documented in-process compiler fallback. This is a verification aid; it does not provide a native runtime. See [third-party dependency provenance](THIRD_PARTY.md) for the offline xterm dependency constraints.
-
-Formatting commands expect a Git checkout. They check tracked and non-ignored new source files without walking generated caches or build outputs.
-
-README artwork is stored in the repository and uses no remote image/font service. Regenerate the GIF and still image on Windows with `powershell.exe -NoProfile -File scripts/readme-media.ps1`; the generator uses built-in .NET drawing/encoding assemblies.
-
-</details>
-
-## Guides
-
-The details below cover the behavior and limits behind the feature overview.
-
-<details>
-<summary><strong>Workspaces, autosave and restart recovery</strong></summary>
-
-Workspaces autosave after 750 ms and flush before switching or closing. Use the workspace button in the sidebar to create a named workspace, switch recent workspaces, or open an existing folder. Each folder contains a versioned `workspace.json`, a previous-save backup, and a `notes/` folder. The recent-workspace catalog is stored in the application's local data directory. `AGENTCANVAS_DATA_DIR` overrides that directory for isolated development runs.
-
-On relaunch, the last workspace restores its canvas and starts fresh shells in their saved startup directories. Commands, terminal output and undo history are session-only. Missing directories remain visible as failed terminal nodes; select one and use Restart to correct its directory. Save failures pause autosave and remain visible; a failed save prevents a normal switch or close. Truncated layouts can recover from their backup, while unsupported schemas and external edits are preserved and reported.
-
-</details>
-
-<details>
-<summary><strong>Agent presets, roles and launch settings</strong></summary>
-
-Select **Agent presets** in the sidebar to create reusable roles and Codex/Claude Code launch presets. Builder, Reviewer and Tester roles are provided initially. The app detects installed native CLIs; an optional absolute `codex.exe` or `claude.exe` path supports custom locations. Install and sign in to each CLI separately. Detection confirms an executable exists; it does not check authentication or version compatibility.
-
-Select **+ Agent**, choose a preset, and set the agent name and working directory. You can adjust its role instructions and executable for this node before starting. Launches use a real ConPTY and preserve the installed CLI's authentication and approval configuration. No task is submitted automatically. Role instructions are supplied as session arguments, without editing the project's instructions files.
-
-Agent nodes save a copy of their launch settings. Editing or deleting a library preset does not change existing nodes. Reopened agents stay paused; select **Start agent** in the node to launch, or **Edit launch settings** in the inspector to change settings first. Failed or exited agents can be restarted through the inspector. Layout undo does not roll launch settings back after a restart. CLI output, input, credentials and process handles are not included in workspace saves.
-
-The reusable library is `agents.json` in the local app data directory, with a last-good backup and conflict detection. A corrupt primary can recover from its backup; saving archives the corrupt original. **Reload from disk** discards the editor draft, so copy any changes you want to retain before reloading. Instructions are limited to 4096 UTF-8 bytes, and the library supports 32 roles and 32 presets. Task scheduling, Git isolation and bounded team coordination are supplied by M9–M11.
-
-</details>
-
-<details>
-<summary><strong>Durable tasks and cooperative dispatch</strong></summary>
-
-Open **Tasks** to create a brief, acceptance criteria, dependencies and a terminal/agent assignment. Save the draft, mark it ready, start the assigned terminal explicitly, then dispatch to its cooperative inbox. Dispatch does not type into the CLI. Prompt your installed agent to query its inbox using `agentcanvas-peer task <request-UUID> --stdin`; new agent launches include protocol guidance. Agent reports move a task to Review; **Accept result** marks it done.
-
-Tasks save independently in `tasks.json` with atomic replacement, validation, deduplicated mutation receipts and a last-good backup. Attempts have 120-second leases and require cooperative heartbeats. Missing/expired process generations become blocked for explicit reconciliation; nothing is replayed automatically. Stop the old terminal before resolving uncertain work. Resolve as Draft to repair an assignment. Cancellation requests need acknowledgement or a terminal stop; file edits are not undone.
-
-See [the task protocol and limits](docs/M9-PROTOCOL.md), [managed Git areas](src/areas/README.md) and [the team protocol](docs/M11-TEAM-PROTOCOL.md). M10 Git isolation and M11 bounded team coordination are implemented; authenticated provider workflows and deeper release qualification remain open. Reusable templates, project context tools and agent browser automation are proposed M12 work.
-
-</details>
-
-<details>
-<summary><strong>Markdown notes and the whiteboard</strong></summary>
-
-Use **Note** to create a Markdown sticky backed by `notes/<UUID>.md`. Edit Markdown or read the offline preview; content autosaves after 600 ms independently of layout. Notes support up to 512 KiB of UTF-8 text. The bounded preview supports headings, lists, quotes, code and emphasis; HTML stays text, links are displayed without navigation and remote images are never fetched. Use **Reload disk** for external edits. Conflicting saves preserve both the disk version and the local draft; resolve them before switching or closing. Removing a note node retains its file and can be undone.
-
-The floating whiteboard palette draws rectangles, ellipses, text, arrows and freehand strokes. Drag on the canvas to draw; Escape cancels. Select **Connector**, then click two nodes to attach a visual arrow that follows them. This is a whiteboard annotation. Select a text shape to edit its text in the inspector. Shapes support selection, drag, resize, color, layering, undo/redo and workspace restoration.
-
-</details>
-
-<details>
-<summary><strong>Peer links, approvals and helper commands</strong></summary>
-
-For agent collaboration, drag a terminal's **↔ header handle** onto another terminal. Drag a note handle onto a terminal to share its file; the same note can connect to multiple agents. Open **Links** to inspect connections, choose **Require approval** (default) or **Auto-send**, and review every attempted linked send/read in its session log. An agent link permits reciprocal recent-output reads immediately. Approving a message types untrusted text into the peer shell; newlines and appended Enter can execute commands. Auto-send dispatches messages without approval, with the same logs and rate limits.
-
-Inside any canvas terminal, the helper is available on PATH:
+## Repository structure
 
 ```text
-agentcanvas-peer peers
-agentcanvas-peer notes
-agentcanvas-peer read <peer-id>
-agentcanvas-peer send <peer-id> "hello"
-agentcanvas-peer send <peer-id> --enter "text"
-agentcanvas-peer send <peer-id> --stdin
-agentcanvas-peer status <message-id>
+.github/       CI, issue forms, PR template and ownership
+docs/          Documentation index, architecture, launch plan and verification
+docs/guides/   Detailed workspace/agent and Git-area guides
+examples/      Sanitized, non-executing examples
+extension/     VS Code / Antigravity host and recovery controller
+scripts/       Build, packaging, audit and verification tools
+src/           Shared React UI and pure canvas/state models
+src-tauri/     Rust runtime, ConPTY, IPC, task/Git authority and native tests
 ```
 
-Responses are JSON; inspect `ok`, `result` and `error`. Sends report `pending` or `queued`; use `status` to observe `delivering`, `delivered`, `rejected`, `cancelled` or `failed`. Recent output is a bounded, non-consuming, control-sequence-stripped transcript. Logs show escaped payloads, explicit Enter, direction and status. Limits: 64 KiB frames, 8 KiB messages/recent reads, five-request burst then two requests/second per agent link, 20 pending approvals and 20 queued/in-progress deliveries globally, 200 log records and 512 KiB logged text. Slow destinations have independent FIFO writer queues. Disconnect/restart cancels pending and queued work; a write already delivering can finish in its pinned original process.
+Build outputs, local profiles, credentials and workspaces are ignored. Keep `package-lock.json`, `src-tauri/Cargo.lock`, source icons and curated documentation assets tracked. [Architecture and module map](docs/ARCHITECTURE.md).
 
-Each shell receives `AGENTCANVAS_NODE_ID`, `AGENTCANVAS_PIPE`, `AGENTCANVAS_TOKEN`, `AGENTCANVAS_PEERS` (JSON IDs) and `AGENTCANVAS_NOTE_PATHS` (JSON paths). Peer/path lists are startup snapshots; query `peers` and `notes` for current links, or restart for new environment values. A terminal's note-path snapshot is limited to 16 KiB. Shared note files survive relaunch; link policy is saved, while tokens/output/message logs stay in memory. Link permission changes are outside layout undo; undoing a removed node does not silently reconnect it.
+## Contribute
 
-PowerShell/cmd use `agentcanvas-peer` or `agentcanvas-peer.exe`. WSL uses `agentcanvas-peer.exe` through Windows interop, with WSLENV forwarding. Returned note paths are Windows paths; convert with `wslpath` in Linux. Custom shell profiles, disabled Windows PATH import and custom WSL automounts need separate verification.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Useful early contributions include reproducible Windows bug reports, accessibility work, failure/recovery tests and onboarding improvements. Agree on scope before implementing larger roadmap features.
 
-The transport is a local Windows named pipe restricted to the current user, with per-node tokens, bounded workers and timeouts; it uses no cloud service or TCP listener. This does not sandbox agents that already have the user's filesystem/process access.
+```powershell
+npm run repo:audit
+npm run check
+npm run native:check
+```
 
-</details>
+Extension native tests need a built sidecar; the [development guide](docs/DEVELOPMENT.md) gives the order. Report vulnerabilities through [SECURITY.md](SECURITY.md), usage problems through [SUPPORT.md](SUPPORT.md), and follow the [code of conduct](CODE_OF_CONDUCT.md).
 
-<details>
-<summary><strong>Desktop browser nodes</strong></summary>
+## Documentation
 
-Select **Browser** in the toolbar, enter a full HTTP or HTTPS address, and select **Open**. Up to eight pages can run at once. Use Back, Forward, Reload and Stop in the node toolbar. Drag the header, resize the corner, or zoom/pan from the canvas controls; wheel input inside a page scrolls that page. Click the canvas before using its keyboard shortcuts.
+- [Documentation index](docs/README.md)
+- [Development and verification](docs/DEVELOPMENT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Current status](docs/PROJECT-STATUS.md) and [verification evidence](docs/VERIFICATION.md)
+- [GitHub presentation and launch checklist](docs/OPEN-SOURCE-LAUNCH.md)
 
-Browser nodes save their layout and the last address submitted with Open. Relaunching or switching workspaces restores them paused until you explicitly open a page. In-page history, cookies and page content are not saved to workspace JSON. Hidden pages remain live until stopped. Popups, downloads, browser permissions, file URLs and app-native commands are blocked. Browser nodes require the Windows desktop host; web preview shows placeholders.
+## License
 
-</details>
-
-<details>
-<summary><strong>Activity labels, themes and keyboard controls</strong></summary>
-
-Select a terminal to see its local activity summary and recent output evidence. Automatic labels use heuristics: **quiet** means no recent traffic, and **possible input prompt** is inferred from text. They do not prove that an agent is idle, finished or awaiting approval. You can choose a manual activity label or return to Automatic. Summaries and labels stay in memory and never execute commands or send data to a service.
-
-Choose System, Light or Dark in the sidebar. Tab to a node header or focus the canvas, then use arrows to move selected nodes, Alt+arrows to resize, and Shift for grid-sized steps. Use Ctrl+Z to undo layout changes. Dialogs contain keyboard focus until closed; Escape dismisses them when no operation is pending. Terminal and form input retain their own keyboard handling.
-
-</details>
-
-## Project documentation
-
-| Document                                    | Start here for                                                       |
-| ------------------------------------------- | -------------------------------------------------------------------- |
-| [Project status](docs/PROJECT-STATUS.md)    | Release blockers, scope rules and the milestone overview             |
-| [Roadmap through M28](docs/MILESTONES.md)   | Future features, platform rollout, dependencies and acceptance gates |
-| [Verification record](docs/VERIFICATION.md) | Checks actually run and remaining acceptance limits                  |
-| [Editor extension](extension/README.md)     | Installation, setup, project integration and preserved drafts        |
-| [Task protocol](docs/M9-PROTOCOL.md)        | Cooperative inbox, task state and recovery                           |
-| [Team protocol](docs/M11-TEAM-PROTOCOL.md)  | Coordinator authority, bounded execution and independent review      |
-| [Managed Git areas](src/areas/README.md)    | Worktree creation, evidence, integration and cleanup                 |
-| [Third-party provenance](THIRD_PARTY.md)    | Dependency origins and current release constraints                   |
-
-Product naming comes from [`product.json`](product.json). The shared frontend lives in `src/`, native ownership and IPC in `src-tauri/`, and the editor host in `extension/`.
+AgentCanvas source is licensed under [MIT](LICENSE). Dependencies retain their own licenses; see [THIRD_PARTY.md](THIRD_PARTY.md). Provider CLIs are separate software and are not bundled.

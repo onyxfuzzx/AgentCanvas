@@ -1,9 +1,17 @@
-# Third-party software
+# Third-party software and provenance
 
-All application branding, interface and application code are original. Runtime libraries are installed dependencies, not product assets. React, Zustand, Tauri, portable-pty and xterm.js retain their upstream licenses in their respective distributions.
+AgentCanvas project source is [MIT-licensed](LICENSE). Dependencies retain their own licenses; the project license does not relicense upstream software. Provider CLIs are installed separately and are not bundled. Read each provider's terms and data policies independently.
 
-M8 uses the RustCrypto `sha2` crate for local preset-file conflict fingerprints. Its version and transitive dependencies are pinned in `src-tauri/Cargo.lock`; the cached crate was available for offline compilation. Provider CLIs remain separately installed software and are not bundled in AgentCanvas.
+## Dependency sources
 
-This restricted host has no Rust toolchain or external package download access. Frontend tools were installed from its existing npm cache. Unmodified MIT-licensed xterm.js and WebGL addon runtime distributions already installed on this machine were copied **only into ignored `node_modules`** for local frontend verification. No code or assets from their host applications are included in this repository.
+- JavaScript dependencies and exact versions are recorded in `package.json` and `package-lock.json`. React/React DOM, Zustand and xterm runtimes retain their upstream license notices. The extension packaging script copies the existing local license files into its generated payload.
+- Rust dependencies and exact versions are recorded in `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`, including Tauri, portable-pty, Serde, RustCrypto `sha2` and Windows bindings. Review their actual license metadata and redistribution notices for a release; this summary is not a complete transitive notice inventory.
+- The project license and this provenance document are included in portable desktop output and the extension package. Complete required third-party notices and installer notice presentation are explicit OS1 release gates.
 
-The matching xterm prereleases available locally are pinned (`5.6.0-beta.136` and addon `0.19.0-beta.136`). Their lock entries use upstream npm URLs; integrity is not fabricated for offline copies. A clean online `npm ci` and upgrade to a mutually compatible stable xterm release must be verified before release. Normal installations use upstream typings. The stripped local runtime distributions omit those files, so this session placed the small public contracts in `scripts/offline-xterm-types.d.ts` into ignored `node_modules` for local verification only; that fallback is outside the application's TypeScript include path. Native release acceptance remains blocked, as documented in `docs/VERIFICATION.md`.
+## Historical offline bootstrap constraint
+
+The initial restricted development environment used locally available, unmodified MIT-licensed xterm.js/WebGL runtime distributions **only in ignored `node_modules`**. No host-product code or branding was added to source. A small public-contract typing fallback, `scripts/offline-xterm-types.d.ts`, was used only for that local verification and is outside the application's TypeScript include path.
+
+The repository still pins xterm prereleases (`5.6.0-beta.136` and addon `0.19.0-beta.136`). Lock entries use upstream npm URLs; missing integrity was not fabricated for offline copies. Before public release, verify a clean online `npm ci`, upstream typings and a compatible stable dependency upgrade. Do not reproduce the offline copy workaround as contributor setup or claim that cached builds establish fresh-install reproducibility.
+
+Rust/native builds and tests have since executed successfully; the original absence of a Rust toolchain is historical, not the current status. See [executed verification](docs/VERIFICATION.md), [current release work](docs/PROJECT-STATUS.md) and [the launch checklist](docs/OPEN-SOURCE-LAUNCH.md).

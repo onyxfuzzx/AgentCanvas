@@ -2,8 +2,22 @@
   "name": "agent-canvas-desktop",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "description": "A local spatial workspace for coding agents, terminals, tasks and review.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/onyxfuzzx/AgentCanvas.git"
+  },
+  "homepage": "https://github.com/onyxfuzzx/AgentCanvas#readme",
+  "bugs": {
+    "url": "https://github.com/onyxfuzzx/AgentCanvas/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "scripts": {
+    "repo:audit": "node scripts/repo-audit.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort --configLoader native",
     "build": "tsc --noEmit && vite build --configLoader native",
     "preview": "vite preview --host 127.0.0.1 --configLoader native",

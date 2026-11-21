@@ -4,6 +4,10 @@ Updated: 2026-11-21. Roadmap baseline commit: `11a67fb`; the latest WS1/WS7 fixe
 
 ## Progress at a glance
 
+Open-source preparation was authorized on 2026-11-21 under MIT. OS0 source/community preparation is implemented locally; the [publication checklist](OPEN-SOURCE-LAUNCH.md) still requires fresh online installation, hosted CI and owner decisions/settings. OS1 is a future Windows public prerelease gated by the relevant existing qualification. The numeric totals below remain WS1–WS7/M12 totals; OS0/OS1 use a separate checklist and do not double-count release work.
+
+OS0 local verification passed the read-only source/history audit and application checks (94 frontend/37 extension tests). The MIT-licensed VSIX 0.1.5 was built and its 20-file inventory, license, metadata, checksum and optimized bytes verified. This is a development artifact, not a published public release; see the [OS0 evidence](VERIFICATION.md#os0--public-source-repository-preparation--2026-11-21).
+
 | Scope                                              | Status                                                                             | Tracked items |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------: |
 | M0–M11 implementation                              | Implemented and committed; acceptance limits remain                                |             — |
@@ -80,6 +84,14 @@ On the restricted development host, set `$env:CANVAS_NO_SUBPROCESS='1'` before `
 - Restart or reopen never replays tasks automatically. Uncertain attempts stay blocked until the user reconciles them, and team runs stay paused.
 
 ## Remaining work
+
+### OS0 / OS1: public source and Windows prerelease
+
+- **Prepared locally:** MIT license and metadata, repository ignore/editor conventions, public README/roadmap, indexed guides/architecture/development docs, contribution/security/conduct/support policies, GitHub templates/ownership/dependency configuration, a sanitized example, source/history audit and corrected CI sidecar ordering.
+- **Verify before source publication:** read-only audit/results, retained-history/email/privacy review, clean online dependency installation and hosted Windows CI, active private-reporting/security settings, GitHub rendering/metadata and an explicit public visibility decision. See [the full OS0 checklist](OPEN-SOURCE-LAUNCH.md#os0--public-source-preview).
+- **Qualify before binary prerelease:** relevant WS2–WS6 evidence, complete dependency notices/installer licensing, exact-source builds, support/version matrix, real sanitized demo and explicit prerelease publication. Source preparation does not complete those gates.
+
+### Current application qualification
 
 WS1 and WS7 are complete. Continue with WS2–4 (fixing defects as they appear) → WS5 → WS6. The planned feature sequence is M12 → M13 → M14/M15 → M16 → M17 beta → M18–M24 → opt-in M25–M27 → M28 stable qualification, following the dependency table in [MILESTONES.md](MILESTONES.md#milestone-sequence). Linux and macOS prototypes can progress independently after M13; actual implementation needs a separate request.
 
