@@ -1,5 +1,16 @@
 use super::*;
 #[test]
+fn fingerprint_keeps_the_existing_lowercase_sha256_disk_format() {
+    assert_eq!(
+        fingerprint(b"abc"),
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+    assert_eq!(
+        fingerprint(b""),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
+}
+#[test]
 fn setup_inspection_is_filesystem_only_and_rejects_wrappers_and_missing_paths() {
     let f = Fixture::new();
     let valid = f.0.join("codex.exe");

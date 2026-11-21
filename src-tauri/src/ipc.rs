@@ -13,6 +13,7 @@ mod windows {
         thread::{self, JoinHandle},
         time::{Duration, Instant},
     };
+    use windows_sys::core::BOOL;
     use windows_sys::Win32::{
         Foundation::*,
         Security::{Authorization::*, Cryptography::*, *},

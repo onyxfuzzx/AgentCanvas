@@ -223,7 +223,10 @@ fn artifact(value: &str) -> bool {
             .all(|p| !p.is_empty() && p != "." && p != "..")
 }
 fn hash(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 impl Board {
     fn validate(&self) -> Result<(), String> {

@@ -403,7 +403,10 @@ fn decode(bytes: &[u8]) -> Result<Library, String> {
     Ok(value)
 }
 fn fingerprint(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 // The loaded reply, preserved primary bytes and last-good bytes for the next backup.
 type DiskLibrary = (LibraryReply, Option<Vec<u8>>, Vec<u8>);
