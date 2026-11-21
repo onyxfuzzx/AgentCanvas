@@ -77,7 +77,7 @@ In VS Code or Antigravity, run **Extensions: Install from VSIX...**, select the 
 
 ### Build from source
 
-Build from source on Windows x64 with **Node.js 22** (the CI version), Rust stable MSVC, Visual Studio C++ build tools/Windows SDK and WebView2 Evergreen. Follow [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/) and our [development guide](docs/DEVELOPMENT.md).
+Build from source on Windows x64 with **Node.js 22.13+ in the 22.x line** (the CI version), Rust stable MSVC, Visual Studio C++ build tools/Windows SDK and WebView2 Evergreen. Node.js 24.x and 26+ are also accepted by the toolchain. Follow [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/) and our [development guide](docs/DEVELOPMENT.md).
 
 ```powershell
 git clone https://github.com/onyxfuzzx/AgentCanvas.git
@@ -95,7 +95,7 @@ npm run extension:package
 
 Run **Extensions: Install from VSIX...**, select the generated Windows VSIX under `artifacts/`, then run **AgentCanvas: Open Canvas** in a trusted local project. The installed extension bundles its native helpers. [Editor setup and recovery guide](extension/README.md).
 
-`npm run dev` serves the browser UI only; native terminals require a desktop/editor host. Provider CLIs are installed and signed in separately. Fresh-machine installation and stable xterm dependency qualification remain launch gates.
+`npm run dev` serves the browser UI only; native terminals require a desktop/editor host. Provider CLIs are installed and signed in separately. Fresh-machine installation and terminal rendering across the supported hosts remain launch gates.
 
 Maintainers can build the setup EXE, MSI, portable ZIP and VSIX together with `npm run release:prepare`. [Release preparation and upload guide](docs/RELEASING.md).
 

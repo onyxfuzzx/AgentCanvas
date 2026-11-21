@@ -2,14 +2,14 @@
 
 ## Prerequisites
 
-Use a Windows x64 development machine with Node.js 22 (the CI baseline), npm, Rust stable MSVC, Visual Studio C++ build tools with a Windows SDK, Git and WebView2 Evergreen. See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). Provider CLIs are optional, installed separately and never needed for deterministic fixtures.
+Use a Windows x64 development machine with Node.js 22.13+ within 22.x (the CI baseline), npm, Rust stable MSVC, Visual Studio C++ build tools with a Windows SDK, Git and WebView2 Evergreen. The toolchain also accepts Node.js 24.x and 26+. See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). Provider CLIs are optional, installed separately and never needed for deterministic fixtures.
 
 ```powershell
 npm ci
 cargo install tauri-cli --version '^2' --locked
 ```
 
-The committed npm and Cargo lockfiles are part of reproducibility. Fresh online installation and replacement of the historical prerelease xterm pins remain public-launch qualification; see [THIRD_PARTY.md](../THIRD_PARTY.md). Do not copy dependency files from other products as contributor setup.
+The committed npm and Cargo lockfiles are part of reproducibility. The npm dependency update uses published stable xterm 6.0.0 and WebGL addon 0.19.0 with registry integrity metadata; see [THIRD_PARTY.md](../THIRD_PARTY.md) and the actual dependency checks in [VERIFICATION.md](VERIFICATION.md). Broader clean-machine and terminal-rendering qualification remains open. Do not copy dependency files from other products as contributor setup.
 
 ## Run
 
