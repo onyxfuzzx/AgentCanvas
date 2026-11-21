@@ -62,3 +62,13 @@ test('an older successful layout save cannot clear a more recent layout edit', (
     nodes: [{ x: 100 }],
   });
 });
+
+test('preserved snapshots and received layouts cannot mutate current checkpoints', () => {
+  const c = new Checkpoints(),
+    args = { id: 'id', layout: { nodes: [{ x: 0 }] } };
+  c.update('workspace_save', args);
+  args.layout.nodes[0].x = 100;
+  const snapshot = c.snapshot();
+  (snapshot[0].args.layout as typeof args.layout).nodes[0].x = 200;
+  expect(c.snapshot()[0].args.layout).toEqual({ nodes: [{ x: 0 }] });
+});

@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { NativeHost } from './host';
-import { Checkpoints } from './checkpoints';
+import { Backend } from './backend';
 import {
   externalUrl,
   frame,
@@ -43,8 +43,16 @@ async function bounded<T>(
 }
 
 class CanvasSession {
-  private host: NativeHost;
-  private checkpoints = new Checkpoints();
+  private backend: Backend;
+  private rendererGeneration = 1;
+  private rendererReady = false;
+  private backendStopped = false;
+  private capture?: {
+    id: number;
+    resolve: () => void;
+    reject: (error: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+  };
   private accepting = true;
   private calls = new Set<Promise<void>>();
   private saves = new Map<
@@ -62,18 +70,46 @@ class CanvasSession {
   });
   private shutdown?: Promise<void>;
   constructor(
-    context: vscode.ExtensionContext,
+    private context: vscode.ExtensionContext,
     readonly panel: vscode.WebviewPanel,
     private projects: EditorProjects,
     private setup: SetupPreferences,
     private recovery: RecoveryStore,
   ) {
-    this.host = new NativeHost(
-      join(context.extensionPath, 'native', 'agentcanvas-editor.exe'),
-      context.globalStorageUri.fsPath,
-      homedir(),
-      (message) => output.appendLine(message),
-    );
+    this.backend = new Backend({
+      create: (failed) =>
+        new NativeHost(
+          join(context.extensionPath, 'native', 'agentcanvas-editor.exe'),
+          context.globalStorageUri.fsPath,
+          homedir(),
+          (message) => output.appendLine(message),
+          failed,
+        ),
+      trusted: () => vscode.workspace.isTrusted,
+      preserve: (saves) => this.recovery.preserve(saves),
+      capture: () => this.captureDrafts(),
+      changed: (state) => {
+        if (!this.accepting) return;
+        if (state.phase !== 'connected')
+          this.rejectSaves(
+            'Backend unavailable; pending save handshake cancelled.',
+          );
+        // A tab may be disposed between a process event and its notification.
+        // Losing this view must never prevent native process cleanup.
+        try {
+          void this.panel.webview
+            .postMessage({
+              type: 'agentcanvas:backend',
+              generation: this.rendererGeneration,
+              state,
+            })
+            .then(undefined, () => {});
+        } catch {
+          /* The disposed tab no longer needs status updates. */
+        }
+      },
+      reload: (generation) => this.render(generation, true),
+    });
     panel.iconPath = vscode.Uri.joinPath(
       context.extensionUri,
       'media',
@@ -97,11 +133,26 @@ class CanvasSession {
     });
     panel.onDidDispose(() => {
       if (session === this) session = undefined;
-      closing = this.stop();
-      void closing.catch((error) =>
-        vscode.window.showErrorMessage(`${PRODUCT_NAME}: ${String(error)}`),
-      );
+      closing = this.stop().catch((error) => {
+        void vscode.window.showErrorMessage(
+          `${PRODUCT_NAME}: ${String(error)}`,
+        );
+        if (!this.backendStopped) throw error;
+      });
+      void closing.catch(() => {});
     });
+    this.render(1, false);
+    void this.backend.start().catch(() => {});
+  }
+  private render(generation: number, paused: boolean) {
+    this.readyResolve();
+    this.rendererGeneration = generation;
+    this.rendererReady = false;
+    this.ready = new Promise<void>((resolve) => {
+      this.readyResolve = resolve;
+    });
+    const panel = this.panel,
+      context = this.context;
     panel.webview.html = webviewHtml(
       panel.webview
         .asWebviewUri(
@@ -115,12 +166,84 @@ class CanvasSession {
         .toString(),
       panel.webview.cspSource,
       PRODUCT_NAME,
+      generation,
+      paused,
     );
+  }
+  private captureDrafts(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const id = ++this.sequence;
+      const timer = setTimeout(() => {
+        this.capture = undefined;
+        reject(
+          new Error(
+            'Canvas could not checkpoint its latest edits. Restart refused; close the tab to preserve the last received drafts.',
+          ),
+        );
+      }, 5000);
+      this.capture = { id, resolve, reject, timer };
+      void this.panel.webview.postMessage({
+        type: 'agentcanvas:capture',
+        id,
+        generation: this.rendererGeneration,
+      });
+    });
+  }
+  async restart() {
+    await this.backend.restart();
+    await bounded(
+      this.ready,
+      'The backend connected, but its canvas did not finish restoring.',
+      30000,
+    );
+    if (!this.accepting) throw new Error('Canvas closed during restart.');
+  }
+  private rejectSaves(message: string) {
+    for (const save of this.saves.values()) {
+      clearTimeout(save.timer);
+      save.reject(new Error(message));
+    }
+    this.saves.clear();
+  }
+  status() {
+    return { ...this.backend.state, pid: this.backend.pid };
   }
   private async receive(message: unknown) {
     if (!this.accepting || !record(message)) return;
+    if (message.generation !== this.rendererGeneration) return;
     if (message.type === 'agentcanvas:ready') {
+      if (this.rendererReady) {
+        await this.restart();
+        return;
+      }
+      this.rendererReady = true;
+      await this.panel.webview.postMessage({
+        type: 'agentcanvas:backend',
+        generation: this.rendererGeneration,
+        state: this.backend.state,
+      });
+      return;
+    }
+    if (message.type === 'agentcanvas:workspaceReady') {
       this.readyResolve();
+      return;
+    }
+    if (message.type === 'agentcanvas:captured') {
+      if (this.capture && this.capture.id === message.id) {
+        clearTimeout(this.capture.timer);
+        if (typeof message.error === 'string')
+          this.capture.reject(new Error(message.error));
+        else this.capture.resolve();
+        this.capture = undefined;
+      }
+      return;
+    }
+    if (message.type === 'agentcanvas:restart') {
+      await this.restart();
+      return;
+    }
+    if (message.type === 'agentcanvas:dispose') {
+      this.panel.dispose();
       return;
     }
     if (message.type === 'agentcanvas:saved' && validId(message.id)) {
@@ -135,14 +258,16 @@ class CanvasSession {
       return;
     }
     if (message.type === 'agentcanvas:checkpoint') {
-      this.checkpoints.update(message.command, message.args);
+      this.backend.checkpoint(message.command, message.args);
       return;
     }
     if (message.type !== 'agentcanvas:invoke' || !validId(message.id)) return;
     const reply: Record<string, unknown> = {
       type: 'agentcanvas:reply',
       id: message.id,
+      generation: this.rendererGeneration,
     };
+    const generation = this.backend.state.generation;
     let dispose = false;
     try {
       frame(message);
@@ -189,22 +314,25 @@ class CanvasSession {
       } else {
         if (!nativeCommands.has(message.command))
           throw new Error('Unsupported editor command.');
-        reply.result = await this.host.request(message.command, message.args);
-        if (
-          message.command === 'workspace_save' ||
-          message.command === 'note_save'
-        )
-          this.checkpoints.saved(message.command, message.args);
+        reply.result = await this.backend.request(
+          message.command,
+          message.args,
+        );
       }
     } catch (error) {
       reply.error = String(error);
     }
-    if (message.command === 'note_read' && !reply.error && record(message.args))
-      this.checkpoints.baseline(message.args, reply.result);
+    if (
+      generation !== this.backend.state.generation ||
+      message.generation !== this.rendererGeneration ||
+      !this.accepting
+    )
+      return;
     await this.panel.webview.postMessage(reply);
     if (dispose) this.panel.dispose();
   }
   async save(): Promise<void> {
+    const generation = this.rendererGeneration;
     let readyTimer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
@@ -220,6 +348,8 @@ class CanvasSession {
     } finally {
       clearTimeout(readyTimer);
     }
+    if (!this.accepting || generation !== this.rendererGeneration)
+      throw new Error('Canvas closed or renderer replaced before saving.');
     const id = ++this.sequence;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -231,15 +361,29 @@ class CanvasSession {
         );
       }, 30_000);
       this.saves.set(id, { resolve, reject, timer });
-      void this.panel.webview.postMessage({ type: 'agentcanvas:save', id });
+      void this.panel.webview.postMessage({
+        type: 'agentcanvas:save',
+        id,
+        generation: this.rendererGeneration,
+      });
     });
   }
   close() {
-    return this.panel.webview.postMessage({ type: 'agentcanvas:close' });
+    if (this.backend.state.phase !== 'connected') {
+      this.panel.dispose();
+      return Promise.resolve(true);
+    }
+    return this.panel.webview.postMessage({
+      type: 'agentcanvas:close',
+      generation: this.rendererGeneration,
+    });
   }
   async showSetup() {
     await bounded(this.ready, 'Wait for the canvas to finish loading.', 30000);
-    await this.panel.webview.postMessage({ type: 'agentcanvas:setup' });
+    await this.panel.webview.postMessage({
+      type: 'agentcanvas:setup',
+      generation: this.rendererGeneration,
+    });
   }
   async openFile(args: unknown) {
     if (!vscode.workspace.isTrusted || !this.accepting)
@@ -247,7 +391,7 @@ class CanvasSession {
         'Open a trusted canvas workspace before opening reviewed files.',
       );
     await openReviewedFile(args, {
-      request: (command, values) => this.host.request(command, values),
+      request: (command, values) => this.backend.request(command, values),
       open: async (path, line) => {
         const document = await vscode.workspace.openTextDocument(
           vscode.Uri.file(path),
@@ -266,6 +410,12 @@ class CanvasSession {
   stop(): Promise<void> {
     if (this.shutdown) return this.shutdown;
     this.accepting = false;
+    this.readyResolve();
+    if (this.capture) {
+      clearTimeout(this.capture.timer);
+      this.capture.reject(new Error('Canvas closed during restart.'));
+      this.capture = undefined;
+    }
     this.shutdown = (async () => {
       for (const save of this.saves.values()) {
         clearTimeout(save.timer);
@@ -273,26 +423,27 @@ class CanvasSession {
       }
       this.saves.clear();
       try {
+        if (this.backend.state.phase !== 'connected') return;
         await bounded(
-          this.host.request('editor_quiesce'),
+          this.backend.request('editor_quiesce'),
           'Backend shutdown is still pending.',
         );
         await bounded(
           Promise.allSettled([...this.calls]),
           'Backend requests did not settle before closing.',
         );
-        await bounded(this.host.drain(), 'Backend requests are still running.');
-        await this.checkpoints.flush((command, args) =>
-          this.host.request(command, args),
-        );
+        await this.backend.flush();
       } catch (error) {
         // Preserve immutable durable drafts if a conflict prevents the final flush.
-        const path = await this.recovery.preserve(this.checkpoints.snapshot());
+        const path = await this.recovery.preserve(
+          this.backend.checkpoints.snapshot(),
+        );
         throw new Error(
           `Save failed: ${String(error)}. Pending layout and note drafts were preserved at ${path}. Run ${PRODUCT_NAME}: Recover Canvas Drafts to inspect and restore a copy.`,
         );
       } finally {
-        await this.host.stop();
+        await this.backend.stop();
+        this.backendStopped = true;
       }
     })();
     return this.shutdown;
@@ -354,7 +505,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.env.remoteName
     )
       throw new Error('This build requires a local Windows x64 editor window.');
-    await closing.catch(() => {});
+    await closing;
     projects.captureActiveFolder();
     await mkdir(context.globalStorageUri.fsPath, { recursive: true });
     if (session) {
@@ -431,6 +582,17 @@ export function activate(context: vscode.ExtensionContext) {
       report(async () => {
         await session?.close();
       }),
+    ),
+    vscode.commands.registerCommand(
+      'agentcanvas.restartBackend',
+      report(async () => {
+        if (!session)
+          throw new Error('Open the canvas before restarting its backend.');
+        await session.restart();
+      }),
+    ),
+    vscode.commands.registerCommand('agentcanvas.backendStatus', () =>
+      session?.status(),
     ),
     vscode.window.registerTreeDataProvider('agentcanvas.launcher', {
       getTreeItem: (item: vscode.TreeItem) => item,

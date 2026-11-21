@@ -11,9 +11,11 @@ mod platform {
         Foundation::{CloseHandle, HANDLE},
         System::{
             JobObjects::{
-                AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
-                OpenJobObjectW, SetInformationJobObject, TerminateJobObject,
-                JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicAccountingInformation,
+                JobObjectExtendedLimitInformation, OpenJobObjectW, QueryInformationJobObject,
+                SetInformationJobObject, TerminateJobObject,
+                JOBOBJECT_BASIC_ACCOUNTING_INFORMATION, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+                JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
             },
             SystemServices::JOB_OBJECT_ASSIGN_PROCESS,
             Threading::GetCurrentProcess,
@@ -65,6 +67,10 @@ mod platform {
             }
         }
 
+        pub fn wait_empty(&self, timeout: std::time::Duration) -> Result<(), String> {
+            wait_empty(self.handle as HANDLE, timeout)
+        }
+
         /// Own a bounded native helper and its descendants until this operation ends.
         pub fn attach_child(&self, child: &std::process::Child) -> Result<(), String> {
             use std::os::windows::io::AsRawHandle;
@@ -76,6 +82,50 @@ mod platform {
             }
             Ok(())
         }
+    }
+
+    fn wait_empty(handle: HANDLE, timeout: std::time::Duration) -> Result<(), String> {
+        let deadline = std::time::Instant::now() + timeout;
+        loop {
+            let mut info: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = unsafe { mem::zeroed() };
+            if unsafe {
+                QueryInformationJobObject(
+                    handle,
+                    JobObjectBasicAccountingInformation,
+                    &mut info as *mut _ as *mut _,
+                    mem::size_of_val(&info) as u32,
+                    ptr::null_mut(),
+                )
+            } == 0
+            {
+                return Err(io::Error::last_os_error().to_string());
+            }
+            if info.ActiveProcesses == 0 {
+                return Ok(());
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err("Old editor processes are still stopping; replacement refused".into());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+
+    pub fn wait_editor(pid: u32, session: &str) -> Result<(), String> {
+        let name = format!("Local\\agentcanvas-{pid}-editor-{session}-0");
+        let handle = unsafe { OpenJobObjectW(4, 0, wide(&name).as_ptr()) };
+        if handle.is_null() {
+            let error = io::Error::last_os_error();
+            return if error.raw_os_error() == Some(2) {
+                Ok(())
+            } else {
+                Err(error.to_string())
+            };
+        }
+        let result = wait_empty(handle, std::time::Duration::from_secs(5));
+        unsafe {
+            CloseHandle(handle);
+        }
+        result
     }
 
     impl Drop for Job {
@@ -124,4 +174,6 @@ mod platform {
     }
 }
 
+#[cfg(windows)]
+pub use platform::wait_editor;
 pub use platform::{join, Job};

@@ -29,7 +29,7 @@
   <sub>An illustrated workflow, from a clear brief to your next decision. <a href="docs/assets/readme/workflow.png">View the still image</a>.</sub>
 </p>
 
-> **Development status:** M0–M11 are implemented. Current desktop and editor packages target **Windows x64**; Linux and macOS are planned. The mixed-team native fixture is fixed and native checks pass; extension backend restart recovery and deeper release qualification remain open. See [project status](docs/PROJECT-STATUS.md) and [executed verification](docs/VERIFICATION.md).
+> **Development status:** M0–M11 are implemented. Current desktop and editor packages target **Windows x64**; Linux and macOS are planned. The mixed-team native fixture is fixed and native checks pass; VSIX v0.1.4 adds backend restart recovery. Deeper UI, provider and release qualification remain open. See [project status](docs/PROJECT-STATUS.md) and [executed verification](docs/VERIFICATION.md).
 
 ## Features
 
@@ -70,7 +70,7 @@ npm run extension:package
 ```
 
 1. Run **Extensions: Install from VSIX...** in your editor.
-2. Select `artifacts/agentcanvas-0.1.3-win32-x64.vsix`.
+2. Select `artifacts/agentcanvas-0.1.4-win32-x64.vsix`.
 3. Open a trusted local project and run **AgentCanvas: Open Canvas**.
 4. Follow the setup guide, or finish with terminals, notes and the whiteboard.
 

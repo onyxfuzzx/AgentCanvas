@@ -1,29 +1,29 @@
 # AgentCanvas: project status and roadmap through M28
 
-Updated: 2026-11-21. Roadmap baseline commit: `11a67fb`; the latest WS1 fix and executed checks are recorded below. This page summarizes the repository's rules, release work and future features. It draws on `AGENTS.md`, `README.md`, `docs/*.md`, `extension/README.md` and `src/areas/README.md`. This page is the single list of remaining work; milestone scope lives in [MILESTONES.md](MILESTONES.md) and executed evidence in [VERIFICATION.md](VERIFICATION.md). The user requested a complete plan through M28, including Linux and macOS, on 2026-11-19. M12–M28 are planned, not implemented; the current implementation authorization still ends at M11.
+Updated: 2026-11-21. Roadmap baseline commit: `11a67fb`; the latest WS1/WS7 fixes and executed checks are recorded below. This page summarizes the repository's rules, release work and future features. It draws on `AGENTS.md`, `README.md`, `docs/*.md`, `extension/README.md` and `src/areas/README.md`. This page is the single list of remaining work; milestone scope lives in [MILESTONES.md](MILESTONES.md) and executed evidence in [VERIFICATION.md](VERIFICATION.md). The user requested a complete plan through M28, including Linux and macOS, on 2026-11-19. M12–M28 are planned, not implemented; the current implementation authorization still ends at M11.
 
 ## Progress at a glance
 
 | Scope                                              | Status                                                                             | Tracked items |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------: |
 | M0–M11 implementation                              | Implemented and committed; acceptance limits remain                                |             — |
-| Extension backlog 1–3 (projects, setup, recovery)  | Completed; VSIX v0.1.3 built                                                       |             — |
+| Extension backlog 1–4 (projects, setup, recovery)  | Completed; VSIX v0.1.4 includes backend restart recovery                           |             — |
 | WS1: native team fixture                           | Completed 2026-11-21; full native check and separate Git Bash test pass            |             7 |
-| WS7: extension backend restart recovery            | **P0 for the editor.** Not built                                                   |            10 |
+| WS7: extension backend restart recovery            | Completed 2026-11-21; both editors and VSIX content checks pass                    |            10 |
 | WS2: Windows UI and accessibility qualification    | P1, mostly unverified                                                              |            22 |
 | WS3: real Codex/Claude session qualification       | P1, needs authorized provider runs                                                 |            13 |
 | WS4: recovery, failure and authority qualification | P1                                                                                 |            21 |
 | WS5: performance and supported capacity            | P1, not measured                                                                   |            11 |
 | WS6: final Windows distribution                    | P1; packages need final source rebuild/qualification                               |            18 |
-| **Current release work (WS1–WS7)**                 | 7 completed; 95 remain                                                             |       **102** |
+| **Current release work (WS1–WS7)**                 | 17 completed; 85 remain                                                            |       **102** |
 | M12 features (M12.1–M12.4)                         | Planned; implementation not started                                                |            19 |
-| **Current release + M12 checklist only**           | 114 remain; excludes estimates for M13–M28                                         |       **121** |
+| **Current release + M12 checklist only**           | 104 remain; excludes estimates for M13–M28                                         |       **121** |
 | M13–M17                                            | Planned: portable core, Linux, macOS, editor ports and beta                        |  5 milestones |
 | M18–M24                                            | Planned: conversations, context, workflows, delivery, archives, tools and packages |  7 milestones |
 | M25–M27                                            | Planned: opt-in remote execution, collaboration/sync and scheduling                |  3 milestones |
 | M28                                                | Planned: stable cross-platform qualification                                       |   1 milestone |
 
-Last recorded results (2026-11-21): `npm run check` passed, with 91 frontend tests and 25 extension tests. `npm run native:check` passed Rust formatting, Clippy, 67 library tests and all enabled native integrations, including `team_run`. The optional Git Bash test passed separately outside the sandbox. The former team failure was caused by Git validation holding the collaboration lock beyond the helper's five-second IPC deadline; validation now runs outside the lock and stale results are refused. No deadlines were relaxed. Final process inspection found no fixture workers or helpers remaining. Packaged artifacts have not been rebuilt for this fix; see [VERIFICATION.md](VERIFICATION.md).
+Last recorded results (2026-11-21): `npm run check` passed with 94 frontend tests and 37 extension tests. `npm run native:check` passed formatting, Clippy, 67 library tests and all enabled native integrations, including `team_run`; the optional Git Bash test passed separately during WS1. VSIX v0.1.4 includes the WS1 fix and WS7 recovery, with optimized executable/content/checksum verification and 31 checks passing in each installed editor’s isolated runner. Native crash tests confirm supervisor/shell cleanup and draft recovery. The standalone desktop distribution still needs rebuilding and qualification; see [VERIFICATION.md](VERIFICATION.md).
 
 ## Rules
 
@@ -81,7 +81,7 @@ On the restricted development host, set `$env:CANVAS_NO_SUBPROCESS='1'` before `
 
 ## Remaining work
 
-WS1 is complete. Continue with WS7 → WS2–4 (fixing defects as they appear) → WS5 → WS6. The planned feature sequence is M12 → M13 → M14/M15 → M16 → M17 beta → M18–M24 → opt-in M25–M27 → M28 stable qualification, following the dependency table in [MILESTONES.md](MILESTONES.md#milestone-sequence). Linux and macOS prototypes can progress independently after M13; actual implementation needs a separate request.
+WS1 and WS7 are complete. Continue with WS2–4 (fixing defects as they appear) → WS5 → WS6. The planned feature sequence is M12 → M13 → M14/M15 → M16 → M17 beta → M18–M24 → opt-in M25–M27 → M28 stable qualification, following the dependency table in [MILESTONES.md](MILESTONES.md#milestone-sequence). Linux and macOS prototypes can progress independently after M13; actual implementation needs a separate request.
 
 ### WS1: fix the failing native team fixture (completed 2026-11-21, 7 items)
 
@@ -95,18 +95,20 @@ WS1 is complete. Continue with WS7 → WS2–4 (fixing defects as they appear) �
 
 Evidence and remaining qualification limits: [WS1 verification](VERIFICATION.md#ws1--native-team-fixture-and-ipc-responsiveness--2026-11-21).
 
-### WS7: extension backend restart recovery (P0 for the editor, 10 items)
+### WS7: extension backend restart recovery (completed 2026-11-21, 10 items)
 
-- [ ] Add backend states: starting, connected, failed, stopping and restarting.
-- [ ] Add a Restart Backend command and an actionable failure view.
-- [ ] Preserve pending layout and note edits before replacing a failed backend.
-- [ ] Reject or settle old in-flight requests, and isolate old replies from the new backend generation.
-- [ ] Confirm the old process and its children have stopped before replacement work begins.
-- [ ] Restore durable state conservatively, keeping agent launches and team resume explicit.
-- [ ] Reattach the renderer without stale sessions overwriting state or losing drafts.
-- [ ] Bound repeated restart failures and show a visible stop reason.
-- [ ] Test crash, broken stdio, an unresponsive process, partial saves, reload, and close during restart.
-- [ ] Run the flow in both editors and package the VSIX.
+- [x] Add backend states: starting, connected, failed, stopping and restarting.
+- [x] Add a Restart Backend command and an actionable failure view.
+- [x] Preserve pending layout and note edits before replacing a failed backend.
+- [x] Reject or settle old in-flight requests, and isolate old replies from the new backend generation.
+- [x] Confirm the old process and its children have stopped before replacement work begins.
+- [x] Restore durable state conservatively, keeping agent launches and team resume explicit.
+- [x] Reattach the renderer without stale sessions overwriting state or losing drafts.
+- [x] Bound repeated restart failures and show a visible stop reason.
+- [x] Test crash, broken stdio, an unresponsive process, partial saves, reload, and close during restart.
+- [x] Run the flow in both editors and package the VSIX.
+
+Evidence: [WS7 verification](VERIFICATION.md#ws7--extension-backend-restart-recovery--2026-11-21). Failure injection uses native and port tests; editor runners exercise crash/restart/reload and real renderer/save/disposal handshakes. Pointer, screen-reader and DPI qualification remain WS2; authenticated provider work remains WS3.
 
 ### WS2: Windows UI and accessibility (P1, 22 items)
 

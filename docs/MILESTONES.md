@@ -1,6 +1,6 @@
 # AgentCanvas roadmap through M28
 
-Updated: 2026-11-21. Roadmap baseline: commit `11a67fb`; WS1 verification now includes the subsequent IPC responsiveness fix. The original M9–M12 proposal was written against `8880ada` (M8) on 2026-11-14.
+Updated: 2026-11-21. Roadmap baseline: commit `11a67fb`; WS1/WS7 verification now includes the IPC responsiveness fix and extension backend recovery. The original M9–M12 proposal was written against `8880ada` (M8) on 2026-11-14.
 
 The user authorized planning through M28, including Linux and macOS, on 2026-11-19. M0–M11 are implemented; M12–M28 are planned and unimplemented. This request expands the product roadmap, not the current implementation authorization beyond M11. The original M9–M12 proposal and its acceptance requirements are retained below. [PROJECT-STATUS.md](PROJECT-STATUS.md) tracks release blockers and milestone status; [VERIFICATION.md](VERIFICATION.md) records executed evidence. There are no delivery-date commitments until platform prototypes, dependencies and team capacity are measured.
 
@@ -34,9 +34,9 @@ Reference material checked on 2026-11-13:
 | M9        | Durable tasks, cooperative inbox protocol and restart reconciliation              | Implemented; authenticated provider and recovery acceptance remains                        |
 | M10       | Managed Git areas, commit-bound review evidence and controlled integration        | Implemented; deeper failure and distribution acceptance remains                            |
 | M11       | Bounded team planning, dispatch, independent review, checks and emergency stop    | Implemented; mixed-team fixture fixed and native suite green; deeper qualification remains |
-| Extension | Windows editor host, project selection, guided setup and preserved-draft recovery | Implemented through VSIX v0.1.3; backend restart recovery and editor qualification remain  |
+| Extension | Windows editor host, project selection, setup, draft and backend restart recovery | Implemented through VSIX v0.1.4; deeper editor qualification remains                       |
 
-The latest recorded verification (2026-11-21) reports passing `npm run check` with 91 frontend and 25 extension tests, and a passing `npm run native:check` with Rust formatting, Clippy, 67 library tests and all enabled native integrations. The mixed-provider `team_run` fixture passes after moving Git validation outside the collaboration lock and refusing stale validation results; no deadlines were increased. The optional Git Bash test also passed separately outside the sandbox. The previously built VSIX v0.1.3 and standalone distribution still need rebuilding and qualification for this fix. See [VERIFICATION.md](VERIFICATION.md) for exact evidence and limitations.
+The latest recorded verification (2026-11-21) reports passing `npm run check` with 94 frontend and 37 extension tests, and passing `npm run native:check` with formatting, Clippy, 67 library tests and all enabled native integrations. The mixed-team fixture passes after moving Git validation outside the collaboration lock and refusing stale results; no deadlines were increased. Git Bash also passed separately during WS1. VSIX v0.1.4 includes that fix and WS7 backend recovery: 31 checks passed in each installed editor’s isolated runner, and package contents/checksums match the optimized build. The standalone desktop distribution and deeper release qualification remain outstanding. See [VERIFICATION.md](VERIFICATION.md).
 
 M5 peer sends still type into another terminal. Delivery does not prove that an agent accepted, understood or completed a task; M9 adds a separate cooperative inbox and structured task protocol. Activity labels remain heuristics. Desktop browser nodes display pages and editor browser nodes open the default browser; neither is an agent browser-automation API. Roles and launch presets alone do not provide M11's bounded scheduler.
 
@@ -147,7 +147,7 @@ Status: planned and unimplemented; implementation requires a separate request. T
 
 ## Delivery strategy and platform targets
 
-WS1's native team-fixture failure is resolved; WS7's backend recovery gap is next. Complete M12's local workflow contracts and the relevant Windows acceptance work, then port the underlying runtime before adding more automation. M14 and M15 can be developed independently after M13, but both need their own real-machine acceptance. M17 is a usable beta checkpoint; users do not have to wait until M28 to get a qualified three-platform core.
+WS1's native team-fixture failure and WS7's backend recovery gap are resolved. Complete the remaining Windows qualification and, when authorized, M12's local workflow contracts, then port the underlying runtime before adding more automation. M14 and M15 can be developed independently after M13, but both need their own real-machine acceptance. M17 is a usable beta checkpoint; users do not have to wait until M28 to get a qualified three-platform core.
 
 | Platform | Initial target to qualify                                                                  | Distribution plan                                                              | Acceptance condition                                                                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |

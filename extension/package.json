@@ -2,7 +2,7 @@
   "name": "agentcanvas",
   "displayName": "%productName%",
   "description": "A local canvas for coding agents, terminals, notes and team execution.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "agentcanvas-local",
   "license": "UNLICENSED",
   "engines": {
@@ -60,6 +60,10 @@
       {
         "command": "agentcanvas.setup",
         "title": "%setupTitle%"
+      },
+      {
+        "command": "agentcanvas.restartBackend",
+        "title": "%restartBackendTitle%"
       }
     ],
     "viewsContainers": {

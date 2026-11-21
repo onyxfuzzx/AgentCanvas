@@ -31,7 +31,7 @@ export class Checkpoints {
     )
       throw new Error('Invalid note checkpoint.');
     const key = this.key(command, args);
-    const save: Save = { command, args: { ...args } };
+    const save: Save = { command, args: structuredClone(args) };
     const old = this.saves.get(key);
     if (command === 'note_save' && this.baselines.has(key))
       save.args.expected = this.baselines.get(key);
@@ -61,7 +61,7 @@ export class Checkpoints {
     } else this.saves.delete(key);
   }
   snapshot() {
-    return [...this.saves.values()];
+    return structuredClone([...this.saves.values()]);
   }
   baseline(args: Record<string, unknown>, content: unknown) {
     const key = this.key('note_save', args);

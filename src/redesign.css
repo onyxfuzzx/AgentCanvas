@@ -2400,3 +2400,33 @@
     max-width: 100%;
   }
 }
+/* The editor host owns this failure surface outside the replaceable renderer. */
+#backend-status {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg, #15171c);
+  color: var(--text, #e8e8ee);
+}
+#backend-status[hidden] {
+  display: none;
+}
+#backend-status > div {
+  max-width: 620px;
+  overflow-wrap: anywhere;
+}
+#backend-status p {
+  line-height: 1.6;
+  margin: 16px 0;
+}
+#backend-status button {
+  padding: 10px 16px;
+  margin: 8px 8px 0 0;
+}
+#backend-status button:focus-visible {
+  outline: 2px solid #9b8aff;
+  outline-offset: 3px;
+}

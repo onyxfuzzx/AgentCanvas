@@ -46,6 +46,7 @@ export interface WorkspacePorts {
   pauseDispatch?: () => Promise<void>;
   resetNotes?: () => void;
   checkpoint?: (command: string, args: Record<string, unknown>) => void;
+  restorePaused?: boolean;
 }
 export class WorkspaceCoordinator {
   private queue: Autosave<WorkspaceLayout> | undefined;
@@ -144,8 +145,9 @@ export class WorkspaceCoordinator {
       });
     const errors: string[] = [];
     const terminals = loaded.document.nodes.filter(
-      (n) => n.kind === 'terminal' && !n.agent,
+      (n) => !this.ports.restorePaused && n.kind === 'terminal' && !n.agent,
     );
+    this.ports.restorePaused = false;
     let index = 0;
     const worker = async () => {
       while (index < terminals.length) {
@@ -244,6 +246,14 @@ export class WorkspaceCoordinator {
   async save() {
     await this.ports.flushNotes?.();
     await this.queue?.flush(true);
+  }
+  captureDraft() {
+    const active = this.state.getState().active;
+    if (active)
+      this.ports.checkpoint?.('workspace_save', {
+        id: active.document.id,
+        layout: this.ports.capture(),
+      });
   }
   async prepareToClose() {
     this.state.setState({ closing: true });

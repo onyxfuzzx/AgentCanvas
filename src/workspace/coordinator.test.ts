@@ -133,6 +133,29 @@ function harness() {
   };
 }
 beforeEach(() => vi.useFakeTimers());
+
+test('backend recovery restores layout with processes paused; later workspace switches keep normal behavior', async () => {
+  const f = harness();
+  f.ports.restorePaused = true;
+  const checkpoint = vi.fn();
+  f.ports.checkpoint = checkpoint;
+  await f.coordinator.initialize();
+  expect(f.ports.start).not.toHaveBeenCalled();
+  expect(f.state.getState().phase).toBe('ready');
+  f.mutate(144);
+  f.coordinator.captureDraft();
+  expect(checkpoint).toHaveBeenLastCalledWith(
+    'workspace_save',
+    expect.objectContaining({
+      id: 'one',
+      layout: expect.objectContaining({
+        nodes: expect.arrayContaining([expect.objectContaining({ x: 144 })]),
+      }),
+    }),
+  );
+  await f.coordinator.switchTo('two');
+  expect(f.ports.start).toHaveBeenCalledTimes(1);
+});
 test('workspace switch and normal close pause native dispatch before flushing or stopping processes', async () => {
   const h = harness();
   await h.coordinator.initialize();

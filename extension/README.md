@@ -2,16 +2,16 @@
 
 Run the existing spatial agent workspace in an editor tab: local ConPTY terminals, Codex/Claude CLI presets, linked agents, Markdown notes, whiteboard, durable tasks, isolated Git areas and the bounded M11 team coordinator. No account, telemetry, service, network listener or runtime downloads are added. Installed agent CLIs retain their own authentication and approval settings.
 
-This package targets **local Windows x64** VS Code 1.90+ and compatible Antigravity IDE builds. It bundles the Rust backend and both helper executables; Rust, Node and the standalone desktop app are not needed to use the installed extension. Remote editor windows, virtual workspaces, macOS and Linux are not supported by this build. The [roadmap through M28](../docs/MILESTONES.md) plans the portable runtime and Linux/macOS desktop work in M13–M15, local editor packages in M16, three-platform beta qualification in M17 and separately qualified remote hosting in M25.
+This package targets **local Windows x64** VS Code 1.90+ and compatible Antigravity IDE builds. It bundles the Rust backend and both helper executables; Rust, Node and the standalone desktop app are not needed to use the installed extension. Remote editor windows, virtual workspaces, macOS and Linux are not supported by this build. The source repository's `docs/MILESTONES.md` plans the portable runtime and Linux/macOS desktop work in M13–M15, local editor packages in M16, three-platform beta qualification in M17 and separately qualified remote hosting in M25.
 
 ## Install and open
 
 1. Build from the repository root with `npm ci` and `npm run extension:package` (requires the desktop Rust/MSVC build prerequisites).
-2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.3-win32-x64.vsix`.
+2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.4-win32-x64.vsix`.
 3. Open a trusted local folder. Run **AgentCanvas: Open Canvas** in the command palette, or select the canvas activity-bar icon and **Open canvas**.
 4. Add a terminal or agent. Its working directory defaults to the selected project, the active file's project, or the first open folder. With no project open, a blank directory uses your home folder. Existing desktop workspace folders can be opened from the canvas workspace picker; close the desktop copy first because workspace locks are preserved.
 
-CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.3-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
+CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.4-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
 
 ## First-run setup
 
@@ -22,6 +22,12 @@ Agent setup offers automatic executable detection, an explicit native `.exe` pat
 Leave both providers unchecked to finish with terminals, notes and the whiteboard. Selected presets use the existing validated atomic library save; other presets, roles and existing agent nodes keep their settings. Setup is marked complete only after preset saves and workspace flushing succeed. Retrying a partial save keeps preset IDs. **Set up later** leaves completion unset. Reopen the guide from **AgentCanvas: Setup and CLI Troubleshooting**, the canvas command palette, or Settings. Completion is a versioned editor preference; each editor has its own setting.
 
 ## Editor behavior
+
+When the backend crashes, loses its pipe or stops answering, the canvas shows **Backend unavailable**. Run **AgentCanvas: Restart Backend** or use its recovery button. The host captures the latest layout and mirrored note drafts, writes a versioned recovery file, and confirms that the previous backend and its owned process tree have exited before starting a replacement. A Windows supervisor owns the sidecar, terminals and other descendants, including after an abrupt crash.
+
+Restart reconciles pending notes before layout, recognizes a save whose reply was lost, and retains conflicting drafts rather than replacing external edits. If recovery cannot finish, its file path remains visible; use **Recover Canvas Drafts** to restore a separate copy. A recovery write or shutdown failure refuses replacement. The restarted canvas loads its saved layout with shells, agents, browser pages and team execution paused; start or resume them explicitly. Terminal output and command history cannot be recovered. A user-requested webview reload uses the same draft-preserving recovery path.
+
+The status view distinguishes starting, connected, failed, stopping and restarting. Requests and checkpoints carry a renderer generation; late replies from an old backend cannot update the replacement. There are at most three restart/reload attempts per canvas tab, with no automatic retry loop. After that limit, close and reopen the canvas; preserved recovery files remain available. Closing during restart cancels replacement and still stops the backend. Ordinary reopen retains the normal shell-startup behavior described below.
 
 Run **AgentCanvas: Recover Canvas Drafts** (also in the activity-bar welcome view) to inspect drafts preserved after a failed close-time save. Choose a dated file and workspace to see its layout nodes, complete pending note text and the note's original editing baseline. The preview displays text locally and starts no backend or provider.
 
@@ -41,4 +47,6 @@ Restoration leaves the current canvas open and starts no shells, agents or brows
 
 ## Development
 
-Run `npm run extension:build -- --debug`, then launch the **AgentCanvas Extension** debug configuration in VS Code or start either editor with `--extensionDevelopmentPath=<absolute repository>/extension`. Run `npm run check`, `npm run extension:check` and `npm run native:check`. See the repository's `docs/VERIFICATION.md` for executed checks and remaining limitations, and [project status](../docs/PROJECT-STATUS.md) for the M12–M28 plan. Future platform entries are not evidence of a supported build.
+Run `npm run extension:build -- --debug`, then launch the **AgentCanvas Extension** debug configuration in VS Code or start either editor with `--extensionDevelopmentPath=<absolute repository>/extension`. Run `npm run check`, `npm run extension:check` and `npm run native:check`. See the source repository's `docs/VERIFICATION.md` for executed checks and remaining limitations, and `docs/PROJECT-STATUS.md` for the M12–M28 plan. Future platform entries are not evidence of a supported build.
+
+Build with `npm run extension:package -- --smoke-support`, then run `node scripts/extension-editor-run.mjs all <fresh-tag>` to exercise both installed editors using disposable repository-local profiles. The runner records its results under `.cache/extension-smoke`; it never installs into your normal editor profile. Its unattended profiles disable workspace trust for testing only; production trust gates remain enabled.

@@ -1,7 +1,14 @@
 import { useStore } from 'zustand';
 import { useCanvas } from '../canvas/store';
 import { isDesktop, invoke } from '../native';
-import { checkpoint, isEditor, registerEditorSave } from '../editor';
+import {
+  checkpoint,
+  isEditor,
+  registerEditorSave,
+  registerEditorCapture,
+  editorRestorePaused,
+  editorWorkspaceReady,
+} from '../editor';
 import {
   createSession,
   getSession,
@@ -25,6 +32,7 @@ export const workspace = new WorkspaceCoordinator(
   {
     native: isDesktop(),
     checkpoint: isEditor() ? checkpoint : undefined,
+    restorePaused: editorRestorePaused(),
     invoke,
     uuid: () => crypto.randomUUID(),
     capture: () => {
@@ -129,8 +137,12 @@ configureCollaboration(() => {
 configureTerminalStartup(() => collaboration.sync());
 useCanvas.subscribe(() => void collaboration.sync().catch(() => {}));
 workspaceState.subscribe(() => void collaboration.sync().catch(() => {}));
+workspaceState.subscribe((state) => {
+  if (state.phase === 'ready' && state.active) editorWorkspaceReady();
+});
 registerEditorSave(async () => {
   if (workspaceState.getState().phase !== 'ready')
     throw new Error('Wait for the workspace to finish loading before saving.');
   await workspace.save();
 });
+registerEditorCapture(() => workspace.captureDraft());

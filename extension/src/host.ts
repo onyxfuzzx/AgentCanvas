@@ -1,4 +1,10 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import {
+  spawn,
+  execFile,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { promisify } from 'node:util';
 import {
   Frames,
   frame,
@@ -13,32 +19,44 @@ export class NativeHost {
   private next = 0;
   private pending = new Map<
     number,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void }
+    {
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
   >();
   private ended = false;
+  private stopping = false;
+  private shutdown?: Promise<void>;
   private exited: Promise<void>;
+  private session = randomUUID();
+  readonly pid: number | undefined;
   constructor(
-    program: string,
+    private program: string,
     data: string,
     home: string,
     log: (message: string) => void,
+    private onFailure: (error: Error) => void = () => {},
+    private timeout = 15000,
   ) {
-    this.child = spawn(program, ['--data-dir', data, '--home', home], {
-      windowsHide: true,
-      shell: false,
-      stdio: 'pipe',
-    });
-    const fail = (error: Error) => {
-      this.ended = true;
-      for (const request of this.pending.values()) request.reject(error);
-      this.pending.clear();
-    };
+    this.child = spawn(
+      program,
+      ['--session', this.session, '--data-dir', data, '--home', home],
+      {
+        windowsHide: true,
+        shell: false,
+        stdio: 'pipe',
+      },
+    );
+    this.pid = this.child.pid;
     const reader = new Frames((value) => {
       if (!record(value) || !validId(value.id))
         throw new Error('Invalid native reply.');
+      if (this.ended) return;
       const request = this.pending.get(value.id);
       if (!request) return;
       this.pending.delete(value.id);
+      clearTimeout(request.timer);
       if (typeof value.error === 'string')
         request.reject(new Error(value.error));
       else request.resolve(value.result);
@@ -47,26 +65,44 @@ export class NativeHost {
       try {
         reader.push(chunk);
       } catch (error) {
-        fail(new Error(String(error)));
-        this.child.kill();
+        this.fail(new Error(String(error)));
       }
     });
-    // Native diagnostics only. Never log RPC requests, terminal output or tokens.
+    this.child.stdout.on('end', () => {
+      if (!this.stopping)
+        this.fail(
+          new Error(
+            'Canvas backend output closed. Restart Backend to recover.',
+          ),
+        );
+    });
+    this.child.stdout.on('error', (error) => this.fail(error));
+    // Native diagnostics only; never log requests, terminal output or tokens.
     this.child.stderr.on('data', (chunk: Buffer) =>
       log(chunk.subarray(0, 4096).toString('utf8')),
     );
-    this.child.stdin.on('error', (error) => fail(error));
-    this.child.on('error', (error) => fail(error));
+    this.child.stdin.on('error', (error) => this.fail(error));
+    this.child.on('error', (error) => this.fail(error));
     this.exited = new Promise((resolve) =>
       this.child.once('close', (code) => {
-        fail(
+        this.fail(
           new Error(
-            `Canvas backend stopped (${code ?? 'signal'}). Reopen the canvas to start fresh processes.`,
+            `Canvas backend stopped (${code ?? 'signal'}). Restart Backend to recover.`,
           ),
         );
         resolve();
       }),
     );
+  }
+  private fail(error: Error) {
+    const first = !this.ended;
+    this.ended = true;
+    for (const request of this.pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(error);
+    }
+    this.pending.clear();
+    if (first && !this.stopping) this.onFailure(error);
   }
   request(
     command: string,
@@ -86,30 +122,60 @@ export class NativeHost {
       return Promise.reject(error);
     }
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const limit = /^(area_|team_check_run)/.test(command)
+        ? Math.max(this.timeout, 180000)
+        : this.timeout;
+      const timer = setTimeout(
+        () =>
+          this.fail(
+            new Error(
+              `Canvas backend did not answer ${command}. Restart Backend to recover.`,
+            ),
+          ),
+        limit,
+      );
+      this.pending.set(id, { resolve, reject, timer });
       this.child.stdin.write(data, (error) => {
-        if (error) {
-          this.pending.delete(id);
-          reject(error);
-        }
+        if (error) this.fail(error);
       });
     });
   }
   async drain() {
-    // Callers first stop accepting new webview requests.
     while (this.pending.size)
       await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  async stop() {
-    if (!this.ended) {
-      this.ended = true;
-      this.child.stdin.end();
-    }
-    const timer = setTimeout(() => this.child.kill(), 5000);
-    try {
-      await this.exited;
-    } finally {
-      clearTimeout(timer);
-    }
+  stop(): Promise<void> {
+    if (this.shutdown) return this.shutdown;
+    this.stopping = true;
+    this.fail(new Error('Canvas backend is stopping.'));
+    this.child.stdin.end();
+    this.shutdown = (async () => {
+      const kill = setTimeout(() => this.child.kill(), 5000);
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          this.exited,
+          new Promise<never>((_, reject) => {
+            deadline = setTimeout(
+              () =>
+                reject(
+                  new Error('Old backend has not exited; replacement refused.'),
+                ),
+              12000,
+            );
+          }),
+        ]);
+        if (this.pid)
+          await promisify(execFile)(
+            this.program,
+            ['--wait-editor', String(this.pid), this.session],
+            { windowsHide: true, timeout: 7000 },
+          );
+      } finally {
+        clearTimeout(kill);
+        clearTimeout(deadline);
+      }
+    })();
+    return this.shutdown;
   }
 }

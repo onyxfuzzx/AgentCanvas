@@ -417,6 +417,77 @@ exports.run = async function () {
         'review traversal refusal',
       );
     }
+    await vscode.commands.executeCommand('agentcanvas.open');
+    const beforeCrash = await vscode.commands.executeCommand(
+      'agentcanvas.backendStatus',
+    );
+    assert.equal(beforeCrash.phase, 'connected');
+    assert(
+      Number.isSafeInteger(beforeCrash.pid),
+      'Owned backend PID is available for the disposable crash fixture',
+    );
+    process.kill(beforeCrash.pid);
+    const crashDeadline = Date.now() + 10000;
+    let status;
+    do {
+      await delay(25);
+      status = await vscode.commands.executeCommand(
+        'agentcanvas.backendStatus',
+      );
+    } while (status.phase !== 'failed' && Date.now() < crashDeadline);
+    assert.equal(
+      status.phase,
+      'failed',
+      'Crash is visible in the editor session',
+    );
+    await vscode.commands.executeCommand('agentcanvas.restartBackend');
+    status = await vscode.commands.executeCommand('agentcanvas.backendStatus');
+    assert.equal(status.phase, 'connected');
+    assert.equal(status.generation, beforeCrash.generation + 1);
+    assert.notEqual(status.pid, beforeCrash.pid);
+    assert.throws(() => process.kill(beforeCrash.pid, 0), 'Old backend exited');
+    await vscode.commands.executeCommand('agentcanvas.save');
+    const restartedWorkspace = JSON.parse(
+      await fs.readFile(path.join(entry.folder, 'workspace.json'), 'utf8'),
+    );
+    assert.deepEqual(
+      restartedWorkspace.nodes,
+      workspace.nodes,
+      'Crash/restart retains the saved layout',
+    );
+    projectChecks.push(
+      'backend crash detection',
+      'explicit backend restart',
+      'old process exit before replacement',
+      'new renderer generation save handshake',
+      'layout survives backend restart',
+    );
+    const commands = await vscode.commands.getCommands(true);
+    const reloadCommand = 'workbench.action.webview.reloadWebviewAction';
+    assert(
+      commands.includes(reloadCommand),
+      'Installed editor exposes the webview reload command',
+    );
+    await vscode.commands.executeCommand(reloadCommand);
+    const reloadDeadline = Date.now() + 20000;
+    do {
+      await delay(50);
+      status = await vscode.commands.executeCommand(
+        'agentcanvas.backendStatus',
+      );
+    } while (
+      (status.phase !== 'connected' ||
+        status.generation !== beforeCrash.generation + 2) &&
+      Date.now() < reloadDeadline
+    );
+    assert.equal(status.phase, 'connected');
+    assert.equal(
+      status.generation,
+      beforeCrash.generation + 2,
+      'Webview reload reconciles host checkpoints before reattaching',
+    );
+    await vscode.commands.executeCommand('agentcanvas.save');
+    projectChecks.push('webview reload recovery', 'save after renderer reload');
     await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
     await delay(1500);
     await vscode.commands.executeCommand('agentcanvas.open');
