@@ -25,15 +25,11 @@ jobs:
       - run: npm run check
       - run: cargo install tauri-cli --version '^2' --locked
       - run: npm run desktop:release
+      - run: npm run release:stage
       - uses: actions/upload-artifact@v4
         with:
           name: windows-preview-candidates
           if-no-files-found: error
           retention-days: 14
           path: |
-            artifacts/windows-portable/
-            artifacts/windows-portable.zip
-            artifacts/windows-portable.zip.sha256
-            artifacts/windows-installers/
-            artifacts/*.vsix
-            artifacts/*.vsix.sha256
+            artifacts/release-v*/

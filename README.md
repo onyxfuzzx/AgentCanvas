@@ -59,6 +59,24 @@ Linux/macOS and remote execution are planned. There is no published stable compa
 
 ## Get started
 
+### Install a Windows preview
+
+Look for a Windows preview under [GitHub Releases](https://github.com/onyxfuzzx/AgentCanvas/releases). If no prerelease is listed, use the source instructions below. Packages are unsigned development previews; see the release notes for executed checks and remaining qualification.
+
+| Download                                     | Use                                                                                                         |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `AgentCanvas_0.1.0_x64-setup.exe`            | Recommended desktop setup for your Windows user.                                                            |
+| `AgentCanvas_0.1.0_x64_en-US.msi`            | Alternative desktop installer; choose one installer.                                                        |
+| `AgentCanvas_0.1.0_windows-x64-portable.zip` | Extract the entire archive, then run `agent-canvas-desktop.exe`. Keep both helper executables alongside it. |
+| `agentcanvas-0.1.6-win32-x64.vsix`           | One extension package for both VS Code and Antigravity IDE.                                                 |
+| `SHA256SUMS.txt`                             | Compare download hashes with `Get-FileHash <file> -Algorithm SHA256`.                                       |
+
+Desktop requires **Windows x64 and Microsoft Edge WebView2 Evergreen**, installed separately. The installer does not download WebView2. Installed desktop and editor packages do not require Node.js, Rust or build tools. Provider CLIs are optional and installed/signed in separately.
+
+In VS Code or Antigravity, run **Extensions: Install from VSIX...**, select the downloaded VSIX, then open a trusted local project and run **AgentCanvas: Open Canvas**. The same file works in both editors; install it separately in each editor you use. VS Code requires version 1.90+; Antigravity requires a compatible Windows build. [Editor setup and recovery guide](extension/README.md).
+
+### Build from source
+
 Build from source on Windows x64 with **Node.js 22** (the CI version), Rust stable MSVC, Visual Studio C++ build tools/Windows SDK and WebView2 Evergreen. Follow [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/) and our [development guide](docs/DEVELOPMENT.md).
 
 ```powershell
@@ -78,6 +96,8 @@ npm run extension:package
 Run **Extensions: Install from VSIX...**, select the generated Windows VSIX under `artifacts/`, then run **AgentCanvas: Open Canvas** in a trusted local project. The installed extension bundles its native helpers. [Editor setup and recovery guide](extension/README.md).
 
 `npm run dev` serves the browser UI only; native terminals require a desktop/editor host. Provider CLIs are installed and signed in separately. Fresh-machine installation and stable xterm dependency qualification remain launch gates.
+
+Maintainers can build the setup EXE, MSI, portable ZIP and VSIX together with `npm run release:prepare`. [Release preparation and upload guide](docs/RELEASING.md).
 
 ## A deliberate workflow
 

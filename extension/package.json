@@ -2,7 +2,7 @@
   "name": "agentcanvas",
   "displayName": "%productName%",
   "description": "A local canvas for coding agents, terminals, notes and team execution.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "agentcanvas-local",
   "license": "MIT",
   "repository": {

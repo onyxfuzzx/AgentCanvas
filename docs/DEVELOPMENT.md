@@ -43,14 +43,15 @@ Use disposable workspaces/projects. Keep real-provider tests explicit and record
 
 ## Package
 
-| Command                                        | Output                                                                            |
-| ---------------------------------------------- | --------------------------------------------------------------------------------- |
-| `npm run desktop:build`                        | Optimized Windows portable folder/ZIP, manifest and checksums under `artifacts/`. |
-| `npm run desktop:release`                      | Portable artifacts plus NSIS/MSI installers.                                      |
-| `npm run extension:package`                    | Windows VSIX with the native backend/helpers, project license and notices.        |
-| `npm run extension:package -- --smoke-support` | The same package plus ignored local editor-runner support bundles.                |
+| Command                                        | Output                                                                                                                  |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npm run desktop:build`                        | Optimized Windows portable folder/ZIP, manifest and checksums under `artifacts/`.                                       |
+| `npm run desktop:release`                      | Portable artifacts plus NSIS/MSI installers.                                                                            |
+| `npm run extension:package`                    | Windows VSIX with the native backend/helpers, project license and notices.                                              |
+| `npm run extension:package -- --smoke-support` | The same package plus ignored local editor-runner support bundles.                                                      |
+| `npm run release:prepare`                      | Rebuild desktop installers/portable and VSIX, then stage a versioned release folder with aggregate checksums and notes. |
 
-Keep the desktop executable and both helpers together. Set `AGENTCANVAS_BUILD_TAG` to a validated lowercase tag to preserve separate desktop candidates. Project license/notices are copied into portable output; complete third-party notice review and installer licensing remain release gates. Packages remain unsigned unless signing is explicitly configured.
+Keep the desktop executable and both helpers together. Set `AGENTCANVAS_BUILD_TAG` to a validated lowercase tag to preserve separate desktop candidates; unset it for `release:prepare`. Desktop installers and portable output include both helpers and project/JavaScript license notices; complete transitive notice review remains a release gate. Packages remain unsigned unless signing is explicitly configured. See [release preparation and upload](RELEASING.md).
 
 Run both installed editors with fresh repository-local profiles:
 
