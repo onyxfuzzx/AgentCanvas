@@ -113,6 +113,7 @@ docs/guides/   Detailed workspace/agent and Git-area guides
 examples/      Sanitized, non-executing examples
 extension/     VS Code / Antigravity host and recovery controller
 scripts/       Build, packaging, audit and verification tools
+site/          Static project website and GitHub Pages guide
 src/           Shared React UI and pure canvas/state models
 src-tauri/     Rust runtime, ConPTY, IPC, task/Git authority and native tests
 ```
@@ -134,6 +135,7 @@ Extension native tests need a built sidecar; the [development guide](docs/DEVELO
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Project website and GitHub Pages deployment](site/README.md)
 - [Development and verification](docs/DEVELOPMENT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Current status](docs/PROJECT-STATUS.md) and [verification evidence](docs/VERIFICATION.md)

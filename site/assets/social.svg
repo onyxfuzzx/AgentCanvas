@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f8f9f6"/>
+  <path d="M0 569.5h1200" stroke="#dce1d9"/>
+  <rect x="60" y="46" width="50" height="50" rx="11" fill="#202320"/>
+  <g transform="translate(62 48) scale(.18) rotate(-8 128 128)" fill="none" stroke="#c4a16b" stroke-width="11"><rect x="55" y="49" width="64" height="64" rx="13"/><rect x="137" y="79" width="64" height="64" rx="13"/><rect x="67" y="139" width="64" height="64" rx="13"/></g>
+  <g font-family="Arial,Helvetica,sans-serif"><text x="126" y="80" font-size="29" font-weight="700" letter-spacing="-1" fill="#202722">AgentCanvas</text><text x="60" y="217" font-size="88" font-weight="600" letter-spacing="-5" fill="#202722">Your agents.</text><text x="60" y="312" font-size="88" font-weight="600" letter-spacing="-5" fill="#356147">One workspace.</text><text x="64" y="371" font-size="23" fill="#626b63">Coding agents, terminals, notes, and Git review.</text><text x="64" y="411" font-size="23" fill="#626b63">A local Windows app. Open source under MIT.</text></g>
+  <rect x="63" y="463" width="170" height="40" rx="5" fill="#263d2e"/>
+  <text x="83" y="489" fill="#ffffff" font-size="16" font-family="Arial,Helvetica,sans-serif">Build from source</text>
+  <g font-family="Arial,Helvetica,sans-serif" font-size="16"><text x="64" y="605" fill="#626b63">Codex</text><text x="155" y="605" fill="#626b63">Antigravity</text><text x="282" y="605" fill="#626b63">Claude Code</text><text x="1110" y="605" text-anchor="end" fill="#626b63">WINDOWS PREVIEW</text></g>
+  <rect x="824" y="143" width="316" height="333" rx="14" fill="#e9eee7" stroke="#c5d0bf"/>
+  <path d="M923 230v155m0-80h112" stroke="#9eaf92" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+  <rect x="868" y="174" width="171" height="113" rx="7" fill="#fafaf2" stroke="#b4c6a5"/><path d="M889 207h104m-104 22h75m-75 20h89" stroke="#8c9e7d" stroke-width="5"/>
+  <rect x="853" y="332" width="174" height="116" rx="7" fill="#202724"/><path d="m872 355 8 8-8 8m21 0h35m-56 27h113m-113 19h83" stroke="#b6c5a7" stroke-width="4" fill="none"/>
+  <rect x="981" y="264" width="139" height="104" rx="7" fill="#29322c" stroke="#667b58"/><path d="M999 288h80m-80 20h91m-91 20h57" stroke="#b6c5a7" stroke-width="4"/>
+</svg>

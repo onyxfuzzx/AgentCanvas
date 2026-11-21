@@ -18,6 +18,10 @@
   "type": "module",
   "scripts": {
     "repo:audit": "node scripts/repo-audit.mjs",
+    "site:check": "node scripts/site.mjs check",
+    "site:build": "node scripts/site.mjs build",
+    "site:preview": "node scripts/site.mjs serve",
+    "site:browser-check": "node scripts/site-browser-check.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort --configLoader native",
     "build": "tsc --noEmit && vite build --configLoader native",
     "preview": "vite preview --host 127.0.0.1 --configLoader native",

@@ -18,6 +18,7 @@ Start with the [project README](../README.md), then choose the path that matches
 
 - [Contribution guide](../CONTRIBUTING.md)
 - [Development/build/verification](DEVELOPMENT.md)
+- [Project website and GitHub Pages](../site/README.md)
 - [Live desktop and provider QA checklist](LIVE-QA.md)
 - [Architecture and module boundaries](ARCHITECTURE.md)
 - [Security policy](../SECURITY.md), [community conduct](../CODE_OF_CONDUCT.md) and [third-party provenance](../THIRD_PARTY.md)
