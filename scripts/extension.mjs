@@ -5,6 +5,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { thirdPartyLicenses } from './licenses.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const extension = resolve(root, 'extension');
@@ -137,14 +138,7 @@ if (!uiOnly) {
     );
 }
 await mkdir(resolve(extension, 'media/licenses'), { recursive: true });
-for (const [name, source] of Object.entries({
-  react: 'react/LICENSE',
-  'react-dom': 'react-dom/LICENSE',
-  scheduler: 'scheduler/LICENSE',
-  zustand: 'zustand/LICENSE',
-  xterm: '@xterm/xterm/LICENSE',
-  'xterm-webgl': '@xterm/addon-webgl/LICENSE',
-})) {
+for (const [name, source] of Object.entries(thirdPartyLicenses)) {
   await copyFile(
     resolve(root, 'node_modules', source),
     resolve(extension, 'media/licenses', `${name}.txt`),

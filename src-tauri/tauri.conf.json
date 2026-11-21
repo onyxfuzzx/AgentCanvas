@@ -26,6 +26,8 @@
   },
   "bundle": {
     "active": true,
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
     "targets": ["nsis", "msi"],
     "shortDescription": "A local canvas for terminals, notes and browser pages",
     "icon": ["icons/icon.ico", "icons/icon.png"],

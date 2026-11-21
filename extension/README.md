@@ -6,12 +6,12 @@ This package targets **local Windows x64** VS Code 1.90+ and compatible Antigrav
 
 ## Install and open
 
-1. Build from the repository root with `npm ci` and `npm run extension:package` (requires the desktop Rust/MSVC build prerequisites).
-2. In either editor, run **Extensions: Install from VSIX...** and choose `artifacts/agentcanvas-0.1.5-win32-x64.vsix`.
+1. Download `agentcanvas-0.1.6-win32-x64.vsix` from a Windows preview in [GitHub Releases](https://github.com/onyxfuzzx/AgentCanvas/releases). If no prerelease is listed, build from the repository root with `npm ci` and `npm run extension:package` (requires the desktop Rust/MSVC build prerequisites).
+2. In either editor, run **Extensions: Install from VSIX...** and choose the downloaded file, or `artifacts/agentcanvas-0.1.6-win32-x64.vsix` for a local build. Use the same file in both editors; a second editor-specific package is unnecessary.
 3. Open a trusted local folder. Run **AgentCanvas: Open Canvas** in the command palette, or select the canvas activity-bar icon and **Open canvas**.
 4. Add a terminal or agent. Its working directory defaults to the selected project, the active file's project, or the first open folder. With no project open, a blank directory uses your home folder. Existing desktop workspace folders can be opened from the canvas workspace picker; close the desktop copy first because workspace locks are preserved.
 
-CLI installation in VS Code: `code --install-extension artifacts/agentcanvas-0.1.5-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation.
+CLI installation in VS Code from a source checkout: `code --install-extension artifacts/agentcanvas-0.1.6-win32-x64.vsix`. Antigravity IDE also supports **Install from VSIX...**; its executable name varies by installation. Packages are unsigned previews; see the release notes for checks and limitations.
 
 ## First-run setup
 

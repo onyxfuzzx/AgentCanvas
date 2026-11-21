@@ -11,6 +11,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { basename, dirname, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { thirdPartyLicenses } from './licenses.mjs';
 const product = JSON.parse(
   readFileSync(new URL('../product.json', import.meta.url)),
 );
@@ -25,8 +26,29 @@ const baseConfig = JSON.parse(
 const debug = process.argv.includes('--debug');
 const profile = debug ? 'debug' : 'release';
 const helpers = ['pty-host.exe', 'agentcanvas-peer.exe'];
+const root = fileURLToPath(new URL('../', import.meta.url));
+const nativeTarget = resolve(
+  process.env.CARGO_TARGET_DIR || resolve(root, 'src-tauri/target'),
+  profile,
+);
+const resources = {
+  ...Object.fromEntries(
+    helpers.map((file) => [resolve(nativeTarget, file), file]),
+  ),
+  [resolve(root, 'LICENSE')]: 'LICENSE.txt',
+  [resolve(root, 'THIRD_PARTY.md')]: 'THIRD_PARTY.md',
+  ...Object.fromEntries(
+    Object.entries(thirdPartyLicenses).map(([name, source]) => [
+      resolve(root, 'node_modules', source),
+      `LICENSE-${name}.txt`,
+    ]),
+  ),
+};
 const config = {
   productName: product.name,
+  ...(process.argv[2] === 'build' && !process.argv.includes('--no-bundle')
+    ? { bundle: { resources } }
+    : {}),
   app: {
     windows: baseConfig.app.windows.map((window) => ({
       ...window,
@@ -107,6 +129,11 @@ if (result.status === 0 && process.argv[2] === 'build') {
     new URL('../THIRD_PARTY.md', import.meta.url),
     new URL('THIRD_PARTY.md', output),
   );
+  for (const [name, source] of Object.entries(thirdPartyLicenses))
+    copyFileSync(
+      resolve(root, 'node_modules', source),
+      new URL(`LICENSE-${name}.txt`, output),
+    );
   writeFileSync(
     new URL('README.txt', output),
     `${product.name}\n\nRun agent-canvas-desktop.exe. Keep both helper executables alongside it.\nRequires Windows 10 22H2 / Windows 11 x64 and the Microsoft Edge WebView2 Evergreen Runtime.\nWorkspaces autosave layout and notes; terminal output, commands, activity summaries, tokens and message logs stay in memory.\nBrowser nodes restore paused. Use Open to load a page; Stop releases it. Up to eight pages can be live.\nActivity summaries use local output heuristics. Quiet output does not prove a task is idle; labels can be overridden.\nTheme and keyboard controls are in the sidebar and shortcuts dialog.\n`,

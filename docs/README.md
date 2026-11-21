@@ -18,6 +18,7 @@ Start with the [project README](../README.md), then choose the path that matches
 
 - [Contribution guide](../CONTRIBUTING.md)
 - [Development/build/verification](DEVELOPMENT.md)
+- [Windows release preparation and upload](RELEASING.md)
 - [Project website and GitHub Pages](../site/README.md)
 - [Live desktop and provider QA checklist](LIVE-QA.md)
 - [Architecture and module boundaries](ARCHITECTURE.md)
