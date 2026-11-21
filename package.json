@@ -42,25 +42,25 @@
     "extension:check": "tsc -p extension/tsconfig.json && vitest run --configLoader native --config extension/vitest.config.mjs"
   },
   "dependencies": {
-    "@xterm/addon-webgl": "0.19.0-beta.136",
-    "@xterm/xterm": "5.6.0-beta.136",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "zustand": "5.0.12"
+    "@xterm/addon-webgl": "0.19.0",
+    "@xterm/xterm": "6.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zustand": "5.1.0"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.4",
-    "@types/node": "22.19.21",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
-    "@types/vscode": "1.90.0",
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/vscode": "1.146.0",
     "@vscode/vsce": "4.1.1",
     "esbuild": "0.28.2",
-    "eslint": "9.39.4",
-    "prettier": "3.9.0",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.60.0",
-    "vite": "7.3.5",
-    "vitest": "4.1.4"
+    "eslint": "10.15.0",
+    "prettier": "3.10.1",
+    "typescript": "7.0.2",
+    "typescript-eslint": "8.73.0",
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
   }
 }
