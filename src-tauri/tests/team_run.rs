@@ -22,35 +22,51 @@ use std::{
 };
 fn helper(action: Value) -> Value {
     let started = Instant::now();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_agentcanvas-peer"))
-        .args(["task", &orchestrator::uuid().unwrap(), "--stdin"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(serde_json::to_string(&action).unwrap().as_bytes())
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
-    assert!(
-        output.status.success(),
-        "Fixture helper action {} failed after {:?}: stdout={} stderr={}",
-        action["type"],
-        started.elapsed(),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(
-        reply["ok"], true,
-        "Cooperative helper refused fixture action {}: {reply}",
-        action["type"]
-    );
-    reply["result"].clone()
+    let request_id = orchestrator::uuid().unwrap();
+    loop {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_agentcanvas-peer"))
+            .args(["task", &request_id, "--stdin"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(serde_json::to_string(&action).unwrap().as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
+        // Fast CI workers can exhaust the real five-request burst while polling
+        // and acknowledging a task. A rate-limit refusal happens before mutation;
+        // wait for one token and retry the same request without weakening limits.
+        if !output.status.success()
+            && reply["ok"] == false
+            && reply["error"]
+                .as_str()
+                .is_some_and(|error| error.starts_with("RATE_LIMIT:"))
+            && started.elapsed() < Duration::from_secs(5)
+        {
+            thread::sleep(Duration::from_millis(500));
+            continue;
+        }
+        assert!(
+            output.status.success(),
+            "Fixture helper action {} failed after {:?}: stdout={} stderr={}",
+            action["type"],
+            started.elapsed(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            reply["ok"], true,
+            "Cooperative helper refused fixture action {}: {reply}",
+            action["type"]
+        );
+        return reply["result"].clone();
+    }
 }
 fn worker() {
     println!("__TEAM_FIXTURE_READY__");

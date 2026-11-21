@@ -7,7 +7,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   windows:
-    name: Windows checks
+    # Match the existing required status context on protected master.
+    name: windows
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
