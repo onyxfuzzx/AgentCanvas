@@ -68,6 +68,8 @@ Useful pinned issues:
 
 Enable Discussions only when someone can maintain it. Keep bug reports actionable and use discussion threads for workflow ideas. Require the uniquely named `Windows checks` status before merging once it has run successfully. Require PRs/conversation resolution, disable force pushes/deletion on the public branch, and choose a review rule that the maintainer team can actually meet. Do not lock a sole maintainer out by requiring their own approval.
 
+Dependabot groups weekly version updates into one pull request per ecosystem: npm, Rust and GitHub Actions. Each ecosystem has a one-open-version-PR limit; security updates remain separate and are not limited by that setting. Update branches are expected while reviews are open. Grouping does not enable automatic merging: inspect breaking changes and require the relevant checks before accepting upgrades. Enable GitHub's automatic deletion of merged head branches in repository settings to keep completed work from accumulating.
+
 ## OS1 — Windows public prerelease
 
 OS1 depends on relevant WS2–WS6 qualification and OS0 publication readiness. It is not a synonym for M28 stable.
