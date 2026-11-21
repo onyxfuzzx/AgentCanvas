@@ -15,7 +15,7 @@ OS0 local verification passed the read-only source/history audit and application
 | WS1: native team fixture                           | Completed 2026-11-21; full native check and separate Git Bash test pass            |             7 |
 | WS7: extension backend restart recovery            | Completed 2026-11-21; both editors and VSIX content checks pass                    |            10 |
 | WS2: Windows UI and accessibility qualification    | P1, mostly unverified                                                              |            22 |
-| WS3: real provider session qualification           | P1; Codex/Antigravity model connections pass, task-helper handoff blocked          |            13 |
+| WS3: real provider session qualification           | P1; model connections and approved peer delivery pass; full team flow remains open |            13 |
 | WS4: recovery, failure and authority qualification | P1                                                                                 |            21 |
 | WS5: performance and supported capacity            | P1, not measured                                                                   |            11 |
 | WS6: final Windows distribution                    | P1; packages need final source rebuild/qualification                               |            18 |
@@ -27,7 +27,7 @@ OS0 local verification passed the read-only source/history audit and application
 | M25–M27                                            | Planned: opt-in remote execution, collaboration/sync and scheduling                |  3 milestones |
 | M28                                                | Planned: stable cross-platform qualification                                       |   1 milestone |
 
-Last recorded results (2026-11-21): `npm run check` passed with 94 frontend tests and 37 extension tests. `npm run native:check` and the optional Git Bash lifecycle test passed again. A fresh optimized `live-qa` portable desktop build and its six manifest hashes passed; the app is open with isolated test data. Codex 0.171.0 and Antigravity CLI 1.5.13 returned real model responses, but native task-helper handoff failed, so authenticated orchestration remains unqualified. VSIX v0.1.5 MIT packaging is verified; the earlier v0.1.4 WS7 runs passed 31 checks in each installed editor. Full desktop UI and distribution qualification remain open; see [VERIFICATION.md](VERIFICATION.md) and the [live checklist](LIVE-QA.md).
+Last recorded results (2026-11-21): `npm run check` passed with 94 frontend tests and 37 extension tests. `npm run native:check` and the optional Git Bash lifecycle test passed again. A fresh optimized `live-qa` portable desktop build and its six manifest hashes passed; the app is open with isolated test data. Codex 0.171.0 and Antigravity CLI 1.5.13 returned real model responses. Relaunching the manual Codex session with `--no-daemon` restored its scoped environment, and the user confirmed delivery of an approved peer message to AGY. Earlier automated task handoff failed; the full authenticated team workflow remains unqualified. VSIX v0.1.5 MIT packaging is verified; the earlier v0.1.4 WS7 runs passed 31 checks in each installed editor. Full desktop UI and distribution qualification remain open; see [VERIFICATION.md](VERIFICATION.md) and the [live checklist](LIVE-QA.md).
 
 ## Rules
 
@@ -130,7 +130,7 @@ Evidence: [WS7 verification](VERIFICATION.md#ws7--extension-backend-restart-reco
 
 ### WS3: real provider sessions (P1, 13 items)
 
-Current partial evidence: Codex and Antigravity CLI model connection probes passed on 2026-11-21. Native-terminal helper probes failed before acknowledgement; no real builder/reviewer/check/accept chain has passed. Codex/Claude remain the implemented presets; Antigravity is being tested through a shell and has no first-class adapter. Keep the qualification items open until the handoff and full workflow pass.
+Current partial evidence: Codex and Antigravity CLI model connection probes passed on 2026-11-21. Native-terminal task-helper probes failed before acknowledgement. A later fresh interactive Codex launch restored the connection environment, and the user confirmed one approved peer-message delivery to AGY. No real builder/reviewer/check/accept chain has passed. Codex/Claude remain the implemented presets; Antigravity is being tested through a shell and has no first-class adapter. Keep the qualification items open until the full workflow passes.
 
 - Record CLI versions, authentication and trust prompts. Verify that name, role and instructions reach each agent, including Unicode text and executable overrides. Verify that launch snapshots survive preset edits and restarts.
 - Verify linked messaging (approval and auto-send), shared notes and revocation, plus the inbox, ack, heartbeat and result protocol during long tools.
