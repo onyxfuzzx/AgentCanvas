@@ -391,6 +391,7 @@ export class RecoveryStore {
     } catch (error) {
       throw new Error(
         `${String(error)}${destination ? ` A partial copy remains at ${destination.folder}.` : ''} Original workspaces and recovery drafts were kept. If saved notes are locked, close their canvas tab before retrying.`,
+        { cause: error },
       );
     } finally {
       this.restoring = false;
