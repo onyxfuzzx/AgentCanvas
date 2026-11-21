@@ -35,7 +35,7 @@
     "extension:check": "tsc -p extension/tsconfig.json && vitest run --configLoader native --config extension/vitest.config.mjs"
   },
   "dependencies": {
-    "@xterm/addon-webgl": "0.19.0-beta.136",
+    "@xterm/addon-webgl": "0.19.0",
     "@xterm/xterm": "5.6.0-beta.136",
     "react": "19.2.7",
     "react-dom": "19.2.7",
