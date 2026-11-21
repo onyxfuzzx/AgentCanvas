@@ -81,7 +81,7 @@ await buildWebview({
       fileName: () => 'canvas.js',
       cssFileName: 'canvas',
     },
-    rollupOptions: { output: { inlineDynamicImports: true } },
+    rolldownOptions: { output: { codeSplitting: false } },
   },
 });
 await writeFile(

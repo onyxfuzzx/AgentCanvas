@@ -444,6 +444,7 @@ class CanvasSession {
         );
         throw new Error(
           `Save failed: ${String(error)}. Pending layout and note drafts were preserved at ${path}. Run ${PRODUCT_NAME}: Recover Canvas Drafts to inspect and restore a copy.`,
+          { cause: error },
         );
       } finally {
         await this.backend.stop();
