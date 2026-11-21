@@ -2,7 +2,7 @@
 
 Use a disposable repository and a separate application data directory. Keep the real project out of agent scope. Record observed results in [VERIFICATION.md](VERIFICATION.md); an unchecked step is pending, not passed.
 
-The current local QA candidate is `artifacts/windows-portable-live-qa/agent-canvas-desktop.exe`. Its prepared desktop workspace is **Live AI desktop QA**, under `.cache/live-qa-559404ea`. Test data and launchers are intentionally ignored by Git. If first-run setup opens, choose **Set up later**, then select the prepared workspace.
+The current local QA candidate is `artifacts/windows-portable-cli-presets/agent-canvas-desktop.exe`. Its prepared desktop workspace is **Live AI desktop QA**, under `.cache/live-qa-559404ea`. The user confirmed all three provider choices in **Agent presets** and **+ Agent** in this candidate. Test data and launchers are intentionally ignored by Git. If first-run setup opens, choose **Set up later**, then select the prepared workspace.
 
 ## 1. Desktop and canvas
 
