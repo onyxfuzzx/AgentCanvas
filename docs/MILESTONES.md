@@ -33,21 +33,21 @@ Reference material checked on 2026-11-13:
 
 ## What exists today
 
-| Milestone | Implemented modules                                                               | Acceptance status                                                                          |
-| --------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| M0        | Native app foundation, product configuration and desktop shell                    | Implemented; historical platform limits remain                                             |
-| M1        | Canvas geometry, navigation, selection, resizing, minimap and layout history      | Implemented; some gesture/DPI checks remain                                                |
-| M2        | ConPTY terminals, xterm sessions, bounded output and Windows process ownership    | Implemented; WSL cleanup and full UI load need verification                                |
-| M3        | Named workspaces, atomic autosave, backups, validation and restoration            | Implemented; destructive-environment/recovery UI checks remain                             |
-| M4        | File-backed Markdown notes and SVG whiteboard                                     | Implemented; large-canvas and some conflict/DPI checks remain                              |
-| M5        | Peer links, approval policies, helper CLI, shared notes and session logs          | Implemented; broader shell, approval UI and isolation checks remain                        |
-| M6        | Embedded browser pages, navigation, clipping and restricted app IPC               | Implemented; basic smoke confirmed, deeper native UI checks remain                         |
-| M7        | Local activity summaries, themes, keyboard controls and Windows packages          | Implemented; basic smoke confirmed, installation/accessibility/load acceptance remains     |
-| M8        | Codex/Claude presets, reusable roles, executable detection and explicit launches  | Implemented; basic CLI startup confirmed, authenticated workflow/recovery checks remain    |
-| M9        | Durable tasks, cooperative inbox protocol and restart reconciliation              | Implemented; authenticated provider and recovery acceptance remains                        |
-| M10       | Managed Git areas, commit-bound review evidence and controlled integration        | Implemented; deeper failure and distribution acceptance remains                            |
-| M11       | Bounded team planning, dispatch, independent review, checks and emergency stop    | Implemented; mixed-team fixture fixed and native suite green; deeper qualification remains |
-| Extension | Windows editor host, project selection, setup, draft and backend restart recovery | Implemented through VSIX v0.1.4; deeper editor qualification remains                       |
+| Milestone | Implemented modules                                                                | Acceptance status                                                                          |
+| --------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| M0        | Native app foundation, product configuration and desktop shell                     | Implemented; historical platform limits remain                                             |
+| M1        | Canvas geometry, navigation, selection, resizing, minimap and layout history       | Implemented; some gesture/DPI checks remain                                                |
+| M2        | ConPTY terminals, xterm sessions, bounded output and Windows process ownership     | Implemented; WSL cleanup and full UI load need verification                                |
+| M3        | Named workspaces, atomic autosave, backups, validation and restoration             | Implemented; destructive-environment/recovery UI checks remain                             |
+| M4        | File-backed Markdown notes and SVG whiteboard                                      | Implemented; large-canvas and some conflict/DPI checks remain                              |
+| M5        | Peer links, approval policies, helper CLI, shared notes and session logs           | Implemented; broader shell, approval UI and isolation checks remain                        |
+| M6        | Embedded browser pages, navigation, clipping and restricted app IPC                | Implemented; basic smoke confirmed, deeper native UI checks remain                         |
+| M7        | Local activity summaries, themes, keyboard controls and Windows packages           | Implemented; basic smoke confirmed, installation/accessibility/load acceptance remains     |
+| M8        | Codex/Antigravity/Claude Code presets, reusable roles and explicit native launches | Implemented; three-provider launch fixtures pass; authenticated workflow checks remain     |
+| M9        | Durable tasks, cooperative inbox protocol and restart reconciliation               | Implemented; authenticated provider and recovery acceptance remains                        |
+| M10       | Managed Git areas, commit-bound review evidence and controlled integration         | Implemented; deeper failure and distribution acceptance remains                            |
+| M11       | Bounded team planning, dispatch, independent review, checks and emergency stop     | Implemented; mixed-team fixture fixed and native suite green; deeper qualification remains |
+| Extension | Windows editor host, project selection, setup, draft and backend restart recovery  | Implemented through VSIX v0.1.4; deeper editor qualification remains                       |
 
 The latest recorded verification (2026-11-21) reports passing `npm run check` with 94 frontend and 37 extension tests, and passing `npm run native:check` with formatting, Clippy, 67 library tests and all enabled native integrations. The mixed-team fixture passes after moving Git validation outside the collaboration lock and refusing stale results; no deadlines were increased. Git Bash also passed separately during WS1. VSIX v0.1.4 includes that fix and WS7 backend recovery: 31 checks passed in each installed editor’s isolated runner, and package contents/checksums match the optimized build. The standalone desktop distribution and deeper release qualification remain outstanding. See [VERIFICATION.md](VERIFICATION.md).
 

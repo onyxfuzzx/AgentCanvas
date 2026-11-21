@@ -31,14 +31,14 @@
 
 Coding-agent work spans terminals, instructions, task state, branches and review. AgentCanvas puts those pieces in one spatial workspace, while native code enforces the boundaries around execution, persistence and acceptance.
 
-Use it as a terminal canvas, organize a manually planned task flow, or run a small bounded team through a structured cooperative protocol. Your installed Codex and Claude Code CLIs keep their own authentication and approval settings.
+Use it as a terminal canvas, organize a manually planned task flow, or run a small bounded team through a structured cooperative protocol. Your installed Codex, Antigravity and Claude Code CLIs keep their own authentication and approval settings.
 
 ## What you can do
 
 | Capability               | Current behavior                                                                                                                            |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Spatial workspace        | Arrange terminals, agents, Markdown notes and whiteboards; pan, zoom, use the minimap and undo layout changes.                              |
-| Installed agent CLIs     | Launch Codex or Claude Code with saved roles and per-node launch settings. CLI detection does not verify authentication.                    |
+| Installed agent CLIs     | Launch Codex, Antigravity or Claude Code with saved roles and per-node launch settings. CLI detection does not verify authentication.       |
 | Durable task board       | Track briefs, acceptance criteria, dependencies, acknowledgments, attempts and review. Dispatch uses a cooperative inbox.                   |
 | Git isolation and review | Work in managed worktrees, inspect bounded diffs and commit-bound evidence, then explicitly approve and integrate.                          |
 | Bounded teams            | Adopt a plan and control concurrency, retries, time, permissions, pause and emergency stop. Automatic dispatch reuses existing live agents. |

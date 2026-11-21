@@ -1,6 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Icon } from '../ui/Icon';
 import type { AgentProvider } from '../canvas/model';
+import {
+  agentProviders,
+  providerExecutables,
+  providerNames,
+} from './providers';
 import { invoke, isDesktop } from '../native';
 import { useDialogFocus } from '../ui/useDialogFocus';
 import {
@@ -127,7 +132,7 @@ export function AgentPresets({ onClose }: { onClose: () => void }) {
             key={p.provider}
             title={p.path || p.error || ''}
           >
-            <strong>{p.provider}</strong> ·{' '}
+            <strong>{providerNames[p.provider]}</strong> ·{' '}
             {p.available ? 'Native CLI detected' : 'Not detected'}
             <small>{p.path || p.error}</small>
             {p.capabilities && (
@@ -321,8 +326,11 @@ export function AgentPresets({ onClose }: { onClose: () => void }) {
                         })
                       }
                     >
-                      <option value="codex">Codex</option>
-                      <option value="claude">Claude Code</option>
+                      {agentProviders.map((provider) => (
+                        <option key={provider} value={provider}>
+                          {providerNames[provider]}
+                        </option>
+                      ))}
                     </select>
                     <label htmlFor="profile-role">Assigned role</label>
                     <select
@@ -343,7 +351,7 @@ export function AgentPresets({ onClose }: { onClose: () => void }) {
                     <input
                       id="profile-executable"
                       value={profile.executable ?? ''}
-                      placeholder={`Auto-detect ${profile.provider}.exe`}
+                      placeholder={`Auto-detect ${providerExecutables[profile.provider]}`}
                       onChange={(e) =>
                         patchProfile({
                           executable: e.target.value || undefined,

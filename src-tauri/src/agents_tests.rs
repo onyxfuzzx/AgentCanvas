@@ -71,7 +71,85 @@ fn cli_arguments_keep_identity_as_data_without_a_task_or_safety_override() {
         claude.arguments(id).unwrap(),
         vec!["--append-system-prompt".to_string(), claude.identity(id)]
     );
+    let antigravity = launch(Provider::Antigravity);
+    assert_eq!(
+        antigravity.arguments(id).unwrap(),
+        vec!["--prompt-interactive".to_string(), antigravity.identity(id)]
+    );
     assert!(codex.arguments("bad-id").is_err());
+}
+#[test]
+fn antigravity_detection_uses_its_native_filename_and_known_install_folders() {
+    let f = Fixture::new();
+    let home = f.0.join("home");
+    let local = f.0.join("local");
+    let legacy = home.join(".gemini/bin/agy.exe");
+    let standard = local.join("agy/bin/agy.exe");
+    for path in [&legacy, &standard] {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"detection-only fixture").unwrap();
+    }
+    let candidates = executable_candidates(
+        &Provider::Antigravity,
+        vec![f.0.clone(), PathBuf::from("relative")],
+        Some(&home),
+        Some(&local),
+        Some(&f.0),
+    );
+    assert!(candidates.contains(&legacy));
+    assert!(candidates.contains(&standard));
+    assert!(!candidates.contains(&f.0.join("agy.exe")));
+    assert!(candidates
+        .iter()
+        .all(|p| p.is_absolute() && p.file_name().unwrap() == "agy.exe"));
+    let override_path = crate::workspace::display(&legacy);
+    assert!(inspect(Provider::Antigravity, Some(override_path)).available);
+    for wrong in ["antigravity.exe", "agy.cmd", "codex.exe", "claude.exe"] {
+        assert!(!executable_valid(
+            &Provider::Antigravity,
+            &crate::workspace::display(&f.0.join(wrong))
+        ));
+    }
+}
+
+#[test]
+fn antigravity_presets_save_without_replacing_existing_libraries_or_node_snapshots() {
+    let f = Fixture::new();
+    let defaults = catalog(&f.0).unwrap();
+    assert!(defaults
+        .library
+        .profiles
+        .iter()
+        .any(|p| p.provider == Provider::Antigravity));
+    let mut old = defaults.library;
+    old.profiles.retain(|p| p.provider != Provider::Antigravity);
+    old.roles[0].instructions = "My custom instructions".into();
+    let saved = save(&f.0, None, old.clone()).unwrap();
+    let loaded = catalog(&f.0).unwrap();
+    assert_eq!(loaded.library.profiles.len(), old.profiles.len());
+    assert_eq!(
+        loaded.library.roles[0].instructions,
+        "My custom instructions"
+    );
+    let mut updated = loaded.library;
+    let mut preset = Library::default()
+        .profiles
+        .into_iter()
+        .find(|p| p.provider == Provider::Antigravity)
+        .unwrap();
+    preset.executable = Some(crate::workspace::display(&f.0.join("agy.exe")));
+    updated.profiles.push(preset);
+    let updated = save(&f.0, saved.fingerprint, updated).unwrap();
+    let loaded = catalog(&f.0).unwrap();
+    assert_eq!(loaded.library.revision, updated.library.revision);
+    assert_eq!(
+        loaded.library.profiles.last().unwrap().provider,
+        Provider::Antigravity
+    );
+    assert_eq!(
+        loaded.library.roles[0].instructions,
+        "My custom instructions"
+    );
 }
 #[test]
 fn validation_bounds_roles_and_rejects_shell_wrappers_and_mixed_providers() {

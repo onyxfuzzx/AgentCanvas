@@ -6,9 +6,9 @@ M9 has no coordinator, automatic scheduling or Git isolation. Agents work in the
 
 ## Provider capabilities
 
-Codex and Claude launch adapters include cooperative task guidance in their role context. An existing CLI conversation still needs an explicit user prompt to read its inbox and work on the assignment. This application does not wake a waiting CLI by injecting Enter, and does not automatically submit a first task. CLI executable detection does not establish version compatibility, authentication, readiness or model compliance.
+Codex, Antigravity and Claude Code launch adapters include cooperative task guidance in their role context. Antigravity receives an initial interactive role briefing on explicit launch; it asks the agent to wait for the user. An existing CLI conversation still needs an explicit user prompt to read its inbox and work on the assignment. This application does not wake a waiting CLI by injecting Enter, and does not automatically submit a first task. CLI executable detection does not establish version compatibility, authentication, readiness or model compliance.
 
-Both adapters report cooperative inbox submission, acknowledgement-based readiness, cooperative progress/cancellation, unsupported conversation resume and unknown version. Native launch and stop use the existing ConPTY lifecycle. Acknowledgement and results are agent reports. Only the user can accept a result as done.
+All three adapters report cooperative inbox submission, acknowledgement-based readiness, cooperative progress/cancellation, unsupported conversation resume and unknown version. Native launch and stop use the existing ConPTY lifecycle. Acknowledgement and results are agent reports. Only the user can accept a result as done.
 
 ## Helper invocation
 

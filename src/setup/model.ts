@@ -2,7 +2,8 @@ import type { AgentProvider } from '../canvas/model';
 import type { Availability, Library, LibraryReply } from '../agents/catalog';
 import type { Transport } from '../terminal/session';
 
-export const providerNames = { codex: 'Codex', claude: 'Claude Code' };
+import { agentProviders, providerNames } from '../agents/providers';
+export { providerNames } from '../agents/providers';
 export const providerHelp = {
   codex: {
     install: 'https://developers.openai.com/codex/cli',
@@ -11,6 +12,10 @@ export const providerHelp = {
   claude: {
     install: 'https://code.claude.com/docs/en/setup',
     auth: 'https://code.claude.com/docs/en/authentication',
+  },
+  antigravity: {
+    install: 'https://antigravity.google/docs/cli/tutorial',
+    auth: 'https://antigravity.google/docs/install',
   },
 };
 export type ProviderSetup = {
@@ -24,7 +29,7 @@ export function initialProviders(
   reply: LibraryReply,
   uuid: () => string,
 ): ProviderSetup[] {
-  return (['codex', 'claude'] as const).map((provider) => {
+  return agentProviders.map((provider) => {
     const profile = reply.library.profiles.find(
       (profile) => profile.provider === provider,
     );
@@ -95,7 +100,7 @@ export function setupTroubleshooting(error: string): string {
   if (/lock|another|in use/i.test(error))
     return 'Close the other canvas using this workspace, then retry. Choose another workspace to keep both sessions open.';
   if (/executable|native CLI|path|missing|not found/i.test(error))
-    return 'Install the provider’s native Windows CLI using its official guide, restart the editor to refresh PATH, or browse to codex.exe / claude.exe. Shell launcher files (.cmd and .ps1) cannot be selected.';
+    return 'Install the provider’s native Windows CLI using its official guide, restart the editor to refresh PATH, or browse to codex.exe / agy.exe / claude.exe. Shell launcher files (.cmd and .ps1) cannot be selected.';
   return 'Keep the error shown here, correct the selected folder or preset, and retry. You can also continue using terminals without configuring an agent.';
 }
 

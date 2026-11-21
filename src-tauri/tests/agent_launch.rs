@@ -31,8 +31,11 @@ fn main() {
     fs::create_dir_all(&root).unwrap();
     let cwd = root.join("work space & 日本語");
     fs::create_dir_all(&cwd).unwrap();
-    for (index, provider) in [Provider::Codex, Provider::Claude].into_iter().enumerate() {
-        let executable = root.join(format!("{}.exe", provider.id()));
+    for (index, provider) in [Provider::Codex, Provider::Antigravity, Provider::Claude]
+        .into_iter()
+        .enumerate()
+    {
+        let executable = root.join(provider.executable_name());
         fs::copy(std::env::current_exe().unwrap(), &executable).unwrap();
         let report_file = root.join(format!("report-{index}.json"));
         let id = format!("00000000-0000-4000-8000-{:012}", 8100 + index);

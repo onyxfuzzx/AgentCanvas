@@ -36,7 +36,7 @@ The user also reproduced missing connection variables from a manually started Co
 
 **Completed sample:** after that relaunch, the user ran the scoped send script, approved its Links request and confirmed that AGY received the instruction to write Python `print("hello")`. This verifies approved peer delivery for that session. The task/result/review/check checklist above remains open.
 
-Antigravity currently has no first-class AgentCanvas provider preset. This fixture uses its real `agy.exe` through a PowerShell node. Shell-launch success does not qualify a missing native adapter. To test the existing Codex preset separately, configure a stopped builder with the Codex executable, then explicitly prompt it to read the builder instructions in `qa-config.json` and perform its assigned task.
+The earlier fixture used `agy.exe` through a PowerShell node. The newer `cli-presets` candidate adds a first-class Antigravity preset alongside Codex and Claude Code. Use **+ Agent** and select its preset to exercise the native adapter. Existing shell nodes remain shells until explicitly replaced or edited, and the earlier shell-delivery result does not qualify the new adapter's authenticated task behavior. For the prepared task flow, keep the assigned node IDs and managed checkout when editing launch settings.
 
 ## 3. Stop, save and reopen
 

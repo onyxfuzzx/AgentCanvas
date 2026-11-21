@@ -27,7 +27,7 @@ OS0 local verification passed the read-only source/history audit and application
 | M25–M27                                            | Planned: opt-in remote execution, collaboration/sync and scheduling                |  3 milestones |
 | M28                                                | Planned: stable cross-platform qualification                                       |   1 milestone |
 
-Last recorded results (2026-11-21): `npm run check` passed with 94 frontend tests and 37 extension tests. `npm run native:check` and the optional Git Bash lifecycle test passed again. A fresh optimized `live-qa` portable desktop build and its six manifest hashes passed; the app is open with isolated test data. Codex 0.171.0 and Antigravity CLI 1.5.13 returned real model responses. Relaunching the manual Codex session with `--no-daemon` restored its scoped environment, and the user confirmed delivery of an approved peer message to AGY. Earlier automated task handoff failed; the full authenticated team workflow remains unqualified. VSIX v0.1.5 MIT packaging is verified; the earlier v0.1.4 WS7 runs passed 31 checks in each installed editor. Full desktop UI and distribution qualification remain open; see [VERIFICATION.md](VERIFICATION.md) and the [live checklist](LIVE-QA.md).
+Last recorded results (2026-11-21): `npm run check` passed with 95 frontend tests and 37 extension tests. `npm run native:check` passed with 69 library tests and enabled integrations, including native launch fixtures for Codex, Antigravity and Claude Code. A separate native-core check detected all three installed executables and verified saved launch snapshots after backend reopen and preset edits. Codex 0.171.0 and Antigravity CLI 1.5.13 returned real model responses in the preceding QA session; the user confirmed an approved peer-message delivery after relaunching Codex with `--no-daemon`. The new Antigravity preset uses an interactive role briefing; the full authenticated team workflow remains unqualified. The preceding `live-qa` portable build and VSIX v0.1.5 have package evidence, while full desktop UI and distribution qualification remain open. See [VERIFICATION.md](VERIFICATION.md) and the [live checklist](LIVE-QA.md).
 
 ## Rules
 
@@ -37,7 +37,7 @@ Last recorded results (2026-11-21): `npm run check` passed with 94 frontend test
 - Commit at each milestone.
 - Record actual results in `docs/VERIFICATION.md` and never claim an unexecuted check passed. Automated tests alone cannot close desktop, visual, provider or installer acceptance gates.
 - Check off an item on this page only after recording its evidence. Do not treat a larger timeout as proof of correct behavior.
-- Submit provider tasks (Codex/Claude) only with the user's authorization. Use disposable workspaces and projects for testing.
+- Submit provider tasks (Codex/Antigravity/Claude Code) only with the user's authorization. Use disposable workspaces and projects for testing.
 - Add meaningful tests for coordinate math, history, PTY lifecycle and bounded buffers.
 
 ### Commands
@@ -130,7 +130,7 @@ Evidence: [WS7 verification](VERIFICATION.md#ws7--extension-backend-restart-reco
 
 ### WS3: real provider sessions (P1, 13 items)
 
-Current partial evidence: Codex and Antigravity CLI model connection probes passed on 2026-11-21. Native-terminal task-helper probes failed before acknowledgement. A later fresh interactive Codex launch restored the connection environment, and the user confirmed one approved peer-message delivery to AGY. No real builder/reviewer/check/accept chain has passed. Codex/Claude remain the implemented presets; Antigravity is being tested through a shell and has no first-class adapter. Keep the qualification items open until the full workflow passes.
+Current partial evidence: Codex and Antigravity CLI model connection probes passed on 2026-11-21. Native-terminal task-helper probes failed before acknowledgement. A later fresh interactive Codex launch restored the connection environment, and the user confirmed one approved peer-message delivery to AGY. Codex, Antigravity and Claude Code now have native presets with deterministic launch and saved-setting verification. The earlier Antigravity shell result does not qualify its new preset's authenticated task behavior. No real builder/reviewer/check/accept chain has passed; keep those qualification items open.
 
 - Record CLI versions, authentication and trust prompts. Verify that name, role and instructions reach each agent, including Unicode text and executable overrides. Verify that launch snapshots survive preset edits and restarts.
 - Verify linked messaging (approval and auto-send), shared notes and revocation, plus the inbox, ack, heartbeat and result protocol during long tools.

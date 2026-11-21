@@ -12,6 +12,7 @@ import {
   type LibraryReply,
 } from '../agents/catalog';
 import type { AgentSettings } from '../canvas/model';
+import { providerExecutables, providerNames } from '../agents/providers';
 import { editorInvoke, isEditor } from '../editor';
 import type { EditorProjectContext } from '../editor-projects';
 
@@ -307,7 +308,7 @@ export function NewTerminal({
               )}
               {catalog?.library.profiles.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} · {p.provider}
+                  {p.name} · {providerNames[p.provider]}
                 </option>
               ))}
             </select>
@@ -356,7 +357,7 @@ export function NewTerminal({
                   id="launch-executable"
                   disabled={busy}
                   value={agent.executable ?? ''}
-                  placeholder={`Auto-detect ${agent.provider}.exe`}
+                  placeholder={`Auto-detect ${providerExecutables[agent.provider]}`}
                   onChange={(e) =>
                     setAgent({
                       ...agent,
@@ -364,6 +365,12 @@ export function NewTerminal({
                     })
                   }
                 />
+                {agent.provider === 'antigravity' && (
+                  <small className="muted">
+                    Starting Antigravity sends an interactive role briefing. It
+                    asks the agent to wait for your assignment.
+                  </small>
+                )}
               </>
             )}
           </>

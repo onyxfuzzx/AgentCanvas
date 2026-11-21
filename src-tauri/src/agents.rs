@@ -18,13 +18,22 @@ mod tests;
 #[serde(rename_all = "lowercase")]
 pub enum Provider {
     Codex,
+    Antigravity,
     Claude,
 }
 impl Provider {
     pub fn id(&self) -> &'static str {
         match self {
             Self::Codex => "codex",
+            Self::Antigravity => "antigravity",
             Self::Claude => "claude",
+        }
+    }
+    pub fn executable_name(&self) -> &'static str {
+        match self {
+            Self::Codex => "codex.exe",
+            Self::Antigravity => "agy.exe",
+            Self::Claude => "claude.exe",
         }
     }
 }
@@ -44,7 +53,7 @@ fn executable_valid(provider: &Provider, value: &str) -> bool {
         && path.is_absolute()
         && path.file_name().is_some_and(|n| {
             n.to_string_lossy()
-                .eq_ignore_ascii_case(&format!("{}.exe", provider.id()))
+                .eq_ignore_ascii_case(provider.executable_name())
         })
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -67,7 +76,7 @@ impl AgentSettings {
                 .as_ref()
                 .is_some_and(|v| !executable_valid(&self.provider, v))
         {
-            return Err("Invalid agent settings: names are 1–80 characters, instructions at most 4096 UTF-8 bytes, and overrides must be an absolute codex.exe or claude.exe path".into());
+            return Err("Invalid agent settings: names are 1–80 characters, instructions at most 4096 UTF-8 bytes, and overrides must match the provider's absolute codex.exe, agy.exe or claude.exe path".into());
         }
         Ok(())
     }
@@ -105,6 +114,7 @@ impl AgentLaunch {
                 ),
             ],
             Provider::Claude => vec!["--append-system-prompt".into(), identity],
+            Provider::Antigravity => vec!["--prompt-interactive".into(), identity],
         })
     }
 }
@@ -121,27 +131,45 @@ pub fn resolve(provider: &Provider, override_path: Option<&str>) -> Result<PathB
             .ok_or_else(|| "Configured agent executable is missing".into());
     }
     let home = std::env::var_os("USERPROFILE").map(PathBuf::from);
-    let mut folders: Vec<PathBuf> = std::env::var_os("PATH")
+    let folders: Vec<PathBuf> = std::env::var_os("PATH")
         .map(|v| {
             std::env::split_paths(&v)
                 .filter(|p| p.is_absolute())
                 .collect()
         })
         .unwrap_or_default();
-    if let Some(home) = &home {
+    let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    let current = std::env::current_dir().ok();
+    executable_candidates(provider, folders, home.as_deref(), local.as_deref(), current.as_deref())
+        .into_iter().find(|p| p.is_file()).ok_or_else(|| format!("{} native CLI was not found. Install it separately or set its executable path in Agent presets.", provider.id()))
+}
+
+fn executable_candidates(
+    provider: &Provider,
+    mut folders: Vec<PathBuf>,
+    home: Option<&Path>,
+    local: Option<&Path>,
+    current: Option<&Path>,
+) -> Vec<PathBuf> {
+    if let Some(home) = home {
         folders.push(home.join(".local/bin"));
         folders.push(home.join("AppData/Roaming/npm"));
+        if *provider == Provider::Antigravity {
+            folders.push(home.join(".gemini/bin"));
+        }
     }
-    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
-        folders.push(PathBuf::from(local).join("Programs"));
+    if let Some(local) = local {
+        if *provider == Provider::Antigravity {
+            folders.push(local.join("agy/bin"));
+        }
+        folders.push(local.join("Programs"));
     }
-    let current = std::env::current_dir().ok();
     let mut candidates = Vec::new();
     for folder in folders {
-        if current.as_ref().is_some_and(|cwd| cwd == &folder) {
+        if !folder.is_absolute() || current.is_some_and(|cwd| cwd == folder.as_path()) {
             continue;
         }
-        candidates.push(folder.join(format!("{}.exe", provider.id())));
+        candidates.push(folder.join(provider.executable_name()));
         if *provider == Provider::Codex {
             let (arch, package) = if std::env::consts::ARCH == "aarch64" {
                 ("aarch64-pc-windows-msvc", "codex-win32-arm64")
@@ -159,7 +187,7 @@ pub fn resolve(provider: &Provider, override_path: Option<&str>) -> Result<PathB
             }
         }
     }
-    candidates.into_iter().find(|p| p.is_file()).ok_or_else(|| format!("{} native CLI was not found. Install it separately or set its executable path in Agent presets.", provider.id()))
+    candidates
 }
 #[derive(Serialize)]
 pub struct Availability {
@@ -192,7 +220,7 @@ impl Default for TaskCapabilities {
     }
 }
 pub fn providers() -> Vec<Availability> {
-    [Provider::Codex, Provider::Claude]
+    [Provider::Codex, Provider::Antigravity, Provider::Claude]
         .into_iter()
         .map(|provider| inspect(provider, None))
         .collect()
@@ -290,6 +318,12 @@ impl Default for Library {
                 "Codex Tester",
                 Provider::Codex,
                 roles[2].id.clone(),
+            ),
+            (
+                "00000000-0000-4000-8000-000000008014",
+                "Antigravity Builder",
+                Provider::Antigravity,
+                roles[0].id.clone(),
             ),
         ]
         .into_iter()

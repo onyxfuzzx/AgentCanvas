@@ -16,9 +16,13 @@ On relaunch, the last workspace restores its canvas and starts fresh shells in t
 <details>
 <summary><strong>Agent presets, roles and launch settings</strong></summary>
 
-Select **Agent presets** in the sidebar to create reusable roles and Codex/Claude Code launch presets. Builder, Reviewer and Tester roles are provided initially. The app detects installed native CLIs; an optional absolute `codex.exe` or `claude.exe` path supports custom locations. Install and sign in to each CLI separately. Detection confirms an executable exists; it does not check authentication or version compatibility.
+Select **Agent presets** in the sidebar to create reusable roles and Codex, Antigravity or Claude Code launch presets. Builder, Reviewer and Tester roles are provided initially. A new library includes presets for all three providers. Existing saved libraries and node snapshots remain unchanged; use **Add preset** and choose **Antigravity** to add it to a custom library. Install and sign in to each CLI separately. Detection confirms an executable exists; it does not check authentication or version compatibility.
+
+Custom locations accept an absolute `codex.exe`, `agy.exe` or `claude.exe` path matching the selected provider. Antigravity detection checks PATH, `%LOCALAPPDATA%/agy/bin` and `%USERPROFILE%/.gemini/bin` as well as the shared native install locations. No shell wrapper or global PATH edit is needed.
 
 Select **+ Agent**, choose a preset, and set the agent name and working directory. You can adjust its role instructions and executable for this node before starting. Launches use a real ConPTY and preserve the installed CLI's authentication and approval configuration. No task is submitted automatically. Role instructions are supplied as session arguments, without editing the project's instructions files.
+
+Antigravity uses `--prompt-interactive` for an initial role briefing that asks it to wait for your assignment. This initial turn can contact its model when you explicitly start the agent. Codex receives developer instructions and Claude Code an appended system prompt. No adapter selects an execution mode or bypasses approvals. First-run sign-in and workspace-trust prompts remain yours to review.
 
 Agent nodes save a copy of their launch settings. Editing or deleting a library preset does not change existing nodes. Reopened agents stay paused; select **Start agent** in the node to launch, or **Edit launch settings** in the inspector to change settings first. Failed or exited agents can be restarted through the inspector. Layout undo does not roll launch settings back after a restart. CLI output, input, credentials and process handles are not included in workspace saves.
 

@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import type { Availability, LibraryReply } from '../agents/catalog';
 import type { Transport } from '../terminal/session';
 import { AgentSetup, configuredLibrary, initialProviders } from './model';
+import { providerExecutables } from '../agents/providers';
 const roleId = '00000000-0000-4000-8000-000000000001';
 const profileId = '00000000-0000-4000-8000-000000000002';
 const uuid = () => '00000000-0000-4000-8000-000000000003';
@@ -76,6 +77,37 @@ test('a missing executable blocks every write, flush and completion marker', asy
   expect(calls).not.toContain('agent_catalog_save');
   expect(calls).not.toContain('flush');
   expect(calls).not.toContain('complete');
+});
+
+test('Antigravity setup uses agy.exe and preserves other providers and custom roles', () => {
+  const reply = baseline();
+  let id = 100;
+  const configs = initialProviders(
+    reply,
+    () => `00000000-0000-4000-8000-${String(id++).padStart(12, '0')}`,
+  );
+  expect(configs.map((c) => c.provider)).toEqual([
+    'codex',
+    'antigravity',
+    'claude',
+  ]);
+  const index = configs.findIndex((c) => c.provider === 'antigravity');
+  configs[index] = {
+    ...configs[index],
+    enabled: true,
+    name: 'AGY reviewer',
+    executable: 'C:\\tools\\agy.exe',
+  };
+  const next = configuredLibrary(reply.library, configs, uuid());
+  expect(next.roles).toEqual(reply.library.roles);
+  expect(next.profiles[0]).toEqual(reply.library.profiles[0]);
+  expect(next.profiles[1]).toMatchObject({
+    provider: 'antigravity',
+    name: 'AGY reviewer',
+    executable: 'C:\\tools\\agy.exe',
+    roleId,
+  });
+  expect(providerExecutables[next.profiles[1].provider]).toBe('agy.exe');
 });
 test('retry after a failed workspace flush preserves preset IDs and does not save twice', async () => {
   let reply = baseline(),

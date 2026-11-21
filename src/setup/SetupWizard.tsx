@@ -15,6 +15,7 @@ import {
   type ProviderSetup,
 } from './model';
 import { completeSetup } from './runtime';
+import { providerExecutables } from '../agents/providers';
 
 export function SetupWizard({
   onClose,
@@ -393,7 +394,7 @@ export function SetupWizard({
                             executable: event.target.value,
                           })
                         }
-                        placeholder={`Auto-detect ${config.provider}.exe`}
+                        placeholder={`Auto-detect ${providerExecutables[config.provider]}`}
                       />
                       <div className="setup-actions">
                         {isEditor() && (

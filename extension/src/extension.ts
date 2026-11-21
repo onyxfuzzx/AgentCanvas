@@ -17,6 +17,10 @@ import { openReviewedFile } from './review-files';
 import { SetupPreferences } from './setup';
 import { RecoveryStore } from './recovery';
 import { showRecovery } from './recovery-ui';
+import {
+  isAgentProvider,
+  providerExecutables,
+} from '../../src/agents/providers';
 
 declare const PRODUCT_NAME: string;
 let session: CanvasSession | undefined;
@@ -298,14 +302,14 @@ class CanvasSession {
         reply.result = await this.setup.complete();
       } else if (message.command === 'editor_pick_executable') {
         const provider = message.args.provider;
-        if (provider !== 'codex' && provider !== 'claude')
-          throw new Error('Choose Codex or Claude Code.');
+        if (!isAgentProvider(provider))
+          throw new Error('Choose Codex, Antigravity or Claude Code.');
         const selected = await vscode.window.showOpenDialog({
           canSelectFiles: true,
           canSelectFolders: false,
           canSelectMany: false,
           filters: { 'Native executable': ['exe'] },
-          title: `Choose ${provider}.exe`,
+          title: `Choose ${providerExecutables[provider]}`,
           openLabel: 'Use executable',
         });
         if (selected?.[0] && selected[0].scheme !== 'file')

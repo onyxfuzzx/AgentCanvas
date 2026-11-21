@@ -1,7 +1,7 @@
 export type Point = { x: number; y: number };
 export type Viewport = Point & { zoom: number };
 export type Shell = 'powershell' | 'cmd' | 'wsl' | 'git-bash';
-export type AgentProvider = 'codex' | 'claude';
+export type AgentProvider = 'codex' | 'antigravity' | 'claude';
 export type AgentSettings = {
   provider: AgentProvider;
   profileName: string;
