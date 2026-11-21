@@ -1,6 +1,6 @@
 # AgentCanvas: project status and roadmap through M28
 
-Updated: 2026-11-19. Baseline commit: `11a67fb`. This page summarizes the repository's rules, release work and future features. It draws on `AGENTS.md`, `README.md`, `docs/*.md`, `extension/README.md` and `src/areas/README.md`. This page is the single list of remaining work; milestone scope lives in [MILESTONES.md](MILESTONES.md) and executed evidence in [VERIFICATION.md](VERIFICATION.md). The user requested a complete plan through M28, including Linux and macOS, on 2026-11-19. M12–M28 are planned, not implemented; the current implementation authorization still ends at M11. No application checks were rerun for this documentation update.
+Updated: 2026-11-21. Roadmap baseline commit: `11a67fb`; the latest WS1 fix and executed checks are recorded below. This page summarizes the repository's rules, release work and future features. It draws on `AGENTS.md`, `README.md`, `docs/*.md`, `extension/README.md` and `src/areas/README.md`. This page is the single list of remaining work; milestone scope lives in [MILESTONES.md](MILESTONES.md) and executed evidence in [VERIFICATION.md](VERIFICATION.md). The user requested a complete plan through M28, including Linux and macOS, on 2026-11-19. M12–M28 are planned, not implemented; the current implementation authorization still ends at M11.
 
 ## Progress at a glance
 
@@ -8,22 +8,22 @@ Updated: 2026-11-19. Baseline commit: `11a67fb`. This page summarizes the reposi
 | -------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------: |
 | M0–M11 implementation                              | Implemented and committed; acceptance limits remain                                |             — |
 | Extension backlog 1–3 (projects, setup, recovery)  | Completed; VSIX v0.1.3 built                                                       |             — |
-| WS1: failing native team fixture                   | **P0, blocking.** Full native check is not green                                   |             7 |
+| WS1: native team fixture                           | Completed 2026-11-21; full native check and separate Git Bash test pass            |             7 |
 | WS7: extension backend restart recovery            | **P0 for the editor.** Not built                                                   |            10 |
 | WS2: Windows UI and accessibility qualification    | P1, mostly unverified                                                              |            22 |
 | WS3: real Codex/Claude session qualification       | P1, needs authorized provider runs                                                 |            13 |
 | WS4: recovery, failure and authority qualification | P1                                                                                 |            21 |
 | WS5: performance and supported capacity            | P1, not measured                                                                   |            11 |
 | WS6: final Windows distribution                    | P1; packages need final source rebuild/qualification                               |            18 |
-| **Current release work (WS1–WS7)**                 | Existing acceptance backlog                                                        |       **102** |
+| **Current release work (WS1–WS7)**                 | 7 completed; 95 remain                                                             |       **102** |
 | M12 features (M12.1–M12.4)                         | Planned; implementation not started                                                |            19 |
-| **Current release + M12 checklist only**           | Excludes estimates for M13–M28                                                     |       **121** |
+| **Current release + M12 checklist only**           | 114 remain; excludes estimates for M13–M28                                         |       **121** |
 | M13–M17                                            | Planned: portable core, Linux, macOS, editor ports and beta                        |  5 milestones |
 | M18–M24                                            | Planned: conversations, context, workflows, delivery, archives, tools and packages |  7 milestones |
 | M25–M27                                            | Planned: opt-in remote execution, collaboration/sync and scheduling                |  3 milestones |
 | M28                                                | Planned: stable cross-platform qualification                                       |   1 milestone |
 
-Last recorded results (2026-11-18): `npm run check` passed, with 91 frontend tests and 25 extension tests. Native Rust formatting, Clippy, 66 library tests and the other integration tests passed. The **mixed-team `team_run` fixture failed** its 35 s completion bound twice; one isolated run reached the review phase but then missed its 20 s bound.
+Last recorded results (2026-11-21): `npm run check` passed, with 91 frontend tests and 25 extension tests. `npm run native:check` passed Rust formatting, Clippy, 67 library tests and all enabled native integrations, including `team_run`. The optional Git Bash test passed separately outside the sandbox. The former team failure was caused by Git validation holding the collaboration lock beyond the helper's five-second IPC deadline; validation now runs outside the lock and stale results are refused. No deadlines were relaxed. Final process inspection found no fixture workers or helpers remaining. Packaged artifacts have not been rebuilt for this fix; see [VERIFICATION.md](VERIFICATION.md).
 
 ## Rules
 
@@ -81,17 +81,19 @@ On the restricted development host, set `$env:CANVAS_NO_SUBPROCESS='1'` before `
 
 ## Remaining work
 
-Resolve WS1 → WS7 → WS2–4 (fixing defects as they appear) → WS5 → WS6. The planned feature sequence is M12 → M13 → M14/M15 → M16 → M17 beta → M18–M24 → opt-in M25–M27 → M28 stable qualification, following the dependency table in [MILESTONES.md](MILESTONES.md#milestone-sequence). Linux and macOS prototypes can progress independently after M13; actual implementation needs a separate request.
+WS1 is complete. Continue with WS7 → WS2–4 (fixing defects as they appear) → WS5 → WS6. The planned feature sequence is M12 → M13 → M14/M15 → M16 → M17 beta → M18–M24 → opt-in M25–M27 → M28 stable qualification, following the dependency table in [MILESTONES.md](MILESTONES.md#milestone-sequence). Linux and macOS prototypes can progress independently after M13; actual implementation needs a separate request.
 
-### WS1: fix the failing native team fixture (P0, 7 items)
+### WS1: fix the failing native team fixture (completed 2026-11-21, 7 items)
 
-- [ ] Diagnose the `team_run` failure using task, attempt, worker-lifecycle and scheduler diagnostics.
-- [ ] Fix the root cause, or document a reproducible host or test limitation.
-- [ ] Pass the concurrent mixed-provider phase: two isolated changes, then the dependent third task.
-- [ ] Pass the independent-review phase: stale-commit refusal, then a fresh review before builder acceptance.
-- [ ] Verify cleanup after both success and failure, with no leftover processes and no automatic restart of uncertain work.
-- [ ] Get `npm run native:check` fully green from the release source.
-- [ ] Run the optional Git Bash test on an unrestricted host, or document its limit.
+- [x] Diagnose the `team_run` failure using task, attempt, worker-lifecycle and scheduler diagnostics.
+- [x] Fix the root cause, or document a reproducible host or test limitation.
+- [x] Pass the concurrent mixed-provider phase: two isolated changes, then the dependent third task.
+- [x] Pass the independent-review phase: stale-commit refusal, then a fresh review before builder acceptance.
+- [x] Verify cleanup after both success and failure, with no leftover processes and no automatic restart of uncertain work.
+- [x] Get `npm run native:check` fully green from the release source.
+- [x] Run the optional Git Bash test on an unrestricted host, or document its limit.
+
+Evidence and remaining qualification limits: [WS1 verification](VERIFICATION.md#ws1--native-team-fixture-and-ipc-responsiveness--2026-11-21).
 
 ### WS7: extension backend restart recovery (P0 for the editor, 10 items)
 

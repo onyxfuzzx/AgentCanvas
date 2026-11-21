@@ -547,20 +547,14 @@ impl Collaboration {
         if tasks.user_replayed(request_id, &action)? {
             return Ok(tasks.snapshot());
         }
+        let validation = Self::validation(&mut s)?;
+        drop(s);
+        self.validate_task_action(&validation, &action)?;
+        let mut s = self.state.lock().map_err(|_| "Collaboration unavailable")?;
+        if !Self::validation_current(&mut s, &validation)? {
+            return Err("Workspace, task board or agent changed during validation. Refresh before retrying.".into());
+        }
         if let crate::tasks::Action::Dispatch { id, .. } = &action {
-            let board = task_store(&mut s)?.snapshot().board;
-            if board
-                .orchestration
-                .as_ref()
-                .is_some_and(|r| r.tasks.contains(id))
-            {
-                let t = board
-                    .tasks
-                    .iter()
-                    .find(|t| &t.id == id)
-                    .ok_or("Task unavailable")?;
-                self.team_available(&s, t)?;
-            }
             if task_store(&mut s)?
                 .snapshot()
                 .board
@@ -571,9 +565,6 @@ impl Collaboration {
                 return Err("Use Team run dispatch so review captures the current commit".into());
             }
         }
-        if let crate::tasks::Action::Accept { id } = &action {
-            self.validate_team_accept(&mut s, id)?;
-        }
         let assigned = match &action {
             crate::tasks::Action::Create { assigned_to, .. }
             | crate::tasks::Action::Edit { assigned_to, .. } => Some(assigned_to),
@@ -581,12 +572,6 @@ impl Collaboration {
         };
         if assigned.is_some_and(|id| !s.nodes.get(id).is_some_and(|n| n.kind == "terminal")) {
             return Err("Choose an existing terminal or agent".into());
-        }
-        if let crate::tasks::Action::Checkout {
-            area_id: Some(id), ..
-        } = &action
-        {
-            crate::areas::checkout(&s.folder, id)?;
         }
         if let crate::tasks::Action::Dispatch { id, .. }
         | crate::tasks::Action::Resolve { id, .. } = &action
@@ -599,17 +584,6 @@ impl Collaboration {
                 .find(|t| &t.id == id)
                 .ok_or("Task unavailable")?;
             if matches!(&action, crate::tasks::Action::Dispatch { .. }) {
-                if let Some(area) = &task.checkout_ref {
-                    let directory = crate::areas::checkout(&s.folder, area)?;
-                    if std::fs::canonicalize(self.pty.launched_directory(&task.assigned_to)?)
-                        .map_err(|e| e.to_string())?
-                        != std::fs::canonicalize(directory).map_err(|e| e.to_string())?
-                    {
-                        return Err(
-                            "Assigned terminal must launch in the task area's checkout".into()
-                        );
-                    }
-                }
                 if !s.live.contains_key(&task.assigned_to)
                     || !self.pty.has_session(&task.assigned_to)?
                 {

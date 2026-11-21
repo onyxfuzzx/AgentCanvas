@@ -29,7 +29,7 @@
   <sub>An illustrated workflow, from a clear brief to your next decision. <a href="docs/assets/readme/workflow.png">View the still image</a>.</sub>
 </p>
 
-> **Development status:** M0–M11 are implemented. Current desktop and editor packages target **Windows x64**; Linux and macOS are planned. The mixed-team native fixture and deeper release qualification remain open. See [project status](docs/PROJECT-STATUS.md) and [executed verification](docs/VERIFICATION.md).
+> **Development status:** M0–M11 are implemented. Current desktop and editor packages target **Windows x64**; Linux and macOS are planned. The mixed-team native fixture is fixed and native checks pass; extension backend restart recovery and deeper release qualification remain open. See [project status](docs/PROJECT-STATUS.md) and [executed verification](docs/VERIFICATION.md).
 
 ## Features
 

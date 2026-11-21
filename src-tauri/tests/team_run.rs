@@ -21,6 +21,7 @@ use std::{
     time::{Duration, Instant},
 };
 fn helper(action: Value) -> Value {
+    let started = Instant::now();
     let mut child = Command::new(env!("CARGO_BIN_EXE_agentcanvas-peer"))
         .args(["task", &orchestrator::uuid().unwrap(), "--stdin"])
         .stdin(Stdio::piped())
@@ -37,12 +38,17 @@ fn helper(action: Value) -> Value {
     let output = child.wait_with_output().unwrap();
     assert!(
         output.status.success(),
-        "Fixture helper exited unsuccessfully"
+        "Fixture helper action {} failed after {:?}: stdout={} stderr={}",
+        action["type"],
+        started.elapsed(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
     let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(
         reply["ok"], true,
-        "Cooperative helper refused fixture action"
+        "Cooperative helper refused fixture action {}: {reply}",
+        action["type"]
     );
     reply["result"].clone()
 }
@@ -112,6 +118,12 @@ fn wait_review(service: &Collaboration, manager: &PtyManager, nodes: &[String], 
                 .iter()
                 .map(|b| b.as_u64().unwrap() as u8)
                 .collect();
+            if !bytes.is_empty() {
+                eprintln!(
+                    "worker {id}: {}",
+                    String::from_utf8_lossy(&bytes).escape_debug()
+                );
+            }
             for _ in 0..String::from_utf8_lossy(&bytes).matches("\x1b[6n").count() {
                 manager.write(id, b"\x1b[1;1R".to_vec()).unwrap();
             }
@@ -124,7 +136,11 @@ fn wait_review(service: &Collaboration, manager: &PtyManager, nodes: &[String], 
         {
             return;
         }
-        assert!(Instant::now() < deadline, "Review fixture did not finish");
+        assert!(
+            Instant::now() < deadline,
+            "Review fixture did not finish: {}",
+            serde_json::to_string(&service.team_snapshot("fixture").unwrap()).unwrap()
+        );
         thread::sleep(Duration::from_millis(100));
     }
 }
@@ -293,6 +309,9 @@ fn main() {
                 .map(|b| b.as_u64().unwrap() as u8)
                 .collect();
             let text = String::from_utf8_lossy(&bytes);
+            if !bytes.is_empty() {
+                eprintln!("worker {id}: {}", text.escape_debug());
+            }
             let queries = text.matches("\x1b[6n").count();
             cursor[i] += queries;
             for _ in 0..queries {
@@ -329,7 +348,8 @@ fn main() {
         }
         assert!(
             Instant::now() < deadline,
-            "Mixed adapter run did not complete"
+            "Mixed adapter run did not complete: {}",
+            serde_json::to_string(&service.team_snapshot("fixture").unwrap()).unwrap()
         );
         thread::sleep(Duration::from_millis(100));
     }

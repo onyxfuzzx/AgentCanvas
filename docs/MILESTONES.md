@@ -1,6 +1,6 @@
 # AgentCanvas roadmap through M28
 
-Updated: 2026-11-19. Current source baseline: commit `11a67fb`. The original M9–M12 proposal was written against `8880ada` (M8) on 2026-11-14.
+Updated: 2026-11-21. Roadmap baseline: commit `11a67fb`; WS1 verification now includes the subsequent IPC responsiveness fix. The original M9–M12 proposal was written against `8880ada` (M8) on 2026-11-14.
 
 The user authorized planning through M28, including Linux and macOS, on 2026-11-19. M0–M11 are implemented; M12–M28 are planned and unimplemented. This request expands the product roadmap, not the current implementation authorization beyond M11. The original M9–M12 proposal and its acceptance requirements are retained below. [PROJECT-STATUS.md](PROJECT-STATUS.md) tracks release blockers and milestone status; [VERIFICATION.md](VERIFICATION.md) records executed evidence. There are no delivery-date commitments until platform prototypes, dependencies and team capacity are measured.
 
@@ -20,23 +20,23 @@ Reference material checked on 2026-11-13:
 
 ## What exists today
 
-| Milestone | Implemented modules                                                               | Acceptance status                                                                         |
-| --------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| M0        | Native app foundation, product configuration and desktop shell                    | Implemented; historical platform limits remain                                            |
-| M1        | Canvas geometry, navigation, selection, resizing, minimap and layout history      | Implemented; some gesture/DPI checks remain                                               |
-| M2        | ConPTY terminals, xterm sessions, bounded output and Windows process ownership    | Implemented; WSL cleanup and full UI load need verification                               |
-| M3        | Named workspaces, atomic autosave, backups, validation and restoration            | Implemented; destructive-environment/recovery UI checks remain                            |
-| M4        | File-backed Markdown notes and SVG whiteboard                                     | Implemented; large-canvas and some conflict/DPI checks remain                             |
-| M5        | Peer links, approval policies, helper CLI, shared notes and session logs          | Implemented; broader shell, approval UI and isolation checks remain                       |
-| M6        | Embedded browser pages, navigation, clipping and restricted app IPC               | Implemented; basic smoke confirmed, deeper native UI checks remain                        |
-| M7        | Local activity summaries, themes, keyboard controls and Windows packages          | Implemented; basic smoke confirmed, installation/accessibility/load acceptance remains    |
-| M8        | Codex/Claude presets, reusable roles, executable detection and explicit launches  | Implemented; basic CLI startup confirmed, authenticated workflow/recovery checks remain   |
-| M9        | Durable tasks, cooperative inbox protocol and restart reconciliation              | Implemented; authenticated provider and recovery acceptance remains                       |
-| M10       | Managed Git areas, commit-bound review evidence and controlled integration        | Implemented; deeper failure and distribution acceptance remains                           |
-| M11       | Bounded team planning, dispatch, independent review, checks and emergency stop    | Implemented; mixed-team fixture is failing on the latest recorded native run              |
-| Extension | Windows editor host, project selection, guided setup and preserved-draft recovery | Implemented through VSIX v0.1.3; backend restart recovery and editor qualification remain |
+| Milestone | Implemented modules                                                               | Acceptance status                                                                          |
+| --------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| M0        | Native app foundation, product configuration and desktop shell                    | Implemented; historical platform limits remain                                             |
+| M1        | Canvas geometry, navigation, selection, resizing, minimap and layout history      | Implemented; some gesture/DPI checks remain                                                |
+| M2        | ConPTY terminals, xterm sessions, bounded output and Windows process ownership    | Implemented; WSL cleanup and full UI load need verification                                |
+| M3        | Named workspaces, atomic autosave, backups, validation and restoration            | Implemented; destructive-environment/recovery UI checks remain                             |
+| M4        | File-backed Markdown notes and SVG whiteboard                                     | Implemented; large-canvas and some conflict/DPI checks remain                              |
+| M5        | Peer links, approval policies, helper CLI, shared notes and session logs          | Implemented; broader shell, approval UI and isolation checks remain                        |
+| M6        | Embedded browser pages, navigation, clipping and restricted app IPC               | Implemented; basic smoke confirmed, deeper native UI checks remain                         |
+| M7        | Local activity summaries, themes, keyboard controls and Windows packages          | Implemented; basic smoke confirmed, installation/accessibility/load acceptance remains     |
+| M8        | Codex/Claude presets, reusable roles, executable detection and explicit launches  | Implemented; basic CLI startup confirmed, authenticated workflow/recovery checks remain    |
+| M9        | Durable tasks, cooperative inbox protocol and restart reconciliation              | Implemented; authenticated provider and recovery acceptance remains                        |
+| M10       | Managed Git areas, commit-bound review evidence and controlled integration        | Implemented; deeper failure and distribution acceptance remains                            |
+| M11       | Bounded team planning, dispatch, independent review, checks and emergency stop    | Implemented; mixed-team fixture fixed and native suite green; deeper qualification remains |
+| Extension | Windows editor host, project selection, guided setup and preserved-draft recovery | Implemented through VSIX v0.1.3; backend restart recovery and editor qualification remain  |
 
-The latest recorded verification (2026-11-18) reports a passing `npm run check` with 91 frontend and 25 extension tests. Rust formatting, Clippy, 66 library tests and the other native integrations passed, but the mixed-provider `team_run` fixture missed its completion/review deadlines, so the full native suite is not green. VSIX v0.1.3 was built and checked; the final standalone distribution still needs rebuilding and qualification. These are recorded results, not checks rerun for this documentation update. See [VERIFICATION.md](VERIFICATION.md) for exact evidence and limitations.
+The latest recorded verification (2026-11-21) reports passing `npm run check` with 91 frontend and 25 extension tests, and a passing `npm run native:check` with Rust formatting, Clippy, 67 library tests and all enabled native integrations. The mixed-provider `team_run` fixture passes after moving Git validation outside the collaboration lock and refusing stale validation results; no deadlines were increased. The optional Git Bash test also passed separately outside the sandbox. The previously built VSIX v0.1.3 and standalone distribution still need rebuilding and qualification for this fix. See [VERIFICATION.md](VERIFICATION.md) for exact evidence and limitations.
 
 M5 peer sends still type into another terminal. Delivery does not prove that an agent accepted, understood or completed a task; M9 adds a separate cooperative inbox and structured task protocol. Activity labels remain heuristics. Desktop browser nodes display pages and editor browser nodes open the default browser; neither is an agent browser-automation API. Roles and launch presets alone do not provide M11's bounded scheduler.
 
@@ -147,7 +147,7 @@ Status: planned and unimplemented; implementation requires a separate request. T
 
 ## Delivery strategy and platform targets
 
-First resolve WS1's native team-fixture failure and WS7's backend recovery gap. Complete M12's local workflow contracts and the relevant Windows acceptance work, then port the underlying runtime before adding more automation. M14 and M15 can be developed independently after M13, but both need their own real-machine acceptance. M17 is a usable beta checkpoint; users do not have to wait until M28 to get a qualified three-platform core.
+WS1's native team-fixture failure is resolved; WS7's backend recovery gap is next. Complete M12's local workflow contracts and the relevant Windows acceptance work, then port the underlying runtime before adding more automation. M14 and M15 can be developed independently after M13, but both need their own real-machine acceptance. M17 is a usable beta checkpoint; users do not have to wait until M28 to get a qualified three-platform core.
 
 | Platform | Initial target to qualify                                                                  | Distribution plan                                                              | Acceptance condition                                                                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
