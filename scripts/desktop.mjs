@@ -27,14 +27,9 @@ const debug = process.argv.includes('--debug');
 const profile = debug ? 'debug' : 'release';
 const helpers = ['pty-host.exe', 'agentcanvas-peer.exe'];
 const root = fileURLToPath(new URL('../', import.meta.url));
-const nativeTarget = resolve(
-  process.env.CARGO_TARGET_DIR || resolve(root, 'src-tauri/target'),
-  profile,
-);
+// Tauri already packages additional Cargo binaries beside the main executable.
+// Mapping helpers again as resources would create duplicate MSI components.
 const resources = {
-  ...Object.fromEntries(
-    helpers.map((file) => [resolve(nativeTarget, file), file]),
-  ),
   [resolve(root, 'LICENSE')]: 'LICENSE.txt',
   [resolve(root, 'THIRD_PARTY.md')]: 'THIRD_PARTY.md',
   ...Object.fromEntries(
@@ -46,7 +41,8 @@ const resources = {
 };
 const config = {
   productName: product.name,
-  ...(process.argv[2] === 'build' && !process.argv.includes('--no-bundle')
+  ...(['build', 'bundle'].includes(process.argv[2]) &&
+  !process.argv.includes('--no-bundle')
     ? { bundle: { resources } }
     : {}),
   app: {
@@ -60,23 +56,26 @@ writeFileSync(
   new URL('../src-tauri/tauri.generated.json', import.meta.url),
   JSON.stringify(config),
 );
-const helper = spawnSync(
-  'cargo',
-  [
-    'build',
-    '--locked',
-    '--manifest-path',
-    'src-tauri/Cargo.toml',
-    '--bin',
-    'pty-host',
-    '--bin',
-    'agentcanvas-peer',
-    ...(process.argv[2] === 'build' && !process.argv.includes('--debug')
-      ? ['--release']
-      : []),
-  ],
-  { stdio: 'inherit', shell: false },
-);
+const helper =
+  process.argv[2] === 'bundle'
+    ? { status: 0 }
+    : spawnSync(
+        'cargo',
+        [
+          'build',
+          '--locked',
+          '--manifest-path',
+          'src-tauri/Cargo.toml',
+          '--bin',
+          'pty-host',
+          '--bin',
+          'agentcanvas-peer',
+          ...(process.argv[2] === 'build' && !process.argv.includes('--debug')
+            ? ['--release']
+            : []),
+        ],
+        { stdio: 'inherit', shell: false },
+      );
 if (helper.status !== 0) {
   console.error(
     helper.error?.message || 'Could not build the PTY host. See README.md.',
@@ -106,7 +105,7 @@ if (result.error)
     'Rust and cargo-tauri are required. See README.md.',
     result.error.message,
   );
-if (result.status === 0 && process.argv[2] === 'build') {
+if (result.status === 0 && ['build', 'bundle'].includes(process.argv[2])) {
   const target = pathToFileURL(
     resolve(
       process.env.CARGO_TARGET_DIR ||
